@@ -1,1 +1,11 @@
 .env
+
+# Model artifacts
+models/
+
+# Qdrant snapshots
+qdrant/snapshots/
+
+# Python cache
+__pycache__/
+*.pyc
