@@ -1,3 +1,4 @@
 {
-    "codium.codeCompletion.enable": false
+    "codium.codeCompletion.enable": false,
+    "makefile.configureOnOpen": false
 }
