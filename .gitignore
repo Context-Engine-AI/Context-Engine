@@ -9,3 +9,4 @@ qdrant/snapshots/
 # Python cache
 __pycache__/
 *.pyc
+/.selftest_repo
