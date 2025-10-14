@@ -10,3 +10,7 @@ qdrant/snapshots/
 __pycache__/
 *.pyc
 /.selftest_repo
+.vscode/settings.json
+.kiro/settings/mcp.json
+.vscode/settings.json
+.vscode/settings.json
