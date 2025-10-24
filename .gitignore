@@ -17,3 +17,4 @@ __pycache__/
 paper.md
 /semantic-search
 /codebase-index-cli
+/.codebase
