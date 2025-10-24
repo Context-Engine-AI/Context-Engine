@@ -15,3 +15,5 @@ __pycache__/
 .vscode/settings.json
 .vscode/settings.json
 paper.md
+/semantic-search
+/codebase-index-cli
