@@ -18,3 +18,7 @@ paper.md
 /semantic-search
 /codebase-index-cli
 /.codebase
+scripts/.codebase/cache.json
+scripts/.codebase/state.json
+tests/.codebase/cache.json
+tests/.codebase/state.json
