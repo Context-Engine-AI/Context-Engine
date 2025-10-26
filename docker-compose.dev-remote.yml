@@ -1,0 +1,338 @@
+# Development Docker Compose for Remote Upload System Testing
+# This file simulates the Kubernetes environment with shared volumes (CephFS RWX)
+# for local testing of the complete remote upload workflow
+
+version: '3.8'
+
+services:
+  # Qdrant vector database - same as base compose
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: qdrant-db-dev-remote
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_storage_dev_remote:/qdrant/storage
+    networks:
+      - dev-remote-network
+
+  # MCP search service - same as base compose
+  mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile.mcp
+    container_name: mcp-search-dev-remote
+    depends_on:
+      - qdrant
+    env_file:
+      - .env
+    environment:
+      - FASTMCP_HOST=${FASTMCP_HOST}
+      - FASTMCP_PORT=${FASTMCP_PORT}
+      - QDRANT_URL=${QDRANT_URL}
+      - COLLECTION_NAME=${COLLECTION_NAME}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL}
+      - EMBEDDING_PROVIDER=${EMBEDDING_PROVIDER}
+      - TOOL_STORE_DESCRIPTION=${TOOL_STORE_DESCRIPTION}
+      - TOOL_FIND_DESCRIPTION=${TOOL_FIND_DESCRIPTION}
+      - FASTMCP_HEALTH_PORT=18000
+    ports:
+      - "18000:18000"
+      - "8000:8000"
+    volumes:
+      - shared_workspace:/work:ro
+    networks:
+      - dev-remote-network
+
+  # MCP indexer service - same as base compose
+  mcp_indexer:
+    build:
+      context: .
+      dockerfile: Dockerfile.mcp-indexer
+    container_name: mcp-indexer-dev-remote
+    depends_on:
+      - qdrant
+    env_file:
+      - .env
+    environment:
+      - FASTMCP_HEALTH_PORT=18001
+      - FASTMCP_HOST=${FASTMCP_HOST}
+      - FASTMCP_INDEXER_PORT=${FASTMCP_INDEXER_PORT}
+      - QDRANT_URL=${QDRANT_URL}
+    ports:
+      - "${FASTMCP_INDEXER_PORT:-8001}:8001"
+      - "18001:18001"
+    volumes:
+      - shared_workspace:/work
+      - shared_codebase:/work/.codebase
+    networks:
+      - dev-remote-network
+
+  # MCP HTTP search service - same as base compose
+  mcp_http:
+    build:
+      context: .
+      dockerfile: Dockerfile.mcp
+    container_name: mcp-search-http-dev-remote
+    depends_on:
+      - qdrant
+    env_file:
+      - .env
+    environment:
+      - FASTMCP_HOST=${FASTMCP_HOST}
+      - FASTMCP_PORT=8000
+      - FASTMCP_TRANSPORT=${FASTMCP_HTTP_TRANSPORT}
+      - QDRANT_URL=${QDRANT_URL}
+      - COLLECTION_NAME=${COLLECTION_NAME}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL}
+      - EMBEDDING_PROVIDER=${EMBEDDING_PROVIDER}
+      - TOOL_STORE_DESCRIPTION=${TOOL_STORE_DESCRIPTION}
+      - TOOL_FIND_DESCRIPTION=${TOOL_FIND_DESCRIPTION}
+      - FASTMCP_HEALTH_PORT=18000
+    ports:
+      - "${FASTMCP_HTTP_HEALTH_PORT:-18002}:18000"
+      - "${FASTMCP_HTTP_PORT:-8002}:8000"
+    volumes:
+      - shared_workspace:/work:ro
+    networks:
+      - dev-remote-network
+
+  # MCP HTTP indexer service - same as base compose
+  mcp_indexer_http:
+    build:
+      context: .
+      dockerfile: Dockerfile.mcp-indexer
+    container_name: mcp-indexer-http-dev-remote
+    depends_on:
+      - qdrant
+    env_file:
+      - .env
+    environment:
+      - FASTMCP_HOST=${FASTMCP_HOST}
+      - FASTMCP_INDEXER_PORT=8001
+      - FASTMCP_TRANSPORT=${FASTMCP_HTTP_TRANSPORT}
+      - QDRANT_URL=${QDRANT_URL}
+      - FASTMCP_HEALTH_PORT=18001
+    ports:
+      - "${FASTMCP_INDEXER_HTTP_PORT:-8003}:8001"
+      - "${FASTMCP_INDEXER_HTTP_HEALTH_PORT:-18003}:18001"
+    volumes:
+      - shared_workspace:/work
+      - shared_codebase:/work/.codebase
+    networks:
+      - dev-remote-network
+
+  # Llama.cpp decoder service - same as base compose
+  llamacpp:
+    image: ghcr.io/ggerganov/llama.cpp:server
+    container_name: llama-decoder-dev-remote
+    environment:
+      - LLAMA_ARG_MODEL=/models/model.gguf
+      - LLAMA_ARG_CTX_SIZE=8192
+      - LLAMA_ARG_HOST=0.0.0.0
+      - LLAMA_ARG_PORT=8080
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./models:/models:ro
+    command: ["--model", "/models/model.gguf", "--host", "0.0.0.0", "--port", "8080", "--no-warmup"]
+    networks:
+      - dev-remote-network
+
+  # Indexer service - modified for shared volumes
+  indexer:
+    build:
+      context: .
+      dockerfile: Dockerfile.indexer
+    container_name: indexer-dev-remote
+    depends_on:
+      - qdrant
+    env_file:
+      - .env
+    environment:
+      - QDRANT_URL=${QDRANT_URL}
+      - COLLECTION_NAME=${COLLECTION_NAME}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL}
+    working_dir: /work
+    volumes:
+      - shared_workspace:/work:ro
+      - shared_codebase:/work/.codebase:rw
+    entrypoint: ["python", "/app/scripts/ingest_code.py"]
+    networks:
+      - dev-remote-network
+
+  # Watcher service - modified for shared volumes
+  watcher:
+    build:
+      context: .
+      dockerfile: Dockerfile.indexer
+    container_name: watcher-dev-remote
+    depends_on:
+      - qdrant
+    env_file:
+      - .env
+    environment:
+      - QDRANT_URL=${QDRANT_URL}
+      - COLLECTION_NAME=${COLLECTION_NAME}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL}
+      - WATCH_ROOT=/work
+      - QDRANT_TIMEOUT=60
+      - MAX_MICRO_CHUNKS_PER_FILE=200
+      - INDEX_UPSERT_BATCH=128
+      - INDEX_UPSERT_RETRIES=5
+      - WATCH_DEBOUNCE_SECS=1.5
+    working_dir: /work
+    volumes:
+      - shared_workspace:/work:ro
+      - shared_codebase:/work/.codebase:rw
+    entrypoint: ["python", "/app/scripts/watch_index.py"]
+    networks:
+      - dev-remote-network
+
+  # Init payload service - modified for shared volumes
+  init_payload:
+    build:
+      context: .
+      dockerfile: Dockerfile.indexer
+    container_name: init-payload-dev-remote
+    depends_on:
+      - qdrant
+    env_file:
+      - .env
+    environment:
+      - QDRANT_URL=${QDRANT_URL}
+      - COLLECTION_NAME=${COLLECTION_NAME}
+    working_dir: /work
+    volumes:
+      - shared_workspace:/work:ro
+      - shared_codebase:/work/.codebase:rw
+    entrypoint: ["python", "/app/scripts/create_indexes.py"]
+    networks:
+      - dev-remote-network
+
+  # NEW: Upload Service for Remote Upload System
+  upload_service:
+    build:
+      context: .
+      dockerfile: Dockerfile.upload-service
+    container_name: upload-service-dev-remote
+    depends_on:
+      - qdrant
+    env_file:
+      - .env
+    environment:
+      # Upload service configuration
+      - UPLOAD_SERVICE_HOST=0.0.0.0
+      - UPLOAD_SERVICE_PORT=8002
+      - QDRANT_URL=${QDRANT_URL}
+      - WORK_DIR=/work
+      - MAX_BUNDLE_SIZE_MB=100
+      - UPLOAD_TIMEOUT_SECS=300
+      
+      # Indexing configuration
+      - COLLECTION_NAME=${COLLECTION_NAME}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL}
+      - EMBEDDING_PROVIDER=${EMBEDDING_PROVIDER}
+      - USE_TREE_SITTER=${USE_TREE_SITTER}
+      - INDEX_SEMANTIC_CHUNKS=${INDEX_SEMANTIC_CHUNKS}
+      - INDEX_MICRO_CHUNKS=${INDEX_MICRO_CHUNKS}
+      
+      # Remote upload mode configuration
+      - REMOTE_UPLOAD_ENABLED=1
+      - REMOTE_UPLOAD_MODE=development
+      - REMOTE_UPLOAD_DEBUG=1
+      
+      # Qdrant configuration
+      - QDRANT_TIMEOUT=${QDRANT_TIMEOUT}
+      - MAX_MICRO_CHUNKS_PER_FILE=${MAX_MICRO_CHUNKS_PER_FILE}
+      - INDEX_UPSERT_BATCH=${INDEX_UPSERT_BATCH}
+      - INDEX_UPSERT_RETRIES=${INDEX_UPSERT_RETRIES}
+    ports:
+      - "8004:8002"  # Map to different host port to avoid conflicts
+      - "18004:18000"  # Health check port
+    volumes:
+      - shared_workspace:/work
+      - shared_codebase:/work/.codebase
+      - upload_temp:/tmp/uploads
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - dev-remote-network
+
+  # NEW: Remote Upload Client for Testing
+  remote_upload_client:
+    build:
+      context: .
+      dockerfile: Dockerfile.indexer  # Reuse indexer image
+    container_name: remote-upload-client-dev-remote
+    depends_on:
+      - upload_service
+    env_file:
+      - .env
+    environment:
+      # Remote upload client configuration
+      - REMOTE_UPLOAD_ENABLED=1
+      - REMOTE_UPLOAD_ENDPOINT=http://upload_service:8002
+      - REMOTE_UPLOAD_MAX_RETRIES=3
+      - REMOTE_UPLOAD_TIMEOUT=30
+      - REMOTE_UPLOAD_DEBUG=1
+      
+      # Watcher configuration for remote mode
+      - WATCH_ROOT=/work
+      - QDRANT_URL=${QDRANT_URL}
+      - COLLECTION_NAME=${COLLECTION_NAME}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL}
+      - QDRANT_TIMEOUT=60
+      - MAX_MICRO_CHUNKS_PER_FILE=200
+      - INDEX_UPSERT_BATCH=128
+      - INDEX_UPSERT_RETRIES=5
+      - WATCH_DEBOUNCE_SECS=1.5
+    working_dir: /work
+    volumes:
+      - shared_workspace:/work:ro
+      - shared_codebase:/work/.codebase:rw
+    entrypoint: ["python", "/app/scripts/remote_upload_client.py"]
+    profiles:
+      - client  # Only start when explicitly requested
+    networks:
+      - dev-remote-network
+
+# Shared volumes to simulate CephFS RWX PVC behavior
+volumes:
+  # Main workspace volume - simulates CephFS RWX for repository storage
+  shared_workspace:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${HOST_INDEX_PATH:-./dev-workspace}
+  
+  # Codebase metadata volume - simulates CephFS RWX for indexing metadata
+  shared_codebase:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${HOST_INDEX_PATH:-./dev-workspace}/.codebase
+  
+  # Temporary upload storage
+  upload_temp:
+    driver: local
+  
+  # Qdrant storage - separate from base compose to avoid conflicts
+  qdrant_storage_dev_remote:
+    driver: local
+
+# Custom network for service discovery
+networks:
+  dev-remote-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
