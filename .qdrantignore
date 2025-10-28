@@ -1,0 +1,3 @@
+# Ignore watcher cache/state artifacts
+/.codebase
+/.cache
