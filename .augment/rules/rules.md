@@ -160,3 +160,4 @@ type: "manual"
 \
   - Clear handoffs between different specialist roles
 - Provide actionable examples and mental models for each SPARC methodology role
+- NEVER MONKEY PATCH THINGS. GIVE REAL VALUABLE CODE CONTRIBUTIONS
