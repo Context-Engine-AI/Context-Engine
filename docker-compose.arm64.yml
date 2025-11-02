@@ -1,0 +1,5 @@
+services:
+  qdrant:
+    platform: linux/arm64/v8
+  llamacpp:
+    platform: linux/arm64/v8
