@@ -27,3 +27,4 @@ tests/.codebase/state.json
 .claude/settings.local.json
 .mcp.json
 CLAUDE.md
+.qodo/.cursor/rules
