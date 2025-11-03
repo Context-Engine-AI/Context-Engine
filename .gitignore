@@ -28,3 +28,4 @@ tests/.codebase/state.json
 .mcp.json
 CLAUDE.md
 .qodo/.cursor/rules
+/.augment
