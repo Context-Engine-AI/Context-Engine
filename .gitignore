@@ -26,3 +26,4 @@ tests/.codebase/state.json
 /tests/.codebase
 .claude/settings.local.json
 .mcp.json
+CLAUDE.md
