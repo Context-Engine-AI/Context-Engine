@@ -24,3 +24,5 @@ tests/.codebase/cache.json
 tests/.codebase/state.json
 /scripts/.codebase
 /tests/.codebase
+.claude/settings.local.json
+.mcp.json
