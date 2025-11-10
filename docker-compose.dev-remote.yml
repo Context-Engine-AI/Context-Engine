@@ -1,6 +1,7 @@
 # Development Docker Compose for Remote Upload System Testing
-# This file simulates the Kubernetes environment with shared volumes (CephFS RWX)
-# for local testing of the complete remote upload workflow
+# This file simulates Kubernetes environment with shared volumes that simulate the Kubernetes CephFS RWX PVC behavior.
+# Repos stored in /work/ (which is project root - avoiding docker volumes) and metadata are stored in /work/.codebase/repos (project root/.codebase)
+# Updated to use separate PVCs for workspace and codebase to eliminate circular dependencies
 
 version: '3.8'
 
@@ -23,6 +24,7 @@ services:
       context: .
       dockerfile: Dockerfile.mcp
     container_name: mcp-search-dev-remote
+    user: "1000:1000"
     depends_on:
       - qdrant
     env_file:
@@ -32,16 +34,23 @@ services:
       - FASTMCP_PORT=${FASTMCP_PORT}
       - QDRANT_URL=${QDRANT_URL}
       - COLLECTION_NAME=${COLLECTION_NAME}
+      - PATH_EMIT_MODE=container
+      - HF_HOME=/work/.cache/huggingface
+      - TRANSFORMERS_CACHE=/work/.cache/huggingface
+      - HUGGINGFACE_HUB_CACHE=/work/.cache/huggingface
       - EMBEDDING_MODEL=${EMBEDDING_MODEL}
       - EMBEDDING_PROVIDER=${EMBEDDING_PROVIDER}
       - TOOL_STORE_DESCRIPTION=${TOOL_STORE_DESCRIPTION}
       - TOOL_FIND_DESCRIPTION=${TOOL_FIND_DESCRIPTION}
       - FASTMCP_HEALTH_PORT=18000
+      - HF_HOME=/home/user/.cache
+      - TRANSFORMERS_CACHE=/home/user/.cache
     ports:
       - "18000:18000"
       - "8000:8000"
     volumes:
-      - shared_workspace:/work:ro
+      - workspace_pvc:/work:ro
+      - huggingface_cache:/home/user/.cache
     networks:
       - dev-remote-network
 
@@ -51,6 +60,12 @@ services:
       context: .
       dockerfile: Dockerfile.mcp-indexer
     container_name: mcp-indexer-dev-remote
+    user: "1000:1000"
+    # In K8s, scripts would be accessed directly at /app/scripts/ or via proper initContainer
+    # For Docker Compose dev-remote simulation, create symlink so /work/scripts/ works
+    # Use /tmp/huggingface for cache to avoid permission issues (universally writable)
+    # Set CORRECT environment variables for HuggingFace and FastEmbed
+    command: ["sh", "-c", "mkdir -p /tmp/huggingface/hub /tmp/huggingface/transformers /tmp/huggingface/fastembed && exec python /app/scripts/mcp_indexer_server.py"]
     depends_on:
       - qdrant
     env_file:
@@ -60,12 +75,26 @@ services:
       - FASTMCP_HOST=${FASTMCP_HOST}
       - FASTMCP_INDEXER_PORT=${FASTMCP_INDEXER_PORT}
       - QDRANT_URL=${QDRANT_URL}
+      - COLLECTION_NAME=${COLLECTION_NAME}
+      - PATH_EMIT_MODE=container
+      - HF_HOME=/tmp/huggingface
+      - HF_HUB_CACHE=/tmp/huggingface/hub
+      - TRANSFORMERS_CACHE=/tmp/huggingface/transformers
+      - FASTEMBED_CACHE_PATH=/tmp/huggingface/fastembed
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL}
+      - EMBEDDING_PROVIDER=${EMBEDDING_PROVIDER}
+      - QDRANT_TIMEOUT=${QDRANT_TIMEOUT:-60}
+      - INDEX_SEMANTIC_CHUNKS=${INDEX_SEMANTIC_CHUNKS:-0}
+      - INDEX_MICRO_CHUNKS=${INDEX_MICRO_CHUNKS:-0}
+      - INDEX_UPSERT_BATCH=${INDEX_UPSERT_BATCH:-512}
+      - INDEX_UPSERT_RETRIES=${INDEX_UPSERT_RETRIES:-5}
+      - MAX_MICRO_CHUNKS_PER_FILE=${MAX_MICRO_CHUNKS_PER_FILE:-200}
     ports:
       - "${FASTMCP_INDEXER_PORT:-8001}:8001"
       - "18001:18001"
     volumes:
-      - shared_workspace:/work
-      - shared_codebase:/work/.codebase
+      - workspace_pvc:/work:rw
+      - codebase_pvc:/work/.codebase:rw
     networks:
       - dev-remote-network
 
@@ -75,6 +104,7 @@ services:
       context: .
       dockerfile: Dockerfile.mcp
     container_name: mcp-search-http-dev-remote
+    user: "1000:1000"
     depends_on:
       - qdrant
     env_file:
@@ -85,16 +115,23 @@ services:
       - FASTMCP_TRANSPORT=${FASTMCP_HTTP_TRANSPORT}
       - QDRANT_URL=${QDRANT_URL}
       - COLLECTION_NAME=${COLLECTION_NAME}
+      - PATH_EMIT_MODE=container
+      - HF_HOME=/work/.cache/huggingface
+      - TRANSFORMERS_CACHE=/work/.cache/huggingface
+      - HUGGINGFACE_HUB_CACHE=/work/.cache/huggingface
       - EMBEDDING_MODEL=${EMBEDDING_MODEL}
       - EMBEDDING_PROVIDER=${EMBEDDING_PROVIDER}
       - TOOL_STORE_DESCRIPTION=${TOOL_STORE_DESCRIPTION}
       - TOOL_FIND_DESCRIPTION=${TOOL_FIND_DESCRIPTION}
       - FASTMCP_HEALTH_PORT=18000
+      - HF_HOME=/home/user/.cache
+      - TRANSFORMERS_CACHE=/home/user/.cache
     ports:
       - "${FASTMCP_HTTP_HEALTH_PORT:-18002}:18000"
       - "${FASTMCP_HTTP_PORT:-8002}:8000"
     volumes:
-      - shared_workspace:/work:ro
+      - workspace_pvc:/work:ro
+      - huggingface_cache:/home/user/.cache
     networks:
       - dev-remote-network
 
@@ -104,6 +141,12 @@ services:
       context: .
       dockerfile: Dockerfile.mcp-indexer
     container_name: mcp-indexer-http-dev-remote
+    user: "1000:1000"
+    # In K8s, scripts would be accessed directly at /app/scripts/ or via proper initContainer
+    # For Docker Compose dev-remote simulation, create symlink so /work/scripts/ works
+    # Use /tmp/huggingface for cache to avoid permission issues (universally writable)
+    # Set CORRECT environment variables for HuggingFace and FastEmbed
+    command: ["sh", "-c", "mkdir -p /tmp/huggingface/hub /tmp/huggingface/transformers /tmp/huggingface/fastembed && exec python /app/scripts/mcp_indexer_server.py"]
     depends_on:
       - qdrant
     env_file:
@@ -114,12 +157,26 @@ services:
       - FASTMCP_TRANSPORT=${FASTMCP_HTTP_TRANSPORT}
       - QDRANT_URL=${QDRANT_URL}
       - FASTMCP_HEALTH_PORT=18001
+      - COLLECTION_NAME=${COLLECTION_NAME}
+      - PATH_EMIT_MODE=container
+      - HF_HOME=/tmp/huggingface
+      - HF_HUB_CACHE=/tmp/huggingface/hub
+      - TRANSFORMERS_CACHE=/tmp/huggingface/transformers
+      - FASTEMBED_CACHE_PATH=/tmp/huggingface/fastembed
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL}
+      - EMBEDDING_PROVIDER=${EMBEDDING_PROVIDER}
+      - QDRANT_TIMEOUT=${QDRANT_TIMEOUT:-60}
+      - INDEX_SEMANTIC_CHUNKS=${INDEX_SEMANTIC_CHUNKS:-0}
+      - INDEX_MICRO_CHUNKS=${INDEX_MICRO_CHUNKS:-0}
+      - INDEX_UPSERT_BATCH=${INDEX_UPSERT_BATCH:-512}
+      - INDEX_UPSERT_RETRIES=${INDEX_UPSERT_RETRIES:-5}
+      - MAX_MICRO_CHUNKS_PER_FILE=${MAX_MICRO_CHUNKS_PER_FILE:-200}
     ports:
       - "${FASTMCP_INDEXER_HTTP_PORT:-8003}:8001"
       - "${FASTMCP_INDEXER_HTTP_HEALTH_PORT:-18003}:18001"
     volumes:
-      - shared_workspace:/work
-      - shared_codebase:/work/.codebase
+      - workspace_pvc:/work:rw
+      - codebase_pvc:/work/.codebase:rw
     networks:
       - dev-remote-network
 
@@ -140,7 +197,7 @@ services:
     networks:
       - dev-remote-network
 
-  # Indexer service - modified for shared volumes
+  # Indexer service - modified for PVC volumes
   indexer:
     build:
       context: .
@@ -153,21 +210,35 @@ services:
     environment:
       - QDRANT_URL=${QDRANT_URL}
       - COLLECTION_NAME=${COLLECTION_NAME}
+      - HF_HOME=/work/.cache/huggingface
+      - TRANSFORMERS_CACHE=/work/.cache/huggingface
+      - HUGGINGFACE_HUB_CACHE=/work/.cache/huggingface
       - EMBEDDING_MODEL=${EMBEDDING_MODEL}
-    working_dir: /work
+      - HF_HOME=/home/user/.cache
+      - HOST_INDEX_PATH=/work
+      - TRANSFORMERS_CACHE=/home/user/.cache
+      - QDRANT_TIMEOUT=${QDRANT_TIMEOUT:-60}
+      - INDEX_SEMANTIC_CHUNKS=${INDEX_SEMANTIC_CHUNKS:-0}
+      - INDEX_MICRO_CHUNKS=${INDEX_MICRO_CHUNKS:-0}
+      - INDEX_UPSERT_BATCH=${INDEX_UPSERT_BATCH:-512}
+      - INDEX_UPSERT_RETRIES=${INDEX_UPSERT_RETRIES:-5}
+      - MAX_MICRO_CHUNKS_PER_FILE=${MAX_MICRO_CHUNKS_PER_FILE:-200}
     volumes:
-      - shared_workspace:/work:ro
-      - shared_codebase:/work/.codebase:rw
-    entrypoint: ["python", "/app/scripts/ingest_code.py"]
+      - workspace_pvc:/work:rw
+      - codebase_pvc:/work/.codebase:rw
+      - huggingface_cache:/home/user/.cache
+    entrypoint: ["sh", "-c", "/app/scripts/wait-for-qdrant.sh && cd /app && python /app/scripts/ingest_code.py --root /work"]
+    restart: "no"  # Run once on startup, do not restart after completion
     networks:
       - dev-remote-network
 
-  # Watcher service - modified for shared volumes
+  # Watcher service - modified for PVC volumes
   watcher:
     build:
       context: .
       dockerfile: Dockerfile.indexer
     container_name: watcher-dev-remote
+    user: "1000:1000"
     depends_on:
       - qdrant
     env_file:
@@ -175,27 +246,36 @@ services:
     environment:
       - QDRANT_URL=${QDRANT_URL}
       - COLLECTION_NAME=${COLLECTION_NAME}
+      - HF_HOME=/tmp/huggingface
+      - HF_HUB_CACHE=/tmp/huggingface/hub
+      - TRANSFORMERS_CACHE=/tmp/huggingface/transformers
+      - FASTEMBED_CACHE_PATH=/tmp/huggingface/fastembed
       - EMBEDDING_MODEL=${EMBEDDING_MODEL}
-      - WATCH_ROOT=/work
-      - QDRANT_TIMEOUT=60
-      - MAX_MICRO_CHUNKS_PER_FILE=200
-      - INDEX_UPSERT_BATCH=128
-      - INDEX_UPSERT_RETRIES=5
-      - WATCH_DEBOUNCE_SECS=1.5
-    working_dir: /work
+      - EMBEDDING_PROVIDER=${EMBEDDING_PROVIDER}
+      - WATCH_ROOT=${WATCH_ROOT:-/work}
+      - HOST_INDEX_PATH=/work
+      - QDRANT_TIMEOUT=${QDRANT_TIMEOUT:-60}
+      - INDEX_SEMANTIC_CHUNKS=${INDEX_SEMANTIC_CHUNKS:-0}
+      - INDEX_MICRO_CHUNKS=${INDEX_MICRO_CHUNKS:-0}
+      - INDEX_UPSERT_BATCH=${INDEX_UPSERT_BATCH:-512}
+      - INDEX_UPSERT_RETRIES=${INDEX_UPSERT_RETRIES:-5}
+      - MAX_MICRO_CHUNKS_PER_FILE=${MAX_MICRO_CHUNKS_PER_FILE:-200}
+      - WATCH_DEBOUNCE_SECS=${WATCH_DEBOUNCE_SECS:-1.5}
+      - REMOTE_UPLOAD_ENABLED=${REMOTE_UPLOAD_ENABLED:-0}
     volumes:
-      - shared_workspace:/work:ro
-      - shared_codebase:/work/.codebase:rw
-    entrypoint: ["python", "/app/scripts/watch_index.py"]
+      - workspace_pvc:/work:rw
+      - codebase_pvc:/work/.codebase:rw
+    command: ["sh", "-c", "mkdir -p /tmp/huggingface/hub /tmp/huggingface/transformers /tmp/huggingface/fastembed && exec python /app/scripts/watch_index.py"]
     networks:
       - dev-remote-network
 
-  # Init payload service - modified for shared volumes
+  # Init payload service - modified for PVC volumes with complete bootstrap
   init_payload:
     build:
       context: .
       dockerfile: Dockerfile.indexer
     container_name: init-payload-dev-remote
+    user: "1000:1000"
     depends_on:
       - qdrant
     env_file:
@@ -203,11 +283,18 @@ services:
     environment:
       - QDRANT_URL=${QDRANT_URL}
       - COLLECTION_NAME=${COLLECTION_NAME}
-    working_dir: /work
+      - HF_HOME=/work/.cache/huggingface
+      - TRANSFORMERS_CACHE=/work/.cache/huggingface
+      - HUGGINGFACE_HUB_CACHE=/work/.cache/huggingface
+      - WORKDIR=/work
+      - TOKENIZER_URL=${TOKENIZER_URL:-https://huggingface.co/BAAI/bge-base-en-v1.5/resolve/main/tokenizer.json}
+      - TOKENIZER_PATH=${TOKENIZER_PATH:-/work/models/tokenizer.json}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL}
     volumes:
-      - shared_workspace:/work:ro
-      - shared_codebase:/work/.codebase:rw
-    entrypoint: ["python", "/app/scripts/create_indexes.py"]
+      - workspace_pvc:/work:rw
+      - codebase_pvc:/work/.codebase:rw
+    command: ["sh", "-c", "echo 'Starting initialization sequence...' && echo 'Waiting for Qdrant...' && sleep 30 && PYTHONPATH=/app python /app/scripts/create_indexes.py && echo 'Collections and metadata created' && sleep 15 && python /app/scripts/warm_all_collections.py && echo 'Search caches warmed for all collections' && python /app/scripts/health_check.py && echo 'Initialization completed successfully!'"]
+    restart: "no"  # Run once on startup
     networks:
       - dev-remote-network
 
@@ -217,6 +304,7 @@ services:
       context: .
       dockerfile: Dockerfile.upload-service
     container_name: upload-service-dev-remote
+    user: "1000:1000"
     depends_on:
       - qdrant
     env_file:
@@ -226,12 +314,15 @@ services:
       - UPLOAD_SERVICE_HOST=0.0.0.0
       - UPLOAD_SERVICE_PORT=8002
       - QDRANT_URL=${QDRANT_URL}
-      - WORK_DIR=/work
+      - WORKDIR=/work
       - MAX_BUNDLE_SIZE_MB=100
       - UPLOAD_TIMEOUT_SECS=300
       
       # Indexing configuration
       - COLLECTION_NAME=${COLLECTION_NAME}
+      - HF_HOME=/work/.cache/huggingface
+      - TRANSFORMERS_CACHE=/work/.cache/huggingface
+      - HUGGINGFACE_HUB_CACHE=/work/.cache/huggingface
       - EMBEDDING_MODEL=${EMBEDDING_MODEL}
       - EMBEDDING_PROVIDER=${EMBEDDING_PROVIDER}
       - USE_TREE_SITTER=${USE_TREE_SITTER}
@@ -252,8 +343,8 @@ services:
       - "8004:8002"  # Map to different host port to avoid conflicts
       - "18004:18000"  # Health check port
     volumes:
-      - shared_workspace:/work
-      - shared_codebase:/work/.codebase
+      - workspace_pvc:/work:rw
+      - codebase_pvc:/work/.codebase:rw
       - upload_temp:/tmp/uploads
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
@@ -265,48 +356,11 @@ services:
     networks:
       - dev-remote-network
 
-  # NEW: Remote Upload Client for Testing
-  remote_upload_client:
-    build:
-      context: .
-      dockerfile: Dockerfile.indexer  # Reuse indexer image
-    container_name: remote-upload-client-dev-remote
-    depends_on:
-      - upload_service
-    env_file:
-      - .env
-    environment:
-      # Remote upload client configuration
-      - REMOTE_UPLOAD_ENABLED=1
-      - REMOTE_UPLOAD_ENDPOINT=http://upload_service:8002
-      - REMOTE_UPLOAD_MAX_RETRIES=3
-      - REMOTE_UPLOAD_TIMEOUT=30
-      - REMOTE_UPLOAD_DEBUG=1
-      
-      # Watcher configuration for remote mode
-      - WATCH_ROOT=/work
-      - QDRANT_URL=${QDRANT_URL}
-      - COLLECTION_NAME=${COLLECTION_NAME}
-      - EMBEDDING_MODEL=${EMBEDDING_MODEL}
-      - QDRANT_TIMEOUT=60
-      - MAX_MICRO_CHUNKS_PER_FILE=200
-      - INDEX_UPSERT_BATCH=128
-      - INDEX_UPSERT_RETRIES=5
-      - WATCH_DEBOUNCE_SECS=1.5
-    working_dir: /work
-    volumes:
-      - shared_workspace:/work:ro
-      - shared_codebase:/work/.codebase:rw
-    entrypoint: ["python", "/app/scripts/remote_upload_client.py"]
-    profiles:
-      - client  # Only start when explicitly requested
-    networks:
-      - dev-remote-network
-
-# Shared volumes to simulate CephFS RWX PVC behavior
+  
+# PVCs to simulate CephFS RWX behavior (production-like)
 volumes:
   # Main workspace volume - simulates CephFS RWX for repository storage
-  shared_workspace:
+  workspace_pvc:
     driver: local
     driver_opts:
       type: none
@@ -314,15 +368,23 @@ volumes:
       device: ${HOST_INDEX_PATH:-./dev-workspace}
   
   # Codebase metadata volume - simulates CephFS RWX for indexing metadata
-  shared_codebase:
+  codebase_pvc:
     driver: local
     driver_opts:
       type: none
       o: bind
-      device: ${HOST_INDEX_PATH:-./dev-workspace}/.codebase
+      device: ./.codebase
   
   # Temporary upload storage
   upload_temp:
+    driver: local
+  
+  # HuggingFace cache for model downloads
+  huggingface_cache:
+    driver: local
+  
+  # Indexer cache for model downloads
+  indexer_cache:
     driver: local
   
   # Qdrant storage - separate from base compose to avoid conflicts
