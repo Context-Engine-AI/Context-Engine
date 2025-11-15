@@ -227,7 +227,7 @@ services:
       - workspace_pvc:/work:rw
       - codebase_pvc:/work/.codebase:rw
       - huggingface_cache:/home/user/.cache
-    entrypoint: ["sh", "-c", "/app/scripts/wait-for-qdrant.sh && cd /app && python /app/scripts/ingest_code.py --root /work"]
+    entrypoint: ["sh", "-c", "mkdir -p /tmp/logs && /app/scripts/wait-for-qdrant.sh && cd /app && python /app/scripts/ingest_code.py --root /work"]
     restart: "no"  # Run once on startup, do not restart after completion
     networks:
       - dev-remote-network
@@ -293,7 +293,11 @@ services:
     volumes:
       - workspace_pvc:/work:rw
       - codebase_pvc:/work/.codebase:rw
-    command: ["sh", "-c", "echo 'Starting initialization sequence...' && echo 'Waiting for Qdrant...' && sleep 30 && PYTHONPATH=/app python /app/scripts/create_indexes.py && echo 'Collections and metadata created' && sleep 15 && python /app/scripts/warm_all_collections.py && echo 'Search caches warmed for all collections' && python /app/scripts/health_check.py && echo 'Initialization completed successfully!'"]
+    command: [
+      "sh",
+      "-c",
+      "mkdir -p /tmp/logs && echo 'Starting initialization sequence...' && /app/scripts/wait-for-qdrant.sh && PYTHONPATH=/app python /app/scripts/create_indexes.py && echo 'Collections and metadata created' && python /app/scripts/warm_all_collections.py && echo 'Search caches warmed for all collections' && python /app/scripts/health_check.py && echo 'Initialization completed successfully!'"
+    ]
     restart: "no"  # Run once on startup
     networks:
       - dev-remote-network

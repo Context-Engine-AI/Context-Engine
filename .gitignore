@@ -22,3 +22,10 @@ scripts/.codebase/cache.json
 scripts/.codebase/state.json
 tests/.codebase/cache.json
 tests/.codebase/state.json
+/scripts/.codebase
+/tests/.codebase
+.claude/settings.local.json
+.mcp.json
+CLAUDE.md
+.qodo/.cursor/rules
+/.augment
