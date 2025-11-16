@@ -75,6 +75,12 @@ services:
       - FASTMCP_HOST=${FASTMCP_HOST}
       - FASTMCP_INDEXER_PORT=${FASTMCP_INDEXER_PORT}
       - QDRANT_URL=${QDRANT_URL}
+      - REFRAG_DECODER=${REFRAG_DECODER:-1}
+      - REFRAG_RUNTIME=${REFRAG_RUNTIME:-llamacpp}
+      - GLM_API_KEY=${GLM_API_KEY}
+      - GLM_API_BASE=${GLM_API_BASE:-https://api.z.ai/api/paas/v4/}
+      - GLM_MODEL=${GLM_MODEL:-glm-4.6}
+      - LLAMACPP_URL=${LLAMACPP_URL:-http://llamacpp:8080}
       - COLLECTION_NAME=${COLLECTION_NAME}
       - PATH_EMIT_MODE=container
       - HF_HOME=/tmp/huggingface
@@ -156,6 +162,12 @@ services:
       - FASTMCP_INDEXER_PORT=8001
       - FASTMCP_TRANSPORT=${FASTMCP_HTTP_TRANSPORT}
       - QDRANT_URL=${QDRANT_URL}
+      - REFRAG_DECODER=${REFRAG_DECODER:-1}
+      - REFRAG_RUNTIME=${REFRAG_RUNTIME:-llamacpp}
+      - GLM_API_KEY=${GLM_API_KEY}
+      - GLM_API_BASE=${GLM_API_BASE:-https://api.z.ai/api/paas/v4/}
+      - GLM_MODEL=${GLM_MODEL:-glm-4.6}
+      - LLAMACPP_URL=${LLAMACPP_URL:-http://llamacpp:8080}
       - FASTMCP_HEALTH_PORT=18001
       - COLLECTION_NAME=${COLLECTION_NAME}
       - PATH_EMIT_MODE=container
