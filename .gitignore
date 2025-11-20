@@ -13,7 +13,7 @@ __pycache__/
 .vscode/settings.json
 .kiro/settings/mcp.json
 .vscode/settings.json
-.vscode/settings.json
+.context-engine
 paper.md
 /semantic-search
 /codebase-index-cli
