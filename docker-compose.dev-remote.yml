@@ -320,7 +320,7 @@ services:
       context: .
       dockerfile: Dockerfile.upload-service
     container_name: upload-service-dev-remote
-    user: "1000:1000"
+    user: "0:0" # Windows bind-mount to /work requires root to create workspace dirs
     depends_on:
       - qdrant
     env_file:
