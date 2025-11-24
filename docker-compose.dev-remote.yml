@@ -349,6 +349,9 @@ services:
       - REMOTE_UPLOAD_ENABLED=1
       - REMOTE_UPLOAD_MODE=development
       - REMOTE_UPLOAD_DEBUG=1
+      - REMOTE_UPLOAD_TIMEOUT=300
+      - REMOTE_UPLOAD_MAX_RETRIES=5
+      - MAX_BUNDLE_SIZE_MB=256
       
       # Qdrant configuration
       - QDRANT_TIMEOUT=${QDRANT_TIMEOUT}
