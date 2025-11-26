@@ -215,6 +215,7 @@ services:
       context: .
       dockerfile: Dockerfile.indexer
     container_name: indexer-dev-remote
+    user: "1000:1000"
     depends_on:
       - qdrant
     env_file:
