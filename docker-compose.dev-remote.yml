@@ -34,7 +34,7 @@ services:
       - FASTMCP_PORT=${FASTMCP_PORT}
       - QDRANT_URL=${QDRANT_URL}
       - COLLECTION_NAME=${COLLECTION_NAME}
-      - PATH_EMIT_MODE=container
+      - PATH_EMIT_MODE=auto
       - HF_HOME=/work/.cache/huggingface
       - TRANSFORMERS_CACHE=/work/.cache/huggingface
       - HUGGINGFACE_HUB_CACHE=/work/.cache/huggingface
@@ -82,7 +82,7 @@ services:
       - GLM_MODEL=${GLM_MODEL:-glm-4.6}
       - LLAMACPP_URL=${LLAMACPP_URL:-http://llamacpp:8080}
       - COLLECTION_NAME=${COLLECTION_NAME}
-      - PATH_EMIT_MODE=container
+      - PATH_EMIT_MODE=auto
       - HF_HOME=/tmp/huggingface
       - HF_HUB_CACHE=/tmp/huggingface/hub
       - TRANSFORMERS_CACHE=/tmp/huggingface/transformers
@@ -121,7 +121,7 @@ services:
       - FASTMCP_TRANSPORT=${FASTMCP_HTTP_TRANSPORT}
       - QDRANT_URL=${QDRANT_URL}
       - COLLECTION_NAME=${COLLECTION_NAME}
-      - PATH_EMIT_MODE=container
+      - PATH_EMIT_MODE=auto
       - HF_HOME=/work/.cache/huggingface
       - TRANSFORMERS_CACHE=/work/.cache/huggingface
       - HUGGINGFACE_HUB_CACHE=/work/.cache/huggingface
@@ -170,7 +170,7 @@ services:
       - LLAMACPP_URL=${LLAMACPP_URL:-http://llamacpp:8080}
       - FASTMCP_HEALTH_PORT=18001
       - COLLECTION_NAME=${COLLECTION_NAME}
-      - PATH_EMIT_MODE=container
+      - PATH_EMIT_MODE=auto
       - HF_HOME=/tmp/huggingface
       - HF_HUB_CACHE=/tmp/huggingface/hub
       - TRANSFORMERS_CACHE=/tmp/huggingface/transformers
