@@ -17,7 +17,8 @@ __pycache__/
 paper.md
 /semantic-search
 /codebase-index-cli
-/.codebase
+/.codebase/*
+!/.codebase/.gitkeep
 scripts/.codebase/cache.json
 scripts/.codebase/state.json
 tests/.codebase/cache.json
@@ -29,4 +30,5 @@ tests/.codebase/state.json
 CLAUDE.md
 .qodo/.cursor/rules
 /.augment
-/dev-workspace
+/dev-workspace/*
+!/dev-workspace/.gitkeep
