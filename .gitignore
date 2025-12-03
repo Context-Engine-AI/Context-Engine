@@ -32,3 +32,5 @@ CLAUDE.md
 /.augment
 /dev-workspace/*
 !/dev-workspace/.gitkeep
+docs/AUGMENT_COMPATIBILITY.md
+.serena/project.yml
