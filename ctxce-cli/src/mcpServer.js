@@ -21,6 +21,10 @@ export async function runMcpServer(options) {
     config && typeof config.default_collection === "string"
       ? config.default_collection
       : null;
+  const defaultMode =
+    config && typeof config.default_mode === "string" ? config.default_mode : null;
+  const defaultUnder =
+    config && typeof config.default_under === "string" ? config.default_under : null;
 
   // eslint-disable-next-line no-console
   console.error(
@@ -58,7 +62,39 @@ export async function runMcpServer(options) {
     throw err;
   }
 
-  const server = new Server(
+  // Derive a simple session identifier for this bridge process. In the
+  // future this can be made user-aware (e.g. from auth), but for now we
+  // keep it deterministic per workspace to help the indexer reuse
+  // session-scoped defaults.
+  const sessionId =
+    process.env.CTXCE_SESSION_ID || `ctxce-${Buffer.from(workspace).toString("hex").slice(0, 24)}`;
+
+  // Best-effort: inform the indexer of default collection and session.
+  // If this fails we still proceed, falling back to per-call injection.
+  const defaultsPayload = { session: sessionId };
+  if (defaultCollection) {
+    defaultsPayload.collection = defaultCollection;
+  }
+  if (defaultMode) {
+    defaultsPayload.mode = defaultMode;
+  }
+  if (defaultUnder) {
+    defaultsPayload.under = defaultUnder;
+  }
+
+  if (Object.keys(defaultsPayload).length > 1) {
+    try {
+      await client.callTool({
+        name: "set_session_defaults",
+        arguments: defaultsPayload,
+      });
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error("[ctxce] Failed to call set_session_defaults on indexer:", err);
+    }
+  }
+
+  const server = new Server( // TODO: marked as depreciated
     {
       name: "ctx-context-engine-bridge",
       version: "0.0.1",
@@ -109,20 +145,11 @@ export async function runMcpServer(options) {
       };
     }
 
-    // Inject default collection when not explicitly provided and arguments
-    // are an object (indexer tools accept a collection parameter).
-    if (
-      defaultCollection &&
-      (args === undefined || args === null || typeof args === "object")
-    ) {
+    // Attach session id so the indexer can apply per-session defaults.
+    if (sessionId && (args === undefined || args === null || typeof args === "object")) {
       const obj = args && typeof args === "object" ? { ...args } : {};
-      if (
-        !Object.prototype.hasOwnProperty.call(obj, "collection") ||
-        obj.collection === undefined ||
-        obj.collection === null ||
-        obj.collection === ""
-      ) {
-        obj.collection = defaultCollection;
+      if (!Object.prototype.hasOwnProperty.call(obj, "session")) {
+        obj.session = sessionId;
       }
       args = obj;
     }
