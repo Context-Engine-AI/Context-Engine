@@ -1,3 +1,60 @@
+async function sendSessionDefaults(client, payload, label) {
+  if (!client) {
+    return;
+  }
+  try {
+    await client.callTool({
+      name: "set_session_defaults",
+      arguments: payload,
+    });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error(`[ctxce] Failed to call set_session_defaults on ${label}:`, err);
+  }
+}
+function dedupeTools(tools) {
+  const seen = new Set();
+  const out = [];
+  for (const tool of tools) {
+    const key = (tool && typeof tool.name === "string" && tool.name) || "";
+    if (!key || seen.has(key)) {
+      if (key === "" || key !== "set_session_defaults") {
+        continue;
+      }
+      if (seen.has(key)) {
+        continue;
+      }
+    }
+    seen.add(key);
+    out.push(tool);
+  }
+  return out;
+}
+
+async function listMemoryTools(client) {
+  if (!client) {
+    return [];
+  }
+  try {
+    const remote = await client.listTools();
+    return Array.isArray(remote?.tools) ? remote.tools.slice() : [];
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error("[ctxce] Error calling memory tools/list:", err);
+    return [];
+  }
+}
+
+function selectClientForTool(name, indexerClient, memoryClient) {
+  if (!name) {
+    return indexerClient;
+  }
+  const lowered = name.toLowerCase();
+  if (memoryClient && (lowered.startsWith("memory.") || lowered.startsWith("mcp_memory_") || lowered.includes("memory"))) {
+    return memoryClient;
+  }
+  return indexerClient;
+}
 // MCP stdio server implemented using the official MCP TypeScript SDK.
 // Acts as a low-level proxy for tools, forwarding tools/list and tools/call
 // to the remote qdrant-indexer MCP server while adding a local `ping` tool.
@@ -15,6 +72,7 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprot
 export async function runMcpServer(options) {
   const workspace = options.workspace || process.cwd();
   const indexerUrl = options.indexerUrl;
+  const memoryUrl = options.memoryUrl;
 
   const config = loadConfig(workspace);
   const defaultCollection =
@@ -39,8 +97,8 @@ export async function runMcpServer(options) {
   }
 
   // High-level MCP client for the remote HTTP /mcp indexer
-  const clientTransport = new StreamableHTTPClientTransport(indexerUrl);
-  const client = new Client(
+  const indexerTransport = new StreamableHTTPClientTransport(indexerUrl);
+  const indexerClient = new Client(
     {
       name: "ctx-context-engine-bridge-http-client",
       version: "0.0.1",
@@ -55,11 +113,38 @@ export async function runMcpServer(options) {
   );
 
   try {
-    await client.connect(clientTransport);
+    await indexerClient.connect(indexerTransport);
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error("[ctxce] Failed to connect MCP HTTP client to indexer:", err);
     throw err;
+  }
+
+  let memoryClient = null;
+  if (memoryUrl) {
+    try {
+      const memoryTransport = new StreamableHTTPClientTransport(memoryUrl);
+      memoryClient = new Client(
+        {
+          name: "ctx-context-engine-bridge-memory-client",
+          version: "0.0.1",
+        },
+        {
+          capabilities: {
+            tools: {},
+            resources: {},
+            prompts: {},
+          },
+        },
+      );
+      await memoryClient.connect(memoryTransport);
+      // eslint-disable-next-line no-console
+      console.error("[ctxce] Connected memory MCP client:", memoryUrl);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error("[ctxce] Failed to connect memory MCP client:", err);
+      memoryClient = null;
+    }
   }
 
   // Derive a simple session identifier for this bridge process. In the
@@ -83,14 +168,9 @@ export async function runMcpServer(options) {
   }
 
   if (Object.keys(defaultsPayload).length > 1) {
-    try {
-      await client.callTool({
-        name: "set_session_defaults",
-        arguments: defaultsPayload,
-      });
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error("[ctxce] Failed to call set_session_defaults on indexer:", err);
+    await sendSessionDefaults(indexerClient, defaultsPayload, "indexer");
+    if (memoryClient) {
+      await sendSessionDefaults(memoryClient, defaultsPayload, "memory");
     }
   }
 
@@ -110,7 +190,7 @@ export async function runMcpServer(options) {
   server.setRequestHandler(ListToolsRequestSchema, async () => {
     let remote;
     try {
-      remote = await client.listTools();
+      remote = await indexerClient.listTools();
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error("[ctxce] Error calling remote tools/list:", err);
@@ -120,8 +200,9 @@ export async function runMcpServer(options) {
     // eslint-disable-next-line no-console
     console.error("[ctxce] tools/list remote result:", JSON.stringify(remote));
 
-    const tools = Array.isArray(remote?.tools) ? remote.tools.slice() : [];
-    tools.push(buildPingTool());
+    const indexerTools = Array.isArray(remote?.tools) ? remote.tools.slice() : [];
+    const memoryTools = await listMemoryTools(memoryClient);
+    const tools = dedupeTools([...indexerTools, ...memoryTools, buildPingTool()]);
     return { tools };
   });
 
@@ -145,7 +226,7 @@ export async function runMcpServer(options) {
       };
     }
 
-    // Attach session id so the indexer can apply per-session defaults.
+    // Attach session id so the target server can apply per-session defaults.
     if (sessionId && (args === undefined || args === null || typeof args === "object")) {
       const obj = args && typeof args === "object" ? { ...args } : {};
       if (!Object.prototype.hasOwnProperty.call(obj, "session")) {
@@ -154,7 +235,25 @@ export async function runMcpServer(options) {
       args = obj;
     }
 
-    const result = await client.callTool({
+    if (name === "set_session_defaults") {
+      const indexerResult = await indexerClient.callTool({ name, arguments: args });
+      if (memoryClient) {
+        try {
+          await memoryClient.callTool({ name, arguments: args });
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.error("[ctxce] Memory set_session_defaults failed:", err);
+        }
+      }
+      return indexerResult;
+    }
+
+    const targetClient = selectClientForTool(name, indexerClient, memoryClient);
+    if (!targetClient) {
+      throw new Error(`Tool ${name} not available on any configured MCP server`);
+    }
+
+    const result = await targetClient.callTool({
       name,
       arguments: args,
     });
