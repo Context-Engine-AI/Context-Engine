@@ -3,6 +3,9 @@
 # Model artifacts
 models/
 
+# Node
+node_modules/
+
 # Qdrant snapshots
 qdrant/snapshots/
 
