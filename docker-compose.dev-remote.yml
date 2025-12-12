@@ -324,7 +324,7 @@ services:
       context: .
       dockerfile: Dockerfile.indexer
     container_name: init-payload-dev-remote
-    user: "1000:1000"
+    user: "0:0"
     depends_on:
       - qdrant
     env_file:
@@ -345,7 +345,7 @@ services:
     command: [
       "sh",
       "-c",
-      "mkdir -p /tmp/logs && echo 'Starting initialization sequence...' && /app/scripts/wait-for-qdrant.sh && PYTHONPATH=/app python /app/scripts/create_indexes.py && echo 'Collections and metadata created' && python /app/scripts/warm_all_collections.py && echo 'Search caches warmed for all collections' && python /app/scripts/health_check.py && echo 'Initialization completed successfully!'"
+      "mkdir -p /tmp/logs /work/.codebase && (chgrp -R 1000 /work/.codebase 2>/dev/null || true) && (chmod -R g+rwX /work/.codebase 2>/dev/null || true) && (find /work/.codebase -type d -exec chmod g+s {} + 2>/dev/null || true) && echo 'Starting initialization sequence...' && /app/scripts/wait-for-qdrant.sh && PYTHONPATH=/app python /app/scripts/create_indexes.py && echo 'Collections and metadata created' && python /app/scripts/warm_all_collections.py && echo 'Search caches warmed for all collections' && python /app/scripts/health_check.py && echo 'Initialization completed successfully!'"
     ]
     restart: "no"  # Run once on startup
     networks:
@@ -411,6 +411,11 @@ services:
       - workspace_pvc:/work:rw
       - codebase_pvc:/work/.codebase:rw
       - upload_temp:/tmp/uploads
+    command: [
+      "sh",
+      "-c",
+      "mkdir -p /work/.codebase && (chgrp -R 1000 /work/.codebase 2>/dev/null || true) && (chmod -R g+rwX /work/.codebase 2>/dev/null || true) && (find /work/.codebase -type d -exec chmod g+s {} + 2>/dev/null || true) && exec python scripts/upload_service.py"
+    ]
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
       interval: 30s
