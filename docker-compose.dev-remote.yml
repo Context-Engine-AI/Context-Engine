@@ -33,6 +33,15 @@ services:
       - FASTMCP_HOST=${FASTMCP_HOST}
       - FASTMCP_PORT=${FASTMCP_PORT}
       - QDRANT_URL=${QDRANT_URL}
+      # Optional auth configuration (fully opt-in via .env)
+      - CTXCE_AUTH_ENABLED=${CTXCE_AUTH_ENABLED:-0}
+      - CTXCE_MCP_ACL_ENFORCE=${CTXCE_MCP_ACL_ENFORCE:-0}
+      - CTXCE_ACL_ALLOW_ALL=${CTXCE_ACL_ALLOW_ALL:-0}
+      - CTXCE_AUTH_SHARED_TOKEN=${CTXCE_AUTH_SHARED_TOKEN}
+      - CTXCE_AUTH_ADMIN_TOKEN=${CTXCE_AUTH_ADMIN_TOKEN}
+      - CTXCE_AUTH_DB_URL=${CTXCE_AUTH_DB_URL}
+      - CTXCE_AUTH_SESSION_TTL_SECONDS=${CTXCE_AUTH_SESSION_TTL_SECONDS:-0}
+      - CTXCE_AUTH_ALLOW_OPEN_TOKEN_LOGIN=${CTXCE_AUTH_ALLOW_OPEN_TOKEN_LOGIN:-0}
       - COLLECTION_NAME=${COLLECTION_NAME}
       - PATH_EMIT_MODE=auto
       - HF_HOME=/work/.cache/huggingface
@@ -75,6 +84,15 @@ services:
       - FASTMCP_HOST=${FASTMCP_HOST}
       - FASTMCP_INDEXER_PORT=${FASTMCP_INDEXER_PORT}
       - QDRANT_URL=${QDRANT_URL}
+      # Optional auth configuration (fully opt-in via .env)
+      - CTXCE_AUTH_ENABLED=${CTXCE_AUTH_ENABLED:-0}
+      - CTXCE_MCP_ACL_ENFORCE=${CTXCE_MCP_ACL_ENFORCE:-0}
+      - CTXCE_ACL_ALLOW_ALL=${CTXCE_ACL_ALLOW_ALL:-0}
+      - CTXCE_AUTH_SHARED_TOKEN=${CTXCE_AUTH_SHARED_TOKEN}
+      - CTXCE_AUTH_ADMIN_TOKEN=${CTXCE_AUTH_ADMIN_TOKEN}
+      - CTXCE_AUTH_DB_URL=${CTXCE_AUTH_DB_URL}
+      - CTXCE_AUTH_SESSION_TTL_SECONDS=${CTXCE_AUTH_SESSION_TTL_SECONDS:-0}
+      - CTXCE_AUTH_ALLOW_OPEN_TOKEN_LOGIN=${CTXCE_AUTH_ALLOW_OPEN_TOKEN_LOGIN:-0}
       - REFRAG_DECODER=${REFRAG_DECODER:-1}
       - REFRAG_RUNTIME=${REFRAG_RUNTIME:-llamacpp}
       - GLM_API_KEY=${GLM_API_KEY}
@@ -120,6 +138,15 @@ services:
       - FASTMCP_PORT=8000
       - FASTMCP_TRANSPORT=${FASTMCP_HTTP_TRANSPORT}
       - QDRANT_URL=${QDRANT_URL}
+      # Optional auth configuration (fully opt-in via .env)
+      - CTXCE_AUTH_ENABLED=${CTXCE_AUTH_ENABLED:-0}
+      - CTXCE_MCP_ACL_ENFORCE=${CTXCE_MCP_ACL_ENFORCE:-0}
+      - CTXCE_ACL_ALLOW_ALL=${CTXCE_ACL_ALLOW_ALL:-0}
+      - CTXCE_AUTH_SHARED_TOKEN=${CTXCE_AUTH_SHARED_TOKEN}
+      - CTXCE_AUTH_ADMIN_TOKEN=${CTXCE_AUTH_ADMIN_TOKEN}
+      - CTXCE_AUTH_DB_URL=${CTXCE_AUTH_DB_URL}
+      - CTXCE_AUTH_SESSION_TTL_SECONDS=${CTXCE_AUTH_SESSION_TTL_SECONDS:-0}
+      - CTXCE_AUTH_ALLOW_OPEN_TOKEN_LOGIN=${CTXCE_AUTH_ALLOW_OPEN_TOKEN_LOGIN:-0}
       - COLLECTION_NAME=${COLLECTION_NAME}
       - PATH_EMIT_MODE=auto
       - HF_HOME=/work/.cache/huggingface
@@ -162,6 +189,15 @@ services:
       - FASTMCP_INDEXER_PORT=8001
       - FASTMCP_TRANSPORT=${FASTMCP_HTTP_TRANSPORT}
       - QDRANT_URL=${QDRANT_URL}
+      # Optional auth configuration (fully opt-in via .env)
+      - CTXCE_AUTH_ENABLED=${CTXCE_AUTH_ENABLED:-0}
+      - CTXCE_MCP_ACL_ENFORCE=${CTXCE_MCP_ACL_ENFORCE:-0}
+      - CTXCE_ACL_ALLOW_ALL=${CTXCE_ACL_ALLOW_ALL:-0}
+      - CTXCE_AUTH_SHARED_TOKEN=${CTXCE_AUTH_SHARED_TOKEN}
+      - CTXCE_AUTH_ADMIN_TOKEN=${CTXCE_AUTH_ADMIN_TOKEN}
+      - CTXCE_AUTH_DB_URL=${CTXCE_AUTH_DB_URL}
+      - CTXCE_AUTH_SESSION_TTL_SECONDS=${CTXCE_AUTH_SESSION_TTL_SECONDS:-0}
+      - CTXCE_AUTH_ALLOW_OPEN_TOKEN_LOGIN=${CTXCE_AUTH_ALLOW_OPEN_TOKEN_LOGIN:-0}
       - REFRAG_DECODER=${REFRAG_DECODER:-1}
       - REFRAG_RUNTIME=${REFRAG_RUNTIME:-llamacpp}
       - GLM_API_KEY=${GLM_API_KEY}
@@ -288,7 +324,7 @@ services:
       context: .
       dockerfile: Dockerfile.indexer
     container_name: init-payload-dev-remote
-    user: "1000:1000"
+    user: "0:0"
     depends_on:
       - qdrant
     env_file:
@@ -296,6 +332,13 @@ services:
     environment:
       - QDRANT_URL=${QDRANT_URL}
       - COLLECTION_NAME=${COLLECTION_NAME}
+      - CTXCE_AUTH_ENABLED=${CTXCE_AUTH_ENABLED:-0}
+      - CTXCE_AUTH_SHARED_TOKEN=${CTXCE_AUTH_SHARED_TOKEN}
+      - CTXCE_AUTH_ADMIN_TOKEN=${CTXCE_AUTH_ADMIN_TOKEN}
+      - CTXCE_AUTH_DB_URL=${CTXCE_AUTH_DB_URL}
+      - CTXCE_AUTH_SESSION_TTL_SECONDS=${CTXCE_AUTH_SESSION_TTL_SECONDS:-0}
+      - CTXCE_ACL_ALLOW_ALL=${CTXCE_ACL_ALLOW_ALL:-0}
+      - CTXCE_AUTH_ALLOW_OPEN_TOKEN_LOGIN=${CTXCE_AUTH_ALLOW_OPEN_TOKEN_LOGIN:-0}
       - HF_HOME=/work/.cache/huggingface
       - TRANSFORMERS_CACHE=/work/.cache/huggingface
       - HUGGINGFACE_HUB_CACHE=/work/.cache/huggingface
@@ -309,7 +352,7 @@ services:
     command: [
       "sh",
       "-c",
-      "mkdir -p /tmp/logs && echo 'Starting initialization sequence...' && /app/scripts/wait-for-qdrant.sh && PYTHONPATH=/app python /app/scripts/create_indexes.py && echo 'Collections and metadata created' && python /app/scripts/warm_all_collections.py && echo 'Search caches warmed for all collections' && python /app/scripts/health_check.py && echo 'Initialization completed successfully!'"
+      "mkdir -p /tmp/logs /work/.codebase && (chgrp -R 1000 /work/.codebase 2>/dev/null || true) && (chmod -R g+rwX /work/.codebase 2>/dev/null || true) && (find /work/.codebase -type d -exec chmod g+s {} + 2>/dev/null || true) && echo 'Starting initialization sequence...' && /app/scripts/wait-for-qdrant.sh && PYTHONPATH=/app python /app/scripts/create_indexes.py && echo 'Collections and metadata created' && python /app/scripts/warm_all_collections.py && echo 'Search caches warmed for all collections' && python /app/scripts/health_check.py && echo 'Initialization completed successfully!'"
     ]
     restart: "no"  # Run once on startup
     networks:
@@ -334,6 +377,15 @@ services:
       - WORKDIR=/work
       - MAX_BUNDLE_SIZE_MB=100
       - UPLOAD_TIMEOUT_SECS=300
+      # Optional auth configuration (fully opt-in via .env)
+      - CTXCE_AUTH_ENABLED=${CTXCE_AUTH_ENABLED:-0}
+      - CTXCE_MCP_ACL_ENFORCE=${CTXCE_MCP_ACL_ENFORCE:-0}
+      - CTXCE_ACL_ALLOW_ALL=${CTXCE_ACL_ALLOW_ALL:-0}
+      - CTXCE_AUTH_SHARED_TOKEN=${CTXCE_AUTH_SHARED_TOKEN}
+      - CTXCE_AUTH_ADMIN_TOKEN=${CTXCE_AUTH_ADMIN_TOKEN}
+      - CTXCE_AUTH_DB_URL=${CTXCE_AUTH_DB_URL}
+      - CTXCE_AUTH_SESSION_TTL_SECONDS=${CTXCE_AUTH_SESSION_TTL_SECONDS:-0}
+      - CTXCE_AUTH_ALLOW_OPEN_TOKEN_LOGIN=${CTXCE_AUTH_ALLOW_OPEN_TOKEN_LOGIN:-0}
       
       # Indexing configuration
       - COLLECTION_NAME=${COLLECTION_NAME}
@@ -366,6 +418,11 @@ services:
       - workspace_pvc:/work:rw
       - codebase_pvc:/work/.codebase:rw
       - upload_temp:/tmp/uploads
+    command: [
+      "sh",
+      "-c",
+      "mkdir -p /work/.codebase && (chgrp -R 1000 /work/.codebase 2>/dev/null || true) && (chmod -R g+rwX /work/.codebase 2>/dev/null || true) && (find /work/.codebase -type d -exec chmod g+s {} + 2>/dev/null || true) && exec python scripts/upload_service.py"
+    ]
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
       interval: 30s
