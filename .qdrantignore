@@ -1,22 +1,3 @@
 # Ignore watcher cache/state artifacts
 /.codebase
 /.cache
-
-# Ignore development workspace (used by upload service tests)
-/dev-workspace
-
-# Ignore virtual environments and node modules
-.venv
-venv
-node_modules
-site-packages
-__pycache__
-
-# Ignore IDE/editor folders
-.vscode
-.idea
-
-# Ignore build outputs
-/dist
-/build
-*.egg-info
