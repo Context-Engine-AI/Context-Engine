@@ -1,14 +1,3 @@
-# Context Engine Docker Compose - Local Simulation Stack
-#
-# This configuration simulates K8s/remote deployment semantics locally:
-# - Code is uploaded to ./dev-workspace (not bindmounted from checkout)
-# - Safe for collection deletion and repo management
-# - Uses PVC-like volumes to simulate CephFS RWX behavior
-#
-# Workflow: docker-compose up → install VSCode extension → upload code → /dev-workspace
-#
-# To use: docker-compose up -d
-
 services:
   qdrant:
     image: qdrant/qdrant:latest
@@ -49,7 +38,7 @@ services:
       - "8000:8000"
 
     volumes:
-      - workspace_pvc:/work:ro
+      - ${HOST_INDEX_PATH:-.}:/work:ro
 
   mcp_indexer:
     build:
@@ -78,8 +67,8 @@ services:
       - "${FASTMCP_INDEXER_PORT:-8001}:8001"
       - "18001:18001"
     volumes:
-      - workspace_pvc:/work:rw
-      - codebase_pvc:/work/.codebase:rw
+      - ${HOST_INDEX_PATH:-.}:/work
+
 
   mcp_http:
     build:
@@ -106,7 +95,7 @@ services:
       - "${FASTMCP_HTTP_HEALTH_PORT:-18002}:18000"
       - "${FASTMCP_HTTP_PORT:-8002}:8000"
     volumes:
-      - workspace_pvc:/work:ro
+      - ${HOST_INDEX_PATH:-.}:/work:ro
 
   mcp_indexer_http:
     build:
@@ -137,8 +126,7 @@ services:
       - "${FASTMCP_INDEXER_HTTP_PORT:-8003}:8001"
       - "${FASTMCP_INDEXER_HTTP_HEALTH_PORT:-18003}:18001"
     volumes:
-      - workspace_pvc:/work:rw
-      - codebase_pvc:/work/.codebase:rw
+      - ${HOST_INDEX_PATH:-.}:/work
 
   llamacpp:
     image: ghcr.io/ggml-org/llama.cpp:server
@@ -199,8 +187,8 @@ services:
       - EMBEDDING_MODEL=${EMBEDDING_MODEL}
     working_dir: /work
     volumes:
-      - workspace_pvc:/work:ro
-      - codebase_pvc:/work/.codebase:rw
+      - ${HOST_INDEX_PATH:-.}:/work:ro
+      - ${HOST_INDEX_PATH:-.}/.codebase:/work/.codebase:rw
 
     entrypoint: ["python", "/app/scripts/ingest_code.py"]
 
@@ -225,8 +213,8 @@ services:
       - WATCH_DEBOUNCE_SECS=${WATCH_DEBOUNCE_SECS:-1.5}
     working_dir: /work
     volumes:
-      - workspace_pvc:/work:ro
-      - codebase_pvc:/work/.codebase:rw
+      - ${HOST_INDEX_PATH:-.}:/work:ro
+      - ${HOST_INDEX_PATH:-.}/.codebase:/work/.codebase:rw
     entrypoint: ["python", "/app/scripts/watch_index.py"]
 
 
@@ -252,8 +240,8 @@ services:
     ports:
       - "8004:8002"
     volumes:
-      - workspace_pvc:/work:rw
-      - codebase_pvc:/work/.codebase:rw
+      - ${HOST_INDEX_PATH:-.}:/work:rw
+      - ${HOST_INDEX_PATH:-.}/.codebase:/work/.codebase:rw
     user: "0:0"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
@@ -276,27 +264,11 @@ services:
       - COLLECTION_NAME=${COLLECTION_NAME:-codebase}
     working_dir: /work
     volumes:
-      - workspace_pvc:/work:ro
-      - codebase_pvc:/work/.codebase:rw
+      - ${HOST_INDEX_PATH:-.}:/work:ro
+      - ${HOST_INDEX_PATH:-.}/.codebase:/work/.codebase:rw
 
     entrypoint: ["python", "/app/scripts/create_indexes.py"]
 
 volumes:
-  # Workspace volume - binds to ./dev-workspace for safe isolation
-  workspace_pvc:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${HOST_INDEX_PATH:-./dev-workspace}
-
-  # Codebase metadata volume
-  codebase_pvc:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ./.codebase
-
   qdrant_storage:
     driver: local
