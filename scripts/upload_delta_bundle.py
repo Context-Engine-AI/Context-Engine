@@ -4,6 +4,7 @@ import tarfile
 import hashlib
 import re
 import logging
+import time
 from pathlib import Path
 from typing import Dict, Any
 
@@ -12,6 +13,11 @@ try:
     from scripts.workspace_state import _extract_repo_name_from_path
 except ImportError:
     _extract_repo_name_from_path = None
+
+try:
+    from scripts.workspace_state import _cross_process_lock
+except ImportError:
+    _cross_process_lock = None
 
 
 logger = logging.getLogger(__name__)
@@ -93,12 +99,14 @@ def process_delta_bundle(workspace_path: str, bundle_path: Path, manifest: Dict[
         # Server-side marker for admin cleanup: stored with metadata (not inside repo tree)
         # so admin delete actions don't risk deleting bind-mounted /work repos in non-remote
         # docker-compose setups.
+        marker_dir = Path(WORK_DIR) / ".codebase" / "repos" / slug_repo_name
         try:
-            marker_dir = Path(WORK_DIR) / ".codebase" / "repos" / slug_repo_name
             marker_dir.mkdir(parents=True, exist_ok=True)
             (marker_dir / ".ctxce_managed_upload").write_text("1\n")
         except Exception:
             pass
+
+        dirty_ops: list[dict[str, Any]] = []
 
         workspace_root = workspace.resolve()
 
@@ -203,6 +211,13 @@ def process_delta_bundle(workspace_path: str, bundle_path: Path, manifest: Dict[
                                 target_path.parent.mkdir(parents=True, exist_ok=True)
                                 target_path.write_bytes(file_content.read())
                                 operations_count["created"] += 1
+                                dirty_ops.append(
+                                    {
+                                        "op": "created",
+                                        "path": rel_path,
+                                        "ts": int(time.time()),
+                                    }
+                                )
                             else:
                                 operations_count["failed"] += 1
                         else:
@@ -221,6 +236,13 @@ def process_delta_bundle(workspace_path: str, bundle_path: Path, manifest: Dict[
                                 target_path.parent.mkdir(parents=True, exist_ok=True)
                                 target_path.write_bytes(file_content.read())
                                 operations_count["updated"] += 1
+                                dirty_ops.append(
+                                    {
+                                        "op": "updated",
+                                        "path": rel_path,
+                                        "ts": int(time.time()),
+                                    }
+                                )
                             else:
                                 operations_count["failed"] += 1
                         else:
@@ -239,6 +261,14 @@ def process_delta_bundle(workspace_path: str, bundle_path: Path, manifest: Dict[
                                 target_path.parent.mkdir(parents=True, exist_ok=True)
                                 target_path.write_bytes(file_content.read())
                                 operations_count["moved"] += 1
+                                dirty_ops.append(
+                                    {
+                                        "op": "moved",
+                                        "path": rel_path,
+                                        "source_path": source_rel_path,
+                                        "ts": int(time.time()),
+                                    }
+                                )
                             else:
                                 operations_count["failed"] += 1
                         else:
@@ -260,6 +290,13 @@ def process_delta_bundle(workspace_path: str, bundle_path: Path, manifest: Dict[
                             target_path.unlink()
                             _cleanup_empty_dirs(target_path.parent, workspace)
                             operations_count["deleted"] += 1
+                            dirty_ops.append(
+                                {
+                                    "op": "deleted",
+                                    "path": rel_path,
+                                    "ts": int(time.time()),
+                                }
+                            )
                         else:
                             operations_count["skipped"] += 1
 
@@ -269,6 +306,22 @@ def process_delta_bundle(workspace_path: str, bundle_path: Path, manifest: Dict[
                 except Exception as e:
                     logger.error(f"Error processing operation {op_type} for {rel_path}: {e}")
                     operations_count["failed"] += 1
+
+        if dirty_ops:
+            try:
+                queue_path = marker_dir / "dirty_ops.jsonl"
+                lock_path = queue_path.with_suffix(queue_path.suffix + ".lock")
+                if _cross_process_lock is not None:
+                    with _cross_process_lock(lock_path):
+                        with open(queue_path, "a", encoding="utf-8") as f:
+                            for rec in dirty_ops:
+                                f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+                else:
+                    with open(queue_path, "a", encoding="utf-8") as f:
+                        for rec in dirty_ops:
+                            f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+            except Exception:
+                pass
 
         return operations_count
 

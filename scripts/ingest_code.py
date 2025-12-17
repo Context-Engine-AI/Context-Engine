@@ -16,6 +16,7 @@ def _detect_repo_name_from_path(path: Path) -> str:
 import os
 import sys
 import argparse
+import json
 import hashlib
 import re
 import ast
@@ -35,6 +36,12 @@ if str(ROOT_DIR) not in sys.path:
 
 
 from qdrant_client import QdrantClient, models
+
+try:
+    from scripts.dirty_queue import DirtyQueueHooks, maybe_process_dirty_queue
+except ImportError:
+    DirtyQueueHooks = None  # type: ignore
+    maybe_process_dirty_queue = None  # type: ignore
 
 # Use embedder factory for Qwen3 support; fallback to direct fastembed
 try:
@@ -96,6 +103,7 @@ try:
         update_symbols_with_pseudo,
         get_workspace_state,
         get_cached_file_meta,
+        _cross_process_lock,
     )
 except ImportError:
     # State integration is optional; continue if not available
@@ -114,6 +122,7 @@ except ImportError:
     compare_symbol_changes = None  # type: ignore
     get_workspace_state = None  # type: ignore
     get_cached_file_meta = None  # type: ignore
+    _cross_process_lock = None  # type: ignore
 
 # Optional Tree-sitter import (graceful fallback) - tree-sitter 0.25+ API
 _TS_LANGUAGES: Dict[str, Any] = {}
@@ -3044,6 +3053,43 @@ def index_repo(
     skip_unchanged: bool = True,
     pseudo_mode: str = "full",
 ):
+    try:
+        is_multi_repo = bool(is_multi_repo_mode and is_multi_repo_mode())
+    except Exception:
+        is_multi_repo = False
+
+    try:
+        if maybe_process_dirty_queue is not None and DirtyQueueHooks is not None:
+            hooks = DirtyQueueHooks(
+                cross_process_lock=_cross_process_lock,
+                get_collection_for_file=_get_collection_for_file,
+                sanitize_vector_name=_sanitize_vector_name,
+                ensure_collection_and_indexes_once=ensure_collection_and_indexes_once,
+                index_single_file=index_single_file,
+                delete_points_by_path=delete_points_by_path,
+                remove_cached_file=remove_cached_file,
+                remove_cached_symbols=remove_cached_symbols,
+                lex_vector_name=LEX_VECTOR_NAME,
+                mini_vector_name=MINI_VECTOR_NAME,
+            )
+            mode = maybe_process_dirty_queue(
+                root=root,
+                qdrant_url=qdrant_url,
+                api_key=api_key,
+                collection=collection,
+                model_name=model_name,
+                recreate=recreate,
+                dedupe=dedupe,
+                skip_unchanged=skip_unchanged,
+                pseudo_mode=pseudo_mode,
+                is_multi_repo=is_multi_repo,
+                hooks=hooks,
+            )
+            if mode != "fallback_scan":
+                return
+    except Exception:
+        pass
+
     # Optional fast no-change precheck: when INDEX_FS_FASTPATH is enabled, use
     # fs metadata + cache.json to exit early before model/Qdrant setup when all
     # files are unchanged.
