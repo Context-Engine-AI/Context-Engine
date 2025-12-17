@@ -9,6 +9,12 @@ from typing import Any, Callable
 from qdrant_client import QdrantClient
 
 
+# TODO(NEON_WARNING): VS Code "force reindex" uses standalone_upload_client.py --force, which treats all files as
+# created and can generate repo-wide dirty ops (nullifying the dirty-queue fast-path). Consider separating "reindex"
+# vs "force upload", and/or adding bulk-marker/threshold fallback; keep force-upload as an escape hatch when
+# client/server state diverges.
+
+
 def _env_truthy(val: str | None, default: bool) -> bool:
     if val is None:
         return default
