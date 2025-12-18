@@ -63,6 +63,10 @@ COLLECTION = os.environ.get("COLLECTION_NAME", "my-collection")
 # Debounce interval
 DELAY_SECS = float(os.environ.get("WATCH_DEBOUNCE_SECS", "1.0"))
 
+# Performance tuning: bulk indexing threshold and batch upsert size
+BULK_INDEX_THRESHOLD = int(os.environ.get("WATCH_BULK_INDEX_THRESHOLD", "50"))
+BATCH_UPSERT_SIZE = int(os.environ.get("WATCH_BATCH_UPSERT_SIZE", "100"))
+
 
 def _detect_repo_for_file(file_path: Path) -> Optional[Path]:
     """Detect repository root for a file under WATCH root."""
@@ -1003,6 +1007,79 @@ def _process_git_history_manifest(
         return
 
 
+def _should_use_bulk_indexer(paths: List[Path], workspace_path: str) -> Dict[str, List[Path]]:
+    """Detect if paths belong to new directories that should use bulk indexing.
+
+    Returns a dict of {directory_path: [files]} for directories that exceed
+    BULK_INDEX_THRESHOLD and should be indexed via subprocess.
+    """
+    if BULK_INDEX_THRESHOLD <= 0:
+        return {}
+
+    # Group paths by their immediate parent under workspace root
+    dir_counts: Dict[str, List[Path]] = {}
+    for p in paths:
+        try:
+            # Find the top-level directory under ROOT for this file
+            rel = p.resolve().relative_to(ROOT.resolve())
+            if rel.parts:
+                top_dir = ROOT / rel.parts[0]
+                dir_counts.setdefault(str(top_dir), []).append(p)
+        except (ValueError, OSError):
+            continue
+
+    # Return directories that exceed the threshold
+    bulk_dirs = {}
+    for dir_path, files in dir_counts.items():
+        if len(files) >= BULK_INDEX_THRESHOLD:
+            bulk_dirs[dir_path] = files
+
+    return bulk_dirs
+
+
+def _run_bulk_indexer(directory: str, collection: str) -> bool:
+    """Run ingest_code.py as subprocess for bulk indexing a directory.
+
+    Returns True if subprocess was launched successfully.
+    """
+    try:
+        import sys
+
+        script = ROOT_DIR / "scripts" / "ingest_code.py"
+        if not script.exists():
+            print(f"[bulk_index] Script not found: {script}")
+            return False
+
+        cmd = [
+            sys.executable or "python3",
+            str(script),
+            "--root", directory,
+            "--skip-unchanged",  # Use hash-based skip for efficiency
+        ]
+
+        env = os.environ.copy()
+        env["COLLECTION_NAME"] = collection
+        env["QDRANT_URL"] = QDRANT_URL
+        # Disable smart reindex in bulk mode for speed
+        env["INDEX_SMART_REINDEX"] = "0"
+
+        print(f"[bulk_index] Launching bulk indexer for {directory} -> {collection}")
+
+        # Run synchronously so we know when it's done
+        result = subprocess.run(cmd, env=env, capture_output=True, text=True)
+
+        if result.returncode == 0:
+            print(f"[bulk_index] Completed {directory}")
+            return True
+        else:
+            print(f"[bulk_index] Failed {directory}: {result.stderr[:500] if result.stderr else 'unknown error'}")
+            return False
+
+    except Exception as e:
+        print(f"[bulk_index] Error launching indexer for {directory}: {e}")
+        return False
+
+
 def _process_paths(paths, client, model, vector_name: str, model_dim: int, workspace_path: str):
     unique_paths = sorted(set(Path(x) for x in paths))
     if not unique_paths:
@@ -1010,8 +1087,29 @@ def _process_paths(paths, client, model, vector_name: str, model_dim: int, works
 
     started_at = datetime.now().isoformat()
 
+    # Check if any directories should use bulk indexing
+    bulk_dirs = _should_use_bulk_indexer(unique_paths, workspace_path)
+    bulk_indexed_files: Set[Path] = set()
+
+    if bulk_dirs:
+        for dir_path, dir_files in bulk_dirs.items():
+            try:
+                collection = _get_collection_for_file(dir_files[0]) if dir_files else COLLECTION
+                print(f"[bulk_index] Detected {len(dir_files)} files in {dir_path}, using bulk indexer")
+                if _run_bulk_indexer(dir_path, collection):
+                    bulk_indexed_files.update(dir_files)
+            except Exception as e:
+                print(f"[bulk_index] Failed for {dir_path}: {e}")
+
+    # Filter out files that were bulk indexed
+    remaining_paths = [p for p in unique_paths if p not in bulk_indexed_files]
+
+    if not remaining_paths:
+        print(f"[bulk_index] All {len(unique_paths)} files handled by bulk indexer")
+        return
+
     repo_groups: dict[str, list[Path]] = {}
-    for p in unique_paths:
+    for p in remaining_paths:
         repo_path = _detect_repo_for_file(p) or Path(workspace_path)
         repo_groups.setdefault(str(repo_path), []).append(p)
 
@@ -1034,7 +1132,7 @@ def _process_paths(paths, client, model, vector_name: str, model_dim: int, works
 
     repo_progress: dict[str, int] = {key: 0 for key in repo_groups.keys()}
 
-    for p in unique_paths:
+    for p in remaining_paths:
         repo_path = _detect_repo_for_file(p) or Path(workspace_path)
         repo_key = str(repo_path)
         repo_files = repo_groups.get(repo_key, [])
@@ -1119,9 +1217,10 @@ def _process_paths(paths, client, model, vector_name: str, model_dim: int, works
                                     use_smart, smart_reason = False, "smart_check_failed"
 
                                 # Bootstrap: if we have no symbol cache yet, still run smart path once
+                                # to populate the cache for future smart reindexing
                                 bootstrap = smart_reason == "no_cached_symbols"
                                 if use_smart or bootstrap:
-                                    msg_kind = "smart reindexing" if use_smart else "bootstrap (no_cached_symbols) for smart reindex"
+                                    msg_kind = "smart reindexing" if use_smart else "bootstrap (populating symbol cache)"
                                     try:
                                         print(f"[SMART_REINDEX][watcher] Using {msg_kind} for {p} ({smart_reason})")
                                     except Exception:
