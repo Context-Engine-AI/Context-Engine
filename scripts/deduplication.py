@@ -267,11 +267,47 @@ class RequestDeduplicator:
         except Exception:
             return 0.0
     
+    def _build_minhash(self, normalized_data: Dict[str, Any]) -> Optional[Any]:
+        """Build MinHash signature from normalized request data."""
+        if not self._minhash_lsh:
+            return None
+        MinHash, _ = _get_minhash_classes()
+        if not MinHash:
+            return None
+
+        mh = MinHash(num_perm=128)
+        for k, v in normalized_data.items():
+            if isinstance(v, list):
+                for item in v:
+                    mh.update(f"{k}:{item}")
+            else:
+                mh.update(f"{k}:{v}")
+        return mh
+
     def _find_similar_requests(self, candidate_fp: str, candidate_norm: Dict[str, Any]) -> List[str]:
         """Find requests similar to the given normalized candidate."""
         if self.exact_match:
             return [candidate_fp] if candidate_fp in self._fingerprints else []
 
+        # Use MinHash LSH for fast approximate search if available
+        if self._minhash_lsh and len(self._fingerprints) > 10:
+            candidate_mh = self._build_minhash(candidate_norm)
+            if candidate_mh:
+                # Get candidates from LSH (sub-linear search)
+                lsh_candidates = list(self._minhash_lsh.query(candidate_mh))
+                # Verify with exact Jaccard for candidates only
+                similar: List[str] = []
+                for fp in lsh_candidates:
+                    if fp in self._fingerprints:
+                        try:
+                            sim = self._calculate_similarity(candidate_norm, self._fingerprints[fp].request_data)
+                        except Exception:
+                            sim = 0.0
+                        if sim >= self.similarity_threshold:
+                            similar.append(fp)
+                return similar
+
+        # Fallback: linear scan for small caches or when MinHash unavailable
         similar: List[str] = []
         for existing_fp, obj in self._fingerprints.items():
             try:
