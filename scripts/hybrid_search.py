@@ -117,6 +117,21 @@ try:
 except ImportError:
     QUERY_OPTIMIZER_AVAILABLE = False
 
+# Aho-Corasick for multi-pattern lexical matching (feature flag: AC_LEXICAL_ENABLED=1)
+_AC_LEXICAL_ENABLED = os.environ.get("AC_LEXICAL_ENABLED", "0").lower() in {"1", "true", "yes", "on"}
+_AhoCorasick = None
+
+def _get_aho_corasick_class():
+    """Lazy-load AhoCorasick class."""
+    global _AhoCorasick
+    if _AhoCorasick is None and _AC_LEXICAL_ENABLED:
+        try:
+            from scripts.aho_corasick import AhoCorasick
+            _AhoCorasick = AhoCorasick
+        except ImportError:
+            pass
+    return _AhoCorasick
+
 logger = logging.getLogger("hybrid_search")
 
 
@@ -1135,6 +1150,77 @@ def lexical_score(phrases: List[str], md: Dict[str, Any], token_weights: Dict[st
             contrib *= (1.0 + float(bm25_weight) * (w - 1.0))
         s += contrib
     return s
+
+
+def lexical_score_ac(
+    phrases: List[str],
+    md: Dict[str, Any],
+    automaton: Any,
+    token_weights: Dict[str, float] | None = None,
+    bm25_weight: float | None = None,
+) -> float:
+    """Aho-Corasick optimized lexical scoring.
+
+    Uses pre-built automaton for single-pass matching across all fields.
+    Same scoring logic as lexical_score but faster for many tokens.
+    """
+    if automaton is None:
+        return lexical_score(phrases, md, token_weights, bm25_weight)
+
+    path = str(md.get("path", "")).lower()
+    path_segs = re.split(r"[/\\]", path)
+    sym = str(md.get("symbol", "")).lower()
+    symp = str(md.get("symbol_path", "")).lower()
+    code = str(md.get("code", ""))[:2000].lower()
+    pseudo = str(md.get("pseudo") or "").lower()
+    tags_val = md.get("tags") or []
+    if isinstance(tags_val, list):
+        tags_text = " ".join(str(x) for x in tags_val).lower()
+    else:
+        tags_text = str(tags_val).lower()
+
+    # Find matches in each field using automaton
+    sym_matches = {m.pattern for m in automaton.find_all(sym + " " + symp)}
+    path_matches = {m.pattern for seg in path_segs for m in automaton.find_all(seg)}
+    code_matches = {m.pattern for m in automaton.find_all(code)}
+    pseudo_matches = {m.pattern for m in automaton.find_all(pseudo)} if pseudo else set()
+    tags_matches = {m.pattern for m in automaton.find_all(tags_text)} if tags_text else set()
+
+    s = 0.0
+    for t in automaton.patterns:
+        if not t:
+            continue
+        contrib = 0.0
+        if t in sym_matches:
+            contrib += 2.0
+        if t in path_matches:
+            contrib += 0.6
+        if t in code_matches:
+            contrib += 1.0
+        if PSEUDO_BOOST > 0.0:
+            if t in pseudo_matches:
+                contrib += PSEUDO_BOOST
+            if t in tags_matches:
+                contrib += 0.5 * PSEUDO_BOOST
+        if contrib > 0 and token_weights and bm25_weight:
+            w = float(token_weights.get(t, 1.0) or 1.0)
+            contrib *= (1.0 + float(bm25_weight) * (w - 1.0))
+        s += contrib
+    return s
+
+
+def build_lexical_automaton_for_search(tokens: List[str]):
+    """Build Aho-Corasick automaton from tokens if feature enabled."""
+    if not _AC_LEXICAL_ENABLED:
+        return None
+    AhoCorasick = _get_aho_corasick_class()
+    if AhoCorasick is None:
+        return None
+    # Filter out empty/short tokens
+    valid_tokens = [t for t in tokens if t and len(t) >= 2]
+    if not valid_tokens:
+        return None
+    return AhoCorasick(valid_tokens, case_sensitive=False)
 
 
 # --- Adaptive weighting and MMR diversification helpers ---
@@ -3349,10 +3435,21 @@ def main():
         _BM25_W2 = 0.2
     _bm25_tok_w2 = _bm25_token_weights_from_results(queries, lex_results) if _USE_BM25_CLI else {}
 
+    # Build Aho-Corasick automaton once for all results (if AC_LEXICAL_ENABLED=1)
+    _ac_automaton = None
+    if _AC_LEXICAL_ENABLED:
+        _ac_tokens = tokenize_queries(queries)
+        _ac_automaton = build_lexical_automaton_for_search(_ac_tokens)
+
     timestamps: List[int] = []
     for pid, rec in list(score_map.items()):
         md = (rec["pt"].payload or {}).get("metadata") or {}
-        lx = (_AD_LEX_TEXT_W2 * lexical_score(queries, md, token_weights=_bm25_tok_w2, bm25_weight=_BM25_W2)) if _USE_ADAPT2 else (LEXICAL_WEIGHT * lexical_score(queries, md, token_weights=_bm25_tok_w2, bm25_weight=_BM25_W2))
+        # Use AC-optimized scoring if automaton available, else fall back to original
+        if _ac_automaton is not None:
+            lx_raw = lexical_score_ac(queries, md, _ac_automaton, token_weights=_bm25_tok_w2, bm25_weight=_BM25_W2)
+        else:
+            lx_raw = lexical_score(queries, md, token_weights=_bm25_tok_w2, bm25_weight=_BM25_W2)
+        lx = (_AD_LEX_TEXT_W2 * lx_raw) if _USE_ADAPT2 else (LEXICAL_WEIGHT * lx_raw)
         rec["lx"] += lx
         rec["s"] += lx
         ts = md.get("last_modified_at") or md.get("ingested_at")
