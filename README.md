@@ -19,6 +19,7 @@ Context-Engine is a plug-and-play MCP retrieval stack that unifies code indexing
 - ReFRAG-inspired micro-chunking, token budgeting, and gate-first filtering surface precise spans
 - **Dynamic query optimization** with adaptive HNSW_EF tuning and intelligent routing for 2x faster simple queries
 - **AST-based semantic chunking** preserves function/class boundaries for 20-30% better retrieval precision
+- **Algorithm optimizations**: fuzzy symbol matching, Aho-Corasick lexical scoring, Bloom filter indexing
 - Shared memory/indexer schema and reranker tooling for dense, lexical, and semantic signals
 - **ctx CLI prompt enhancer** with multi-pass unicorn mode for code-grounded prompt rewriting
 - VS Code extension with Prompt+ button and automatic workspace sync

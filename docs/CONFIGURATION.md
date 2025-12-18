@@ -10,6 +10,7 @@ Complete environment variable reference for Context Engine.
 - [Core Settings](#core-settings)
 - [Embedding Models](#embedding-models)
 - [Indexing & Micro-Chunks](#indexing--micro-chunks)
+- [Algorithm Optimizations](#algorithm-optimizations)
 - [Query Optimization](#query-optimization)
 - [Watcher Settings](#watcher-settings)
 - [Reranker](#reranker)
@@ -91,6 +92,84 @@ make reset-dev-dual  # Recreates collection and reindexes
 | INDEX_CHUNK_OVERLAP | Overlap lines between chunks | 20 |
 | INDEX_BATCH_SIZE | Upsert batch size | 64 |
 | INDEX_PROGRESS_EVERY | Log progress every N files | 200 |
+
+## Algorithm Optimizations
+
+Context Engine includes several optional algorithm-based optimizations for improved search relevance and indexing performance. All are opt-in via environment variables.
+
+### Fuzzy Symbol Matching
+
+Jaro-Winkler similarity matching for symbol names. Handles camelCase/snake_case variants and minor typos (e.g., `getUserInfo` matches `get_user_info`).
+
+| Name | Description | Default |
+|------|-------------|---------|
+| FUZZY_SYMBOL_ENABLED | Enable Jaro-Winkler fuzzy symbol boost | 0 (off) |
+| SYMBOL_FUZZY_THRESHOLD | Minimum JW similarity to apply boost (0.0-1.0) | 0.85 |
+| SYMBOL_FUZZY_BOOST | Score boost multiplied by JW similarity | 0.1 |
+
+### Aho-Corasick Multi-Pattern Matching
+
+Replaces O(n×m) regex loops with O(n) automaton-based matching for lexical scoring. Beneficial for queries with many terms.
+
+| Name | Description | Default |
+|------|-------------|---------|
+| AC_LEXICAL_ENABLED | Enable Aho-Corasick for lexical scoring | 0 (off) |
+
+### Bloom Filter Skip
+
+Fast probabilistic check during indexing to skip files that haven't changed. Uses content hashing with near-zero false positives.
+
+| Name | Description | Default |
+|------|-------------|---------|
+| BLOOM_SKIP_ENABLED | Enable Bloom filter for unchanged file detection | 0 (off) |
+
+### Symbol Diff Detection
+
+Detects moved/renamed code blocks between file versions using difflib. Enables embedding reuse for relocated code.
+
+| Name | Description | Default |
+|------|-------------|---------|
+| SYMBOL_DIFF_ENABLED | Enable symbol diff for moved code detection | 0 (off) |
+
+### MinHash LSH Deduplication
+
+Locality-sensitive hashing for near-duplicate detection. Identifies similar code blocks across the codebase.
+
+| Name | Description | Default |
+|------|-------------|---------|
+| DEDUP_MINHASH_ENABLED | Enable MinHash LSH deduplication | 0 (off) |
+
+### HyperLogLog Cardinality
+
+Probabilistic cardinality estimation for collection statistics. Memory-efficient unique path counting.
+
+| Name | Description | Default |
+|------|-------------|---------|
+| HLL_STATS_ENABLED | Enable HyperLogLog cardinality tracking | 0 (off) |
+
+### Path Trie Filtering
+
+Trie-based data structure for efficient path prefix filtering. Speeds up `under:` filters on large collections.
+
+| Name | Description | Default |
+|------|-------------|---------|
+| PATH_TRIE_ENABLED | Enable path trie for prefix filtering | 0 (off) |
+
+**Recommended production settings:**
+```bash
+# .env - Enable all optimizations
+FUZZY_SYMBOL_ENABLED=1
+AC_LEXICAL_ENABLED=1
+BLOOM_SKIP_ENABLED=1
+SYMBOL_DIFF_ENABLED=1
+DEDUP_MINHASH_ENABLED=1
+HLL_STATS_ENABLED=1
+PATH_TRIE_ENABLED=1
+```
+
+> **See [Architecture](ARCHITECTURE.md#algorithm-optimizations) for implementation details.**
+
+---
 
 ## Query Optimization
 

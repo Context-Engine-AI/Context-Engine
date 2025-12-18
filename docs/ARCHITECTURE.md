@@ -9,6 +9,7 @@
 - [Core Principles](#core-principles)
 - [System Architecture](#system-architecture)
 - [Learning Reranker System](#5-learning-reranker-system)
+- [Algorithm Optimizations](#6-algorithm-optimizations)
 - [Data Flow](#data-flow)
 - [ReFRAG Pipeline](#refrag-pipeline)
 
@@ -232,6 +233,97 @@ Worker logs show training progress:
 - **Tool Orchestration**: Routes to search, answer, memory, or index tools
 - **HTTP Execution**: Executes tools via RMCP/HTTP without extra dependencies
 - **Plan Mode**: Preview tool selection without execution
+
+### 6. Algorithm Optimizations
+
+Context Engine includes pluggable algorithm modules that enhance search relevance and indexing performance. Each is independently toggleable via environment variables.
+
+#### Fuzzy Symbol Matching (`jellyfish.jaro_winkler`)
+
+Handles naming convention mismatches between queries and indexed symbols. Searching for `getUserInfo` finds `get_user_info`.
+
+1. Computes Jaro-Winkler similarity between query and each symbol
+2. JW gives higher weight to prefix matches (good for `get_user` vs `get_user_info`)
+3. If similarity ≥ 0.85 threshold and no exact/substring match exists, applies boost
+4. Boost = `SYMBOL_FUZZY_BOOST × JW_score` (default: ~0.099 for 0.987 similarity)
+
+#### Aho-Corasick Automaton (`ahocorasick`)
+
+Replaces multiple regex passes with single-pass multi-pattern matching for lexical scoring.
+
+1. Builds finite-state automaton from all query terms at search time
+2. Single pass through document text finds all term occurrences
+3. Returns match positions for TF-IDF weighting
+
+#### Bloom Filter (`scripts/bloom_index.py`)
+
+Probabilistic skip-check during indexing to avoid re-embedding unchanged files.
+
+1. Stores content hashes in space-efficient Bloom filter (~1.2MB for 100k files)
+2. On file change, checks if content hash exists in filter
+3. If present with high probability, skips embedding (false positive rate <0.1%)
+4. Filter persists in `.codebase/bloom.bin`
+
+#### Symbol Diff (`scripts/symbol_diff.py`)
+
+Detects moved/renamed code between versions to reuse embeddings.
+
+1. Uses `difflib.SequenceMatcher` to compare old vs new file content
+2. Identifies blocks with >80% similarity that changed location
+3. Maps old embeddings to new positions, avoiding recomputation
+
+#### MinHash LSH (`datasketch`)
+
+Near-duplicate detection via locality-sensitive hashing for cleaner search results.
+
+1. Generates MinHash signature (128 hash functions) per code block
+2. LSH index groups similar signatures into buckets
+3. Candidates in same bucket have Jaccard similarity >0.5
+4. Deduplication merges or filters near-duplicates
+
+#### HyperLogLog (`scripts/workspace_state.py`)
+
+Probabilistic cardinality estimation for memory-efficient collection statistics.
+
+1. HLL uses ~1.5KB to estimate cardinality of any set size
+2. Adds elements via hash → register update
+3. Estimates count from register distribution (±2% error typical)
+
+#### Path Trie (`scripts/path_trie.py`)
+
+Prefix tree for efficient path filtering on `under:` queries.
+
+1. Builds trie from all indexed paths at startup
+2. Prefix query traverses trie to matching node
+3. Returns all descendant paths in O(k + m) where k=prefix length, m=matches
+
+#### Integration Points
+
+All algorithms integrate into the hybrid search pipeline:
+
+```
+Query → [Aho-Corasick Lexical] → [Dense Vector] → RRF Fusion
+                                                      ↓
+                                          [Fuzzy Symbol Boost]
+                                                      ↓
+                                          [MinHash Dedup Filter]
+                                                      ↓
+                                              Final Results
+```
+
+During indexing:
+
+```
+File Change → [Bloom Skip Check] → [Symbol Diff] → Embedding
+                                                      ↓
+                                          [MinHash Signature]
+                                                      ↓
+                                          [HLL Cardinality Update]
+                                                      ↓
+                                              Qdrant Upsert
+```
+
+> **See [Configuration](CONFIGURATION.md#algorithm-optimizations) for all environment variables.**
 
 ## Data Flow Architecture
 
