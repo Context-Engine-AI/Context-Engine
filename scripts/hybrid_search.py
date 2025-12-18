@@ -2574,6 +2574,7 @@ def run_hybrid_search(
         sym = str(md.get("symbol") or "").lower()
         sym_path = str(md.get("symbol_path") or "").lower()
         sym_text = f"{sym} {sym_path}"
+        jw_func = _get_jaro_winkler() if _FUZZY_SYMBOL_ENABLED else None
         for q in qlist:
             ql = q.lower()
             if not ql:
@@ -2584,6 +2585,16 @@ def run_hybrid_search(
             if ql == sym or ql == sym_path:
                 rec["sym_eq"] += SYMBOL_EQUALITY_BOOST
                 rec["s"] += SYMBOL_EQUALITY_BOOST
+            # Fuzzy match boost using Jaro-Winkler (e.g., getUserInfo ~ get_user_info)
+            elif jw_func and sym and len(ql) >= 3:
+                try:
+                    jw_score = jw_func(ql, sym)
+                    if jw_score >= SYMBOL_FUZZY_THRESHOLD:
+                        boost = SYMBOL_FUZZY_BOOST * jw_score
+                        rec["sym_fuzzy"] = rec.get("sym_fuzzy", 0.0) + boost
+                        rec["s"] += boost
+                except Exception:
+                    pass
         path = str(md.get("path") or "")
         if CORE_FILE_BOOST > 0.0 and path and is_core_file(path):
             rec["core"] += CORE_FILE_BOOST
@@ -2999,6 +3010,7 @@ def run_hybrid_search(
             "lexical": round(float(m.get("lx", 0.0)), 4),
             "symbol_substr": round(float(m.get("sym_sub", 0.0)), 4),
             "symbol_exact": round(float(m.get("sym_eq", 0.0)), 4),
+            "symbol_fuzzy": round(float(m.get("sym_fuzzy", 0.0)), 4),  # Jaro-Winkler fuzzy boost
             "core_boost": round(float(m.get("core", 0.0)), 4),
             "vendor_penalty": round(float(m.get("vendor", 0.0)), 4),
             "lang_boost": round(float(m.get("langb", 0.0)), 4),
@@ -3016,7 +3028,7 @@ def run_hybrid_search(
         why = []
         if comp["dense_rrf"]:
             why.append(f"dense_rrf:{comp['dense_rrf']}")
-        for k in ("lexical", "symbol_substr", "symbol_exact", "core_boost", "lang_boost", "impl_boost"):
+        for k in ("lexical", "symbol_substr", "symbol_exact", "symbol_fuzzy", "core_boost", "lang_boost", "impl_boost"):
             if comp[k]:
                 why.append(f"{k}:{comp[k]}")
         if comp["vendor_penalty"]:
