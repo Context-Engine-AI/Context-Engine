@@ -162,6 +162,13 @@ class OriginInfo(TypedDict, total=False):
     updated_at: Optional[str]
 
 
+class WorkspaceStats(TypedDict, total=False):
+    """Lightweight stats tracked via HyperLogLog for cardinality estimation."""
+    unique_files_estimate: Optional[int]
+    unique_symbols_estimate: Optional[int]
+    hll_registers: Optional[str]  # Base64-encoded HLL registers for persistence
+
+
 class WorkspaceState(TypedDict, total=False):
     created_at: str
     updated_at: str
@@ -171,6 +178,105 @@ class WorkspaceState(TypedDict, total=False):
     qdrant_stats: Optional[Dict[str, Any]]
     origin: Optional[OriginInfo]
     logical_repo_id: Optional[str]
+    workspace_stats: Optional[WorkspaceStats]
+
+
+# HyperLogLog for cardinality estimation (feature flag: HLL_STATS_ENABLED=1)
+_HLL_STATS_ENABLED = os.environ.get("HLL_STATS_ENABLED", "0").lower() in {"1", "true", "yes", "on"}
+_HyperLogLog = None
+_hll_instances: Dict[str, Any] = {}  # workspace_path -> HLL instance
+
+def _get_hyperloglog_class():
+    """Lazy-load HyperLogLog class."""
+    global _HyperLogLog
+    if _HyperLogLog is None and _HLL_STATS_ENABLED:
+        try:
+            from scripts.hyperloglog import HyperLogLog
+            _HyperLogLog = HyperLogLog
+        except ImportError:
+            pass
+    return _HyperLogLog
+
+def get_workspace_hll(workspace_path: Optional[str] = None, precision: int = 12) -> Any:
+    """Get or create a HyperLogLog instance for a workspace.
+
+    Args:
+        workspace_path: Workspace to get HLL for (defaults to current workspace)
+        precision: HLL precision (4-16, default 12 for ~1.6% error)
+
+    Returns:
+        HyperLogLog instance or None if disabled/unavailable
+    """
+    if not _HLL_STATS_ENABLED:
+        return None
+    HLLClass = _get_hyperloglog_class()
+    if not HLLClass:
+        return None
+
+    ws = workspace_path or _resolve_workspace_root()
+    if ws not in _hll_instances:
+        # Try to restore from persisted state
+        try:
+            state = get_workspace_state(ws)
+            stats = state.get("workspace_stats") or {}
+            hll_data = stats.get("hll_registers")
+            if hll_data:
+                import base64
+                registers = base64.b64decode(hll_data)
+                hll = HLLClass(precision=precision)
+                hll._registers = bytearray(registers)
+                _hll_instances[ws] = hll
+            else:
+                _hll_instances[ws] = HLLClass(precision=precision)
+        except Exception:
+            _hll_instances[ws] = HLLClass(precision=precision)
+
+    return _hll_instances[ws]
+
+def track_file_in_hll(file_path: str, workspace_path: Optional[str] = None) -> None:
+    """Track a file path in the workspace's HyperLogLog."""
+    hll = get_workspace_hll(workspace_path)
+    if hll:
+        try:
+            hll.add(file_path)
+        except Exception:
+            pass
+
+def track_symbol_in_hll(symbol_id: str, workspace_path: Optional[str] = None) -> None:
+    """Track a symbol in the workspace's HyperLogLog (separate counter)."""
+    # For now, we use a single HLL; could extend to have separate HLLs per metric
+    pass  # Reserved for future use
+
+def persist_hll_stats(workspace_path: Optional[str] = None) -> None:
+    """Persist HyperLogLog stats to workspace state."""
+    if not _HLL_STATS_ENABLED:
+        return
+    ws = workspace_path or _resolve_workspace_root()
+    hll = _hll_instances.get(ws)
+    if not hll:
+        return
+
+    try:
+        import base64
+        hll_data = base64.b64encode(bytes(hll._registers)).decode('ascii')
+        stats: WorkspaceStats = {
+            "unique_files_estimate": hll.count(),
+            "hll_registers": hll_data,
+        }
+        update_workspace_state(workspace_path=ws, updates={"workspace_stats": stats})
+    except Exception as e:
+        print(f"[workspace_state] Failed to persist HLL stats: {e}")
+
+def get_unique_files_estimate(workspace_path: Optional[str] = None) -> Optional[int]:
+    """Get estimated unique file count from HyperLogLog."""
+    hll = get_workspace_hll(workspace_path)
+    if hll:
+        try:
+            return hll.count()
+        except Exception:
+            pass
+    return None
+
 
 def is_multi_repo_mode() -> bool:
     """Check if multi-repo mode is enabled."""

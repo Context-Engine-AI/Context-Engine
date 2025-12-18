@@ -147,6 +147,74 @@ def _get_jaro_winkler():
             pass
     return _jaro_winkler
 
+# PathTrie for efficient path prefix filtering (feature flag: PATH_TRIE_ENABLED=1)
+_PATH_TRIE_ENABLED = os.environ.get("PATH_TRIE_ENABLED", "0").lower() in {"1", "true", "yes", "on"}
+_PathTrie = None
+_path_trie_cache: dict[str, Any] = {}  # collection -> PathTrie
+
+def _get_path_trie_class():
+    """Lazy-load PathTrie class."""
+    global _PathTrie
+    if _PathTrie is None and _PATH_TRIE_ENABLED:
+        try:
+            from scripts.path_trie import PathTrie
+            _PathTrie = PathTrie
+        except ImportError:
+            pass
+    return _PathTrie
+
+def build_path_trie_for_collection(client: Any, collection: str) -> Any:
+    """Build a PathTrie index from all paths in a collection (cached)."""
+    if not _PATH_TRIE_ENABLED:
+        return None
+    PathTrieClass = _get_path_trie_class()
+    if not PathTrieClass:
+        return None
+
+    # Check cache
+    if collection in _path_trie_cache:
+        return _path_trie_cache[collection]
+
+    try:
+        trie = PathTrieClass()
+        # Scroll through all points to collect paths
+        offset = None
+        batch_size = 1000
+        while True:
+            result = client.scroll(
+                collection_name=collection,
+                limit=batch_size,
+                offset=offset,
+                with_payload=["metadata.path"],
+            )
+            points, offset = result
+            if not points:
+                break
+            for pt in points:
+                payload = pt.payload or {}
+                md = payload.get("metadata") or {}
+                path = md.get("path")
+                if path:
+                    trie.add(path)
+            if offset is None:
+                break
+
+        _path_trie_cache[collection] = trie
+        logger.info(f"Built PathTrie for {collection}: {len(trie)} paths")
+        return trie
+    except Exception as e:
+        logger.warning(f"Failed to build PathTrie for {collection}: {e}")
+        return None
+
+def filter_paths_by_prefix_trie(trie: Any, prefix: str) -> set[str]:
+    """Get all paths matching a prefix using PathTrie."""
+    if not trie:
+        return set()
+    try:
+        return set(trie.find_by_prefix(prefix))
+    except Exception:
+        return set()
+
 logger = logging.getLogger("hybrid_search")
 
 
@@ -160,7 +228,7 @@ def _collection(collection_name: str | None = None) -> str:
     if env_coll:
         return env_coll
 
-    return "my-collection"
+    return "codebase"
 
 
 MODEL_NAME = os.environ.get("EMBEDDING_MODEL", "BAAI/bge-base-en-v1.5")
