@@ -2856,23 +2856,30 @@ def index_single_file(
             pass
 
         # Optional Qdrant-backed unchanged detection; disabled when trust_cache is enabled
+        # Bloom filter fast-path: if hash definitely not in bloom, skip Qdrant check
         if not trust_cache:
-            prev = get_indexed_file_hash(
-                client,
-                collection,
-                str(file_path),
-                repo_id=repo_id,
-                repo_rel_path=repo_rel_path,
-            )
-            if prev and prev == file_hash:
-                # When fs fast-path is enabled, refresh cache entry with size/mtime
-                if fast_fs and set_cached_file_hash:
-                    try:
-                        set_cached_file_hash(str(file_path), file_hash, repo_tag)
-                    except Exception:
-                        pass
-                print(f"Skipping unchanged file: {file_path}")
-                return False
+            # When BLOOM_SKIP_ENABLED=1, check bloom filter first
+            if not _bloom_might_contain(file_hash):
+                # Hash definitely not indexed - no need to check Qdrant
+                pass  # Continue to indexing
+            else:
+                # Hash might be indexed - do Qdrant check to confirm
+                prev = get_indexed_file_hash(
+                    client,
+                    collection,
+                    str(file_path),
+                    repo_id=repo_id,
+                    repo_rel_path=repo_rel_path,
+                )
+                if prev and prev == file_hash:
+                    # When fs fast-path is enabled, refresh cache entry with size/mtime
+                    if fast_fs and set_cached_file_hash:
+                        try:
+                            set_cached_file_hash(str(file_path), file_hash, repo_tag)
+                        except Exception:
+                            pass
+                    print(f"Skipping unchanged file: {file_path}")
+                    return False
 
     if dedupe:
         delete_points_by_path(client, collection, str(file_path))
@@ -3070,6 +3077,8 @@ def index_single_file(
                 set_cached_file_hash(str(file_path), file_hash, file_repo_tag)
         except Exception:
             pass
+        # Add to bloom filter for future fast-path checks
+        _bloom_add(file_hash)
         return True
     return False
 
@@ -3760,6 +3769,8 @@ def index_repo(
                                             str(Path(workspace_root).resolve() / repos_touched_name),
                                         )
                                     set_cached_file_hash(_p, _h, file_repo_tag)
+                                    # Add to bloom filter for future fast-path checks
+                                    _bloom_add(_h)
                             except Exception:
                                 continue
                 except Exception:
@@ -3825,6 +3836,8 @@ def index_repo(
                             )
                             if per_file_repo:
                                 set_cached_file_hash(_p, _h, per_file_repo)
+                            # Add to bloom filter for future fast-path checks
+                            _bloom_add(_h)
                     except Exception:
                         continue
 
@@ -3897,6 +3910,9 @@ def index_repo(
         import traceback
         print(f"[ERROR] Failed to update workspace state after indexing completion: {e}")
         print(f"[ERROR] Traceback: {traceback.format_exc()}")
+
+    # Persist bloom filter to disk at end of indexing run
+    _bloom_save()
 
 
 def process_file_with_smart_reindexing(
