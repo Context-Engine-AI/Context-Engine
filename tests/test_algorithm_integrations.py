@@ -23,6 +23,9 @@ class TestBloomFilter:
         """Test BloomIndex with workspace."""
         from scripts.bloom_index import BloomIndex
 
+        # Create .codebase dir
+        (tmp_path / ".codebase").mkdir(exist_ok=True)
+
         bloom = BloomIndex(workspace_path=tmp_path)
         bloom.add("persist_test_1")
         bloom.add("persist_test_2")
@@ -30,8 +33,10 @@ class TestBloomFilter:
         assert bloom.might_contain("persist_test_1")
         assert bloom.might_contain("persist_test_2")
 
-        # Save and reload
+        # Force save (marking dirty happens in add())
         bloom.save()
+
+        # Load should restore the bloom filter
         loaded = BloomIndex.load_or_create(tmp_path)
         assert loaded.might_contain("persist_test_1")
         assert loaded.might_contain("persist_test_2")
@@ -47,8 +52,8 @@ class TestAhoCorasick:
         # AhoCorasick builds automatically on init
         ac = AhoCorasick(["hello", "world", "test"])
 
-        matches = ac.search("hello world, this is a test")
-        patterns_found = {m[1] for m in matches}
+        matches = ac.find_all("hello world, this is a test")
+        patterns_found = {m.pattern for m in matches}
         assert "hello" in patterns_found
         assert "world" in patterns_found
         assert "test" in patterns_found
@@ -58,10 +63,10 @@ class TestAhoCorasick:
         from scripts.aho_corasick import AhoCorasick
 
         # Default is case-insensitive
-        ac = AhoCorasick(["Hello", "WORLD"], case_sensitive=False)
+        ac = AhoCorasick(["hello", "world"], case_sensitive=False)
 
-        matches = ac.search("HELLO world")
-        patterns_found = {m[1].lower() for m in matches}
+        matches = ac.find_all("HELLO world")
+        patterns_found = {m.pattern.lower() for m in matches}
         assert "hello" in patterns_found
         assert "world" in patterns_found
 

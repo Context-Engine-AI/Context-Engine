@@ -23,9 +23,9 @@ MAX_ITEMS_ESTIMATE = 100_000
 
 class BloomFilter:
     """Space-efficient probabilistic set for membership testing."""
-    
+
     __slots__ = ("_bits", "_size", "_hash_count", "_count", "_lock")
-    
+
     def __init__(
         self,
         size_bits: int = DEFAULT_SIZE_BITS,
@@ -35,6 +35,23 @@ class BloomFilter:
         self._hash_count = hash_count
         self._bits = bytearray((size_bits + 7) // 8)
         self._count = 0
+        self._lock = threading.Lock()
+
+    def __getstate__(self) -> dict:
+        """Pickle support: exclude unpicklable lock."""
+        return {
+            "_bits": bytes(self._bits),
+            "_size": self._size,
+            "_hash_count": self._hash_count,
+            "_count": self._count,
+        }
+
+    def __setstate__(self, state: dict) -> None:
+        """Pickle support: restore from state and recreate lock."""
+        self._bits = bytearray(state["_bits"])
+        self._size = state["_size"]
+        self._hash_count = state["_hash_count"]
+        self._count = state["_count"]
         self._lock = threading.Lock()
     
     @classmethod
