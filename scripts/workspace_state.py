@@ -1500,9 +1500,58 @@ def compare_symbol_changes(old_symbols: dict, new_symbols: dict) -> tuple[list, 
     """
     Compare old and new symbols to identify changes.
 
+    Uses symbol_diff for move detection when available (SYMBOL_DIFF_ENABLED=1).
+    Moved symbols (same content, different location) are treated as unchanged
+    for embedding reuse purposes.
+
     Returns:
         (unchanged_symbols, changed_symbols)
+        - unchanged includes symbols that are identical OR moved (reusable embeddings)
+        - changed includes added, modified, or removed symbols
     """
+    # Check if enhanced diff is enabled
+    use_symbol_diff = os.environ.get("SYMBOL_DIFF_ENABLED", "0").lower() in {"1", "true", "yes", "on"}
+
+    if use_symbol_diff:
+        try:
+            from scripts.symbol_diff import SymbolInfo, diff_symbols
+
+            # Convert dict format to SymbolInfo objects
+            def _to_symbol_info(symbol_id: str, info: dict) -> SymbolInfo:
+                return SymbolInfo(
+                    name=info.get("name", ""),
+                    kind=info.get("type", info.get("kind", "")),
+                    content_hash=info.get("content_hash", ""),
+                    start_line=info.get("start_line", 0),
+                    end_line=info.get("end_line", 0),
+                )
+
+            old_list = [_to_symbol_info(sid, info) for sid, info in old_symbols.items()]
+            new_list = [_to_symbol_info(sid, info) for sid, info in new_symbols.items()]
+
+            changes = diff_symbols(old_list, new_list)
+
+            unchanged = []
+            changed = []
+
+            for c in changes:
+                if c.new:
+                    # Build symbol_id from new symbol
+                    new_id = f"{c.new.kind}_{c.new.name}_{c.new.start_line}"
+                    if c.change_type in ("unchanged", "moved"):
+                        unchanged.append(new_id)
+                    else:
+                        changed.append(new_id)
+                elif c.old and c.change_type == "removed":
+                    # Removed symbols go to changed
+                    old_id = f"{c.old.kind}_{c.old.name}_{c.old.start_line}"
+                    changed.append(old_id)
+
+            return unchanged, changed
+        except ImportError:
+            pass  # Fall through to basic comparison
+
+    # Basic comparison (no move detection)
     unchanged = []
     changed = []
 

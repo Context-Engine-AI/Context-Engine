@@ -132,6 +132,21 @@ def _get_aho_corasick_class():
             pass
     return _AhoCorasick
 
+# Jaro-Winkler for fuzzy symbol matching (feature flag: FUZZY_SYMBOL_ENABLED=1)
+_FUZZY_SYMBOL_ENABLED = os.environ.get("FUZZY_SYMBOL_ENABLED", "0").lower() in {"1", "true", "yes", "on"}
+_jaro_winkler = None
+
+def _get_jaro_winkler():
+    """Lazy-load jaro_winkler function."""
+    global _jaro_winkler
+    if _jaro_winkler is None and _FUZZY_SYMBOL_ENABLED:
+        try:
+            from scripts.fuzzy_match import jaro_winkler
+            _jaro_winkler = jaro_winkler
+        except ImportError:
+            pass
+    return _jaro_winkler
+
 logger = logging.getLogger("hybrid_search")
 
 
@@ -387,6 +402,9 @@ CORE_FILE_BOOST = _safe_float(os.environ.get("HYBRID_CORE_FILE_BOOST", "0.1"), 0
 SYMBOL_EQUALITY_BOOST = _safe_float(
     os.environ.get("HYBRID_SYMBOL_EQUALITY_BOOST", "0.25"), 0.25
 )
+# Fuzzy symbol boost using Jaro-Winkler (requires FUZZY_SYMBOL_ENABLED=1)
+SYMBOL_FUZZY_BOOST = _safe_float(os.environ.get("HYBRID_SYMBOL_FUZZY_BOOST", "0.1"), 0.1)
+SYMBOL_FUZZY_THRESHOLD = _safe_float(os.environ.get("HYBRID_SYMBOL_FUZZY_THRESHOLD", "0.85"), 0.85)
 VENDOR_PENALTY = _safe_float(os.environ.get("HYBRID_VENDOR_PENALTY", "0.05"), 0.05)
 LANG_MATCH_BOOST = _safe_float(os.environ.get("HYBRID_LANG_MATCH_BOOST", "0.05"), 0.05)
 CLUSTER_LINES = _safe_int(os.environ.get("HYBRID_CLUSTER_LINES", "15"), 15)
@@ -3460,6 +3478,7 @@ def main():
         sym = str(md.get("symbol") or "").lower()
         sym_path = str(md.get("symbol_path") or "").lower()
         sym_text = f"{sym} {sym_path}"
+        jw_func = _get_jaro_winkler() if _FUZZY_SYMBOL_ENABLED else None
         for q in queries:
             ql = q.lower()
             if not ql:
@@ -3472,6 +3491,16 @@ def main():
             if ql == sym or ql == sym_path:
                 rec["sym_eq"] += SYMBOL_EQUALITY_BOOST
                 rec["s"] += SYMBOL_EQUALITY_BOOST
+            # Fuzzy match boost using Jaro-Winkler (e.g., getUserInfo ~ get_user_info)
+            elif jw_func and sym and len(ql) >= 3:
+                try:
+                    jw_score = jw_func(ql, sym)
+                    if jw_score >= SYMBOL_FUZZY_THRESHOLD:
+                        boost = SYMBOL_FUZZY_BOOST * jw_score
+                        rec["sym_fuzzy"] = rec.get("sym_fuzzy", 0.0) + boost
+                        rec["s"] += boost
+                except Exception:
+                    pass
 
         # Path-based adjustments
         path = str(md.get("path") or "")
