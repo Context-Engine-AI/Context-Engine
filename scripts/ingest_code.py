@@ -115,6 +115,47 @@ except ImportError:
     get_workspace_state = None  # type: ignore
     get_cached_file_meta = None  # type: ignore
 
+# Bloom filter for fast index skip (feature flag: BLOOM_SKIP_ENABLED=1)
+_BLOOM_SKIP_ENABLED = os.environ.get("BLOOM_SKIP_ENABLED", "0").lower() in {"1", "true", "yes", "on"}
+_bloom_index_instance = None
+
+def _get_bloom_index():
+    """Lazy-load bloom index singleton."""
+    global _bloom_index_instance
+    if _bloom_index_instance is None and _BLOOM_SKIP_ENABLED:
+        try:
+            from scripts.bloom_index import BloomIndex
+            ws_path = os.environ.get("WORKSPACE_PATH") or os.environ.get("WATCH_ROOT") or "/work"
+            _bloom_index_instance = BloomIndex.load_or_create(ws_path)
+        except Exception:
+            pass
+    return _bloom_index_instance
+
+def _bloom_might_contain(file_hash: str) -> bool:
+    """Check if hash might be in bloom filter. Returns False if bloom disabled or hash definitely not present."""
+    if not _BLOOM_SKIP_ENABLED or not file_hash:
+        return True  # Conservative: assume might be present
+    bloom = _get_bloom_index()
+    if bloom is None:
+        return True
+    return bloom.might_contain(file_hash)
+
+def _bloom_add(file_hash: str) -> None:
+    """Add hash to bloom filter."""
+    if not _BLOOM_SKIP_ENABLED or not file_hash:
+        return
+    bloom = _get_bloom_index()
+    if bloom:
+        bloom.add(file_hash)
+
+def _bloom_save() -> None:
+    """Persist bloom filter to disk."""
+    if not _BLOOM_SKIP_ENABLED:
+        return
+    bloom = _get_bloom_index()
+    if bloom:
+        bloom.save()
+
 # Optional Tree-sitter import (graceful fallback) - tree-sitter 0.25+ API
 _TS_LANGUAGES: Dict[str, Any] = {}
 _TS_AVAILABLE = False
