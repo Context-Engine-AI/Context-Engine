@@ -17,6 +17,23 @@ import logging
 
 logger = logging.getLogger("deduplication")
 
+# MinHash LSH for fast approximate similarity (feature flag: DEDUP_MINHASH_ENABLED=1)
+_MINHASH_ENABLED = os.environ.get("DEDUP_MINHASH_ENABLED", "0").lower() in {"1", "true", "yes", "on"}
+_MinHash = None
+_MinHashLSH = None
+
+def _get_minhash_classes():
+    """Lazy-load MinHash classes."""
+    global _MinHash, _MinHashLSH
+    if _MinHash is None and _MINHASH_ENABLED:
+        try:
+            from scripts.min_hash import MinHash, MinHashLSH
+            _MinHash = MinHash
+            _MinHashLSH = MinHashLSH
+        except ImportError:
+            pass
+    return _MinHash, _MinHashLSH
+
 
 class RequestFingerprint:
     """Represents a unique fingerprint for a request."""
@@ -103,15 +120,16 @@ class RequestFingerprint:
 class RequestDeduplicator:
     """
     Intelligent request deduplication system.
-    
+
     Features:
     - Configurable deduplication windows
     - LRU eviction of old requests
     - Statistics tracking
     - Thread-safe operations
     - Multiple deduplication strategies
+    - Optional MinHash LSH for fast approximate similarity (DEDUP_MINHASH_ENABLED=1)
     """
-    
+
     def __init__(
         self,
         name: str = "default",
@@ -127,14 +145,22 @@ class RequestDeduplicator:
         self.cleanup_interval = cleanup_interval
         self.exact_match = exact_match
         self.similarity_threshold = similarity_threshold
-        
+
         # Storage for request fingerprints
         self._fingerprints: Dict[str, RequestFingerprint] = {}
         self._access_order = deque()  # For LRU tracking
-        
+
+        # MinHash LSH index for fast similarity search (optional)
+        self._minhash_lsh = None
+        self._minhashes: Dict[str, Any] = {}  # fingerprint -> MinHash
+        if _MINHASH_ENABLED and not exact_match:
+            MinHash, MinHashLSH = _get_minhash_classes()
+            if MinHashLSH:
+                self._minhash_lsh = MinHashLSH(num_perm=128, threshold=similarity_threshold)
+
         # Thread safety
         self._lock = threading.RLock()
-        
+
         # Statistics
         self._stats = {
             'total_requests': 0,
@@ -142,15 +168,17 @@ class RequestDeduplicator:
             'unique_requests': 0,
             'cache_hits': 0,
             'cache_size': 0,
-            'dedup_rate': 0.0
+            'dedup_rate': 0.0,
+            'minhash_enabled': self._minhash_lsh is not None
         }
-        
+
         # Start cleanup thread
         self._cleanup_thread = threading.Thread(target=self._cleanup_worker, daemon=True)
         self._cleanup_thread.start()
-        
+
         logger.debug(f"Initialized request deduplicator with window={dedup_window_seconds}s, "
-                    f"max_size={max_cache_size}, exact_match={exact_match}")
+                    f"max_size={max_cache_size}, exact_match={exact_match}, "
+                    f"minhash_lsh={'enabled' if self._minhash_lsh else 'disabled'}")
     
     def _normalize_request_data(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
         """Normalize request data for consistent deduplication (case/whitespace + light stemming)."""
