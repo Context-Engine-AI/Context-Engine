@@ -1,0 +1,29 @@
+# VCS
+.git
+.gitignore
+
+# Python / tooling caches
+__pycache__/
+**/__pycache__/
+.mypy_cache/
+.pytest_cache/
+
+# Local environments and deps
+.venv/
+.venv311/
+.env
+node_modules/
+
+# Large runtime data and volumes (mounted at runtime, not needed in images)
+.devcontainer/
+.devcontainer.json
+.dev-workspace/
+dev-workspace/
+.codebase/
+models/
+
+# Build / dist artifacts
+build/
+dist/
+*.egg-info/
+
