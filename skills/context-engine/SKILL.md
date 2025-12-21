@@ -257,9 +257,12 @@ Set via `output_format` parameter.
 
 ## Aliases and Compat Wrappers
 
-Some tools have aliases for convenience:
-- `code_search` = `repo_search`
-- `memory_store` = `store`
+**Aliases:**
+- `code_search` = `repo_search` (identical behavior)
+
+**Cross-server tools:**
+- `store` / `find` — Memory server tools for persistent knowledge
+- `memory_store` — Indexer-side convenience wrapper that writes to memory collection
 
 Compat wrappers accept alternate parameter names:
 - `repo_search_compat` - Accepts `q`, `text`, `top_k` as aliases
@@ -269,9 +272,10 @@ Use the primary tools when possible. Compat wrappers exist for legacy clients.
 
 ## Error Handling
 
-All tools return structured responses. On failure:
+Tools return structured errors, typically via `error` field and sometimes `ok: false`:
 ```json
 {"ok": false, "error": "Collection not found. Run qdrant_index_root first."}
+{"error": "Timeout during rerank"}
 ```
 
 Common issues:
