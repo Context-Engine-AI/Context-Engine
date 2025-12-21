@@ -1,0 +1,14 @@
+{
+  "name": "context-engine",
+  "version": "1.0.0",
+  "description": "Codebase search and context retrieval for any language using hybrid semantic/lexical search with neural reranking",
+  "author": "Context-Engine Team",
+  "plugins": [
+    {
+      "name": "context-engine",
+      "path": "skills/context-engine",
+      "description": "Codebase lookup and context retrieval using hybrid semantic/lexical search with neural reranking"
+    }
+  ]
+}
+
