@@ -134,34 +134,34 @@ Returns an answer with file/line citations. Use `expand: true` to generate query
 
 ## Specialized Search Tools
 
-**Find tests**:
+**search_tests_for** - Find test files:
 ```json
-search_tests_for: {"query": "UserService", "limit": 10}
+{"query": "UserService", "limit": 10}
 ```
 
-**Find config files**:
+**search_config_for** - Find config files:
 ```json
-search_config_for: {"query": "database connection", "limit": 5}
+{"query": "database connection", "limit": 5}
 ```
 
-**Find callers of a symbol**:
+**search_callers_for** - Find callers of a symbol:
 ```json
-search_callers_for: {"query": "processPayment", "language": "typescript"}
+{"query": "processPayment", "language": "typescript"}
 ```
 
-**Find importers**:
+**search_importers_for** - Find importers:
 ```json
-search_importers_for: {"query": "utils/helpers", "limit": 10}
+{"query": "utils/helpers", "limit": 10}
 ```
 
-**Search git commits**:
+**search_commits_for** - Search git history:
 ```json
-search_commits_for: {"query": "fixed authentication bug", "limit": 10}
+{"query": "fixed authentication bug", "limit": 10}
 ```
 
-**File change history**:
+**change_history_for_path** - File change summary:
 ```json
-change_history_for_path: {"path": "src/api/auth.py", "include_commits": true}
+{"path": "src/api/auth.py", "include_commits": true}
 ```
 
 ## Memory: Store and Recall Knowledge
@@ -190,34 +190,33 @@ Use `context_search` to blend code results with stored memories:
 
 ## Index Management
 
-**First-time setup or full reindex**:
+**qdrant_index_root** - First-time setup or full reindex:
 ```json
-qdrant_index_root: {}
+{}
+```
+With recreate (drops existing data):
+```json
+{"recreate": true}
 ```
 
-**Rebuild from scratch** (drops existing data):
+**qdrant_index** - Index only a subdirectory:
 ```json
-qdrant_index_root: {"recreate": true}
+{"subdir": "src/"}
 ```
 
-**Index only a subdirectory**:
+**qdrant_prune** - Remove deleted files from index:
 ```json
-qdrant_index: {"subdir": "src/"}
+{}
 ```
 
-**Remove deleted files from index**:
+**qdrant_status** - Check index health:
 ```json
-qdrant_prune: {}
+{}
 ```
 
-**Check index status**:
+**qdrant_list** - List all collections:
 ```json
-qdrant_status: {}
-```
-
-**List all collections**:
-```json
-qdrant_list: {}
+{}
 ```
 
 ## Workspace Tools
