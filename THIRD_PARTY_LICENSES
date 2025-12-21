@@ -1,0 +1,33 @@
+# Third-Party Licenses
+
+Context-Engine uses the following open source packages:
+
+## Apache License 2.0
+
+- **qdrant-client** - https://github.com/qdrant/qdrant-client
+- **watchdog** - https://github.com/gorakhargosh/watchdog
+
+## MIT License
+
+- **mcp** - https://github.com/anthropics/mcp
+- **fastmcp** - https://github.com/jlowin/fastmcp
+- **python-toon** - https://github.com/toon-spec/python-toon
+- **tree-sitter** - https://github.com/tree-sitter/py-tree-sitter
+- **fastembed** - https://github.com/qdrant/fastembed
+- **fastapi** - https://github.com/tiangolo/fastapi
+- **uvicorn** - https://github.com/encode/uvicorn
+- **jinja2** - https://github.com/pallets/jinja
+- **orjson** - https://github.com/ijl/orjson
+
+## BSD License
+
+- **tokenizers** - https://github.com/huggingface/tokenizers
+
+## Other
+
+- **onnxruntime** - MIT License - https://github.com/microsoft/onnxruntime
+
+---
+
+For full license texts, see each project's repository.
+
