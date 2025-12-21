@@ -221,31 +221,31 @@ With recreate (drops existing data):
 
 ## Workspace Tools
 
-**Get current workspace info**:
+**workspace_info** - Get current workspace and collection:
 ```json
-workspace_info: {}
+{}
 ```
 
-**List all indexed workspaces**:
+**list_workspaces** - List all indexed workspaces:
 ```json
-list_workspaces: {}
+{}
 ```
 
-**View collection-to-repo mappings**:
+**collection_map** - View collection-to-repo mappings:
 ```json
-collection_map: {"include_samples": true}
+{"include_samples": true}
 ```
 
-**Set session defaults** (collection, filters):
+**set_session_defaults** - Set defaults for session:
 ```json
-set_session_defaults: {"collection": "my-project", "language": "python"}
+{"collection": "my-project", "language": "python"}
 ```
 
 ## Query Expansion
 
-Generate query variations for better recall:
+**expand_query** - Generate query variations for better recall:
 ```json
-expand_query: {"query": "auth flow", "max_new": 2}
+{"query": "auth flow", "max_new": 2}
 ```
 
 ## Output Formats
