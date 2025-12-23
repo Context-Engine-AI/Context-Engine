@@ -1,0 +1,19 @@
+Context-Engine
+Copyright 2025 John Donalson and Context-Engine Contributors
+
+This product includes software developed by third parties.
+
+================================================================================
+qdrant-client
+================================================================================
+Copyright Qdrant Team
+Licensed under the Apache License, Version 2.0
+https://github.com/qdrant/qdrant-client
+
+================================================================================
+watchdog
+================================================================================
+Copyright Mickaël Schoentgen and contributors
+Licensed under the Apache License, Version 2.0
+https://github.com/gorakhargosh/watchdog
+

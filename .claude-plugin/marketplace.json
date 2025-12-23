@@ -1,0 +1,22 @@
+{
+  "name": "context-engine-skills",
+  "owner": {
+    "name": "m1rl0k"
+  },
+  "metadata": {
+    "description": "Context-Engine codebase search and retrieval skills",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "context-engine",
+      "description": "Codebase search and context retrieval using hybrid semantic/lexical search with neural reranking",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills/context-engine"
+      ]
+    }
+  ]
+}
+
