@@ -31,6 +31,7 @@ What do you need?
     |       |
     |       +-- Who calls this function --> search_callers_for
     |       +-- Who imports this module --> search_importers_for
+    |       +-- Symbol graph navigation (callers/defs/importers) --> symbol_graph
     |
     +-- Git history --> search_commits_for
     |
@@ -153,6 +154,21 @@ Returns an answer with file/line citations. Use `expand: true` to generate query
 ```json
 {"query": "utils/helpers", "limit": 10}
 ```
+
+**symbol_graph** - Symbol graph navigation (callers / definition / importers):
+```json
+{"symbol": "ASTAnalyzer", "query_type": "definition", "limit": 10}
+```
+```json
+{"symbol": "get_embedding_model", "query_type": "callers", "under": "scripts/", "limit": 10}
+```
+```json
+{"symbol": "qdrant_client", "query_type": "importers", "limit": 10}
+```
+Notes:
+- Uses indexed metadata fields (`metadata.calls`, `metadata.imports`, `metadata.symbol`, `metadata.symbol_path`).
+- Supports `language`, `under`, and `output_format` like other tools.
+- If there are no graph hits, it falls back to semantic search.
 
 **search_commits_for** - Search git history:
 ```json
