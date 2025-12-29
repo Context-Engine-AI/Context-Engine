@@ -103,7 +103,7 @@ function createPythonEnvManager(deps) {
         }
     }
 
-    const REQUIRED_PYTHON_MODULES = ['requests', 'urllib3', 'charset_normalizer'];
+    const REQUIRED_PYTHON_MODULES = ['requests', 'urllib3', 'charset_normalizer', 'watchdog'];
 
     function venvRootDir() {
         // Prefer workspace storage; fallback to extension storage
