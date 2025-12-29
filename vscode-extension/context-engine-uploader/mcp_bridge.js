@@ -1,13 +1,12 @@
 function createBridgeManager(deps) {
   const vscode = deps.vscode;
   const spawn = deps.spawn;
+  const path = deps.path;
+  const fs = deps.fs;
   const log = deps.log;
 
   const getEffectiveConfig = deps.getEffectiveConfig;
   const resolveBridgeWorkspacePath = deps.resolveBridgeWorkspacePath;
-  const normalizeBridgeUrl = deps.normalizeBridgeUrl;
-  const normalizeWorkspaceForBridge = deps.normalizeWorkspaceForBridge;
-  const resolveBridgeCliInvocation = deps.resolveBridgeCliInvocation;
   const attachOutput = deps.attachOutput;
   const terminateProcess = deps.terminateProcess;
   const scheduleMcpConfigRefreshAfterBridge = deps.scheduleMcpConfigRefreshAfterBridge;
@@ -16,6 +15,81 @@ function createBridgeManager(deps) {
   let httpBridgePort;
   let httpBridgeWorkspace;
   let stopInFlight;
+
+  function normalizeBridgeUrl(url) {
+    if (!url || typeof url !== 'string') {
+      return '';
+    }
+    const trimmed = url.trim();
+    if (!trimmed) {
+      return '';
+    }
+    return trimmed;
+  }
+
+  function normalizeWorkspaceForBridge(workspacePath) {
+    if (!workspacePath || typeof workspacePath !== 'string') {
+      return '';
+    }
+    try {
+      const resolved = path.resolve(workspacePath);
+      if (process.platform === 'win32') {
+        return resolved.replace(/\//g, '\\');
+      }
+      return resolved;
+    } catch (_) {
+      return workspacePath;
+    }
+  }
+
+  function findLocalBridgeBin() {
+    let localOnly = true;
+    let configured = '';
+    try {
+      const settings = getEffectiveConfig();
+      localOnly = settings.get('mcpBridgeLocalOnly', true);
+      configured = (settings.get('mcpBridgeBinPath') || '').trim();
+    } catch (_) {
+      // ignore config lookup failures
+    }
+    // When local-only is disabled, skip local resolution and always fall back to npx
+    if (localOnly === false) {
+      return undefined;
+    }
+    if (configured && fs.existsSync(configured)) {
+      return path.resolve(configured);
+    }
+    const envOverride = (process.env.CTXCE_BRIDGE_BIN || '').trim();
+    if (envOverride && fs.existsSync(envOverride)) {
+      return path.resolve(envOverride);
+    }
+    return undefined;
+  }
+
+  function resolveBridgeCliInvocation() {
+    const binPath = findLocalBridgeBin();
+    if (binPath) {
+      return {
+        command: 'node',
+        args: [binPath],
+        kind: 'local'
+      };
+    }
+    const isWindows = process.platform === 'win32';
+    if (isWindows) {
+      return {
+        command: 'cmd',
+        args: ['/c', 'npx', '@context-engine-bridge/context-engine-mcp-bridge'],
+        kind: 'npx'
+      };
+    }
+    return {
+      command: 'npx',
+      args: ['@context-engine-bridge/context-engine-mcp-bridge'],
+      kind: 'npx'
+    };
+  }
+
 
   function getState() {
     return {
@@ -206,7 +280,7 @@ function createBridgeManager(deps) {
   function dispose() {
     try {
       // Best-effort shutdown; ignore errors
-      stop().catch(() => {});
+      stop().catch(() => { });
     } catch (_) {
       // ignore
     }
@@ -222,6 +296,10 @@ function createBridgeManager(deps) {
     stop,
     handleSettingsChanged,
     dispose,
+    // Utility functions for mcpConfigManager
+    normalizeBridgeUrl,
+    normalizeWorkspaceForBridge,
+    resolveBridgeCliInvocation,
   };
 }
 

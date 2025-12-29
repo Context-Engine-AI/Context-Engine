@@ -6,6 +6,7 @@ const path = require('path');
 const STACK_REPO_URL = 'https://github.com/m1rl0k/Context-Engine.git';
 const STACK_DIRNAME = 'Context-Engine';
 const LAST_STACK_PATH_KEY = 'contextEngineUploader.lastStackPath';
+const ONBOARDING_PROMPT_KEY = 'contextEngineUploader.onboardingPrompted';
 
 function exists(p) {
   try {
@@ -98,7 +99,7 @@ function createOnboardingManager(deps) {
   function saveStackPath(stackPath) {
     try {
       if (context && context.globalState && typeof context.globalState.update === 'function') {
-        context.globalState.update(LAST_STACK_PATH_KEY, stackPath || undefined).catch(() => {});
+        context.globalState.update(LAST_STACK_PATH_KEY, stackPath || undefined).catch(() => { });
       }
     } catch (_) {
     }
@@ -278,11 +279,42 @@ function createOnboardingManager(deps) {
     }
   }
 
+  function checkOnboarding(config, configResolver) {
+    try {
+      if (!config || !configResolver) {
+        return;
+      }
+      const endpoint = (config.get('endpoint') || '').trim();
+      const resolved = configResolver.resolveTargetPathFromConfig(config);
+      const targetPath = resolved && resolved.path ? String(resolved.path).trim() : '';
+      const needsSetup = !endpoint || !targetPath;
+
+      if (needsSetup && context && context.workspaceState) {
+        const alreadyPrompted = !!context.workspaceState.get(ONBOARDING_PROMPT_KEY);
+        if (!alreadyPrompted) {
+          context.workspaceState.update(ONBOARDING_PROMPT_KEY, true).catch(() => { });
+          vscode.window.showInformationMessage(
+            'Context Engine Uploader: finish setup for this workspace to start indexing/uploading.',
+            'Setup Workspace',
+            'Later'
+          ).then(choice => {
+            if (choice === 'Setup Workspace') {
+              vscode.commands.executeCommand('contextEngineUploader.setupWorkspace');
+            }
+          });
+        }
+      }
+    } catch (_) {
+      // Ignore onboarding check errors to prevent extension activation failure
+    }
+  }
+
   return {
     cloneAndStartStack,
     startSavedStack,
     getSavedStackPath,
-    dispose: () => {},
+    checkOnboarding,
+    dispose: () => { },
   };
 }
 

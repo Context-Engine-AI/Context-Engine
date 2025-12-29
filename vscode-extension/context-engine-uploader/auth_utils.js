@@ -15,6 +15,60 @@ function getFetch(deps) {
   return null;
 }
 
+/**
+ * Check auth status for the given endpoint using ctxce CLI.
+ * Returns { state: 'ok' | 'missing' | 'expired' | 'error', userId?: string }
+ */
+function checkAuthStatus(endpoint, deps) {
+  if (!deps || !deps.spawnSync || !deps.resolveBridgeCliInvocation || !deps.getWorkspaceFolderPath) {
+    return { state: 'error' };
+  }
+  const { spawnSync, resolveBridgeCliInvocation, getWorkspaceFolderPath } = deps;
+  const raw = (endpoint || '').trim();
+  if (!raw) {
+    return { state: 'error' };
+  }
+  let backendUrl = raw;
+  try {
+    const u = new URL(raw);
+    backendUrl = `${u.protocol}//${u.host}`;
+  } catch (_) {
+    backendUrl = raw.replace(/\/+$/, '');
+  }
+
+  const invocation = resolveBridgeCliInvocation();
+  if (!invocation) {
+    return { state: 'error' };
+  }
+
+  const args = [...invocation.args, 'auth', 'status', '--json', '--backend-url', backendUrl];
+  let result;
+  try {
+    result = spawnSync(invocation.command, args, {
+      cwd: getWorkspaceFolderPath() || process.cwd(),
+      env: {
+        ...process.env,
+        CTXCE_AUTH_BACKEND_URL: backendUrl,
+      },
+      encoding: 'utf8',
+    });
+  } catch (_) {
+    return { state: 'error' };
+  }
+
+  const stdout = (result && result.stdout) || '';
+  let parsed;
+  try {
+    parsed = stdout ? JSON.parse(stdout) : null;
+  } catch (_) {
+    parsed = null;
+  }
+  const state = parsed && typeof parsed.state === 'string' ? parsed.state : 'error';
+  const userId = parsed && typeof parsed.userId === 'string' ? parsed.userId : undefined;
+  return { state, userId };
+}
+
+
 async function ensureAuthIfRequired(endpoint, deps) {
   try {
     if (!deps || !deps.vscode || !deps.spawnSync || !deps.resolveBridgeCliInvocation || !deps.getWorkspaceFolderPath || !deps.log) {
@@ -245,7 +299,65 @@ async function runAuthLoginFlow(explicitBackendUrl, deps) {
   });
 }
 
+async function runAuthLogoutFlow(explicitBackendUrl, deps) {
+  if (!deps || !deps.vscode || !deps.spawn || !deps.resolveBridgeCliInvocation || !deps.getWorkspaceFolderPath || !deps.attachOutput || !deps.log) {
+    return;
+  }
+  const { vscode, spawn, resolveBridgeCliInvocation, getWorkspaceFolderPath, attachOutput, log } = deps;
+  let endpoint = '';
+  if (explicitBackendUrl) {
+    endpoint = explicitBackendUrl;
+  } else if (deps.getEffectiveConfig) {
+    try {
+      const cfg = deps.getEffectiveConfig();
+      endpoint = (cfg.get('endpoint') || '').trim();
+    } catch (_) { }
+  }
+  if (!endpoint) {
+    return;
+  }
+  let backendUrl = endpoint;
+  try {
+    const u = new URL(endpoint);
+    backendUrl = `${u.protocol}//${u.host}`;
+  } catch (_) {
+    backendUrl = endpoint.replace(/\/+$/, '');
+  }
+
+  const invocation = resolveBridgeCliInvocation();
+  if (!invocation) {
+    vscode.window.showErrorMessage('Context Engine Uploader: unable to locate ctxce CLI for auth logout.');
+    return;
+  }
+  const cwd = getWorkspaceFolderPath() || process.cwd();
+
+  const args = [...invocation.args, 'auth', 'logout'];
+  const env = {
+    ...process.env,
+    CTXCE_AUTH_BACKEND_URL: backendUrl,
+  };
+  await new Promise(resolve => {
+    const child = spawn(invocation.command, args, { cwd, env });
+    attachOutput(child, 'auth');
+    child.on('error', error => {
+      log(`ctxce auth logout failed to start: ${error instanceof Error ? error.message : String(error)}`);
+      vscode.window.showErrorMessage('Context Engine Uploader: auth logout failed to start. See output for details.');
+      resolve();
+    });
+    child.on('close', code => {
+      if (code === 0) {
+        vscode.window.showInformationMessage('Context Engine Uploader: signed out successfully.');
+      } else {
+        vscode.window.showErrorMessage(`Context Engine Uploader: auth logout failed with exit code ${code}. See output for details.`);
+      }
+      resolve();
+    });
+  });
+}
+
 module.exports = {
+  checkAuthStatus,
   ensureAuthIfRequired,
   runAuthLoginFlow,
+  runAuthLogoutFlow,
 };

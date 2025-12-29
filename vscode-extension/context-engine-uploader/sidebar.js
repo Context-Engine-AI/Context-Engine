@@ -1,7 +1,9 @@
 const vscode = require('vscode');
 const fs = require('fs');
 const path = require('path');
+const { spawnSync } = require('child_process');
 const { getDefaultWindsurfMcpPath, getDefaultAugmentMcpPath } = require('./mcp_config');
+const { checkAuthStatus } = require('./auth_utils');
 
 function makeTreeItem(label, opts = {}) {
   const item = new vscode.TreeItem(label, opts.collapsibleState || vscode.TreeItemCollapsibleState.None);
@@ -192,12 +194,50 @@ async function getCachedAuthEnabled(endpoint) {
   return enabled;
 }
 
+const _authLoggedInCache = new Map();
+const _AUTH_LOGGED_IN_TTL_MS = 10_000;
+
+/**
+ * Check if user is logged in to the configured endpoint.
+ * Uses ctxce auth status to check session state.
+ * Returns true if logged in (state === 'ok'), false otherwise.
+ * @param {string} endpoint
+ * @param {object} deps - needs resolveBridgeCliInvocation, getWorkspaceFolderPath
+ */
+function getCachedAuthLoggedIn(endpoint, deps) {
+  const key = (endpoint || '').trim();
+  if (!key) {
+    return undefined;
+  }
+  const now = Date.now();
+  const cached = _authLoggedInCache.get(key);
+  if (cached && cached.ts && (now - cached.ts) < _AUTH_LOGGED_IN_TTL_MS) {
+    return cached.loggedIn;
+  }
+  // Use checkAuthStatus from auth_utils.js
+  if (!deps || typeof deps.resolveBridgeCliInvocation !== 'function' || typeof deps.getWorkspaceFolderPath !== 'function') {
+    return undefined;
+  }
+  const statusDeps = {
+    spawnSync,
+    resolveBridgeCliInvocation: deps.resolveBridgeCliInvocation,
+    getWorkspaceFolderPath: deps.getWorkspaceFolderPath,
+  };
+  const status = checkAuthStatus(key, statusDeps);
+  const loggedIn = status && status.state === 'ok';
+  _authLoggedInCache.set(key, { loggedIn, ts: now });
+  return loggedIn;
+}
+
+
 function register(context, deps) {
   const profiles = deps && deps.profiles;
   const getEffectiveConfig = deps && deps.getEffectiveConfig;
   const getResolvedTargetPath = deps && deps.getResolvedTargetPath;
   const getState = deps && deps.getState;
   const onboarding = deps && deps.onboarding;
+  const resolveBridgeCliInvocation = deps && deps.resolveBridgeCliInvocation;
+  const getWorkspaceFolderPath = deps && deps.getWorkspaceFolderPath;
 
   const providers = [];
 
@@ -487,11 +527,24 @@ function register(context, deps) {
       }
 
       if (showAuth) {
-        items.push(makeTreeItem('Sign In', {
-          icon: new vscode.ThemeIcon('account'),
-          command: { command: 'contextEngineUploader.authLogin', title: 'Sign In' },
-          tooltip: 'Runs ctxce auth login for the configured endpoint.',
-        }));
+        const authDeps = {
+          resolveBridgeCliInvocation,
+          getWorkspaceFolderPath,
+        };
+        const isLoggedIn = getCachedAuthLoggedIn(endpoint, authDeps);
+        if (isLoggedIn) {
+          items.push(makeTreeItem('Sign Out', {
+            icon: new vscode.ThemeIcon('sign-out'),
+            command: { command: 'contextEngineUploader.authLogout', title: 'Sign Out' },
+            tooltip: 'Sign out from the configured endpoint.',
+          }));
+        } else {
+          items.push(makeTreeItem('Sign In', {
+            icon: new vscode.ThemeIcon('account'),
+            command: { command: 'contextEngineUploader.authLogin', title: 'Sign In' },
+            tooltip: 'Runs ctxce auth login for the configured endpoint.',
+          }));
+        }
       }
 
       return items;
@@ -570,7 +623,16 @@ function register(context, deps) {
       ];
 
       if (showAuth) {
-        items.push(makeTreeItem('Sign In', { icon: new vscode.ThemeIcon('account'), command: { command: 'contextEngineUploader.authLogin', title: 'Sign In' } }));
+        const authDeps = {
+          resolveBridgeCliInvocation,
+          getWorkspaceFolderPath,
+        };
+        const isLoggedIn = getCachedAuthLoggedIn(endpoint, authDeps);
+        if (isLoggedIn) {
+          items.push(makeTreeItem('Sign Out', { icon: new vscode.ThemeIcon('sign-out'), command: { command: 'contextEngineUploader.authLogout', title: 'Sign Out' } }));
+        } else {
+          items.push(makeTreeItem('Sign In', { icon: new vscode.ThemeIcon('account'), command: { command: 'contextEngineUploader.authLogin', title: 'Sign In' } }));
+        }
       }
 
       return items;
