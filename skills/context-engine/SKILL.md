@@ -40,7 +40,7 @@ What do you need?
     |
     +-- Git history --> search_commits_for
     |
-    +-- Store/recall knowledge --> store, find
+    +-- Store/recall knowledge --> memory_store, memory_find
     |
     +-- Blend code + notes --> context_search with include_memories=true
 ```
@@ -255,7 +255,7 @@ Notes:
 
 ## Memory: Store and Recall Knowledge
 
-Use `store` (or `memory_store`) to persist information for later retrieval:
+Use `memory_store` to persist information for later retrieval:
 ```json
 {
   "information": "Auth service uses JWT tokens with 24h expiry. Refresh tokens last 7 days.",
@@ -263,7 +263,7 @@ Use `store` (or `memory_store`) to persist information for later retrieval:
 }
 ```
 
-Use `find` to retrieve stored knowledge by similarity:
+Use `memory_find` to retrieve stored knowledge by similarity:
 ```json
 {"query": "token expiration", "limit": 5}
 ```
@@ -350,8 +350,7 @@ Set via `output_format` parameter.
 - `code_search` = `repo_search` (identical behavior)
 
 **Cross-server tools:**
-- `store` / `find` — Memory server tools for persistent knowledge
-- `memory_store` — Indexer-side convenience wrapper that writes to memory collection
+- `memory_store` / `memory_find` — Memory server tools for persistent knowledge
 
 Compat wrappers accept alternate parameter names:
 - `repo_search_compat` - Accepts `q`, `text`, `top_k` as aliases
@@ -377,7 +376,7 @@ Common issues:
 1. **Start broad, then filter** - Begin with a semantic query, add filters if too many results
 2. **Use multi-query** - Pass 2-3 query variations for better recall on complex searches
 3. **Include snippets** - Set `include_snippet: true` to see code context in results
-4. **Store decisions** - Use `store` to save architectural decisions and context for later
+4. **Store decisions** - Use `memory_store` to save architectural decisions and context for later
 5. **Check index health** - Run `qdrant_status` if searches return unexpected results
 6. **Prune after refactors** - Run `qdrant_prune` after moving/deleting files
 7. **Index before search** - Always run `qdrant_index_root` on first use or after cloning a repo
