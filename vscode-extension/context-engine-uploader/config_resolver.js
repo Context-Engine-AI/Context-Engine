@@ -202,7 +202,7 @@ function createConfigResolver(deps) {
         const extraWatchArgs = config.get('extraWatchArgs') || [];
         const hostRootOverride = (config.get('hostRoot') || '').trim();
         const containerRoot = (config.get('containerRoot') || DEFAULT_CONTAINER_ROOT).trim() || DEFAULT_CONTAINER_ROOT;
-        const startWatchAfterForce = config.get('startWatchAfterForce', true);
+        const startWatchAfterForce = config.get('startWatchAfterForce') ?? true;
         const configuredScriptDir = (config.get('scriptWorkingDirectory') || '').trim();
 
         const candidates = [];

@@ -1,7 +1,7 @@
 const vscode = require('vscode');
 const fs = require('fs');
 const path = require('path');
-const { spawnSync } = require('child_process');
+const { spawn } = require('child_process');
 const { getDefaultWindsurfMcpPath, getDefaultAugmentMcpPath } = require('./mcp_config');
 const { checkAuthStatus } = require('./auth_utils');
 
@@ -202,11 +202,12 @@ const _AUTH_LOGGED_IN_TTL_MS = 10_000;
  * Uses ctxce auth status to check session state.
  * Returns true if logged in (state === 'ok'), false otherwise.
  * @param {string} endpoint
- * @param {object} deps - needs resolveBridgeCliInvocation, getWorkspaceFolderPath
+ * @param {object} deps - needs spawn, resolveBridgeCliInvocation, getWorkspaceFolderPath
  */
-function getCachedAuthLoggedIn(endpoint, deps) {
-  const key = (endpoint || '').trim();
-  if (!key) {
+async function getCachedAuthLoggedIn(endpoint, deps) {
+  const workspacePath = typeof deps.getWorkspaceFolderPath === 'function' ? deps.getWorkspaceFolderPath() || '' : '';
+  const key = `${endpoint || ''}::${workspacePath}`;
+  if (!endpoint) {
     return undefined;
   }
   const now = Date.now();
@@ -215,18 +216,27 @@ function getCachedAuthLoggedIn(endpoint, deps) {
     return cached.loggedIn;
   }
   // Use checkAuthStatus from auth_utils.js
-  if (!deps || typeof deps.resolveBridgeCliInvocation !== 'function' || typeof deps.getWorkspaceFolderPath !== 'function') {
+  if (!deps || typeof deps.resolveBridgeCliInvocation !== 'function' || typeof deps.getWorkspaceFolderPath !== 'function' || typeof deps.spawn !== 'function') {
     return undefined;
   }
   const statusDeps = {
-    spawnSync,
+    spawn: deps.spawn,
     resolveBridgeCliInvocation: deps.resolveBridgeCliInvocation,
     getWorkspaceFolderPath: deps.getWorkspaceFolderPath,
   };
-  const status = checkAuthStatus(key, statusDeps);
-  const loggedIn = status && status.state === 'ok';
-  _authLoggedInCache.set(key, { loggedIn, ts: now });
-  return loggedIn;
+  try {
+    const status = await checkAuthStatus(endpoint, statusDeps);
+    const loggedIn = status && status.state === 'ok';
+    _authLoggedInCache.set(key, { loggedIn, ts: now });
+    return loggedIn;
+  } catch (error) {
+    // Log error without throwing into UI
+    const message = error instanceof Error ? error.message : String(error);
+    if (typeof deps.log === 'function') {
+      deps.log(`Failed to check auth status: ${message}`);
+    }
+    return undefined;
+  }
 }
 
 
@@ -238,6 +248,8 @@ function register(context, deps) {
   const onboarding = deps && deps.onboarding;
   const resolveBridgeCliInvocation = deps && deps.resolveBridgeCliInvocation;
   const getWorkspaceFolderPath = deps && deps.getWorkspaceFolderPath;
+  const spawn = deps && deps.spawn;
+  const log = deps && deps.log;
 
   const providers = [];
 
@@ -530,8 +542,10 @@ function register(context, deps) {
         const authDeps = {
           resolveBridgeCliInvocation,
           getWorkspaceFolderPath,
+          spawn,
+          log,
         };
-        const isLoggedIn = getCachedAuthLoggedIn(endpoint, authDeps);
+        const isLoggedIn = await getCachedAuthLoggedIn(endpoint, authDeps);
         if (isLoggedIn) {
           items.push(makeTreeItem('Sign Out', {
             icon: new vscode.ThemeIcon('sign-out'),
@@ -626,8 +640,10 @@ function register(context, deps) {
         const authDeps = {
           resolveBridgeCliInvocation,
           getWorkspaceFolderPath,
+          spawn,
+          log,
         };
-        const isLoggedIn = getCachedAuthLoggedIn(endpoint, authDeps);
+        const isLoggedIn = await getCachedAuthLoggedIn(endpoint, authDeps);
         if (isLoggedIn) {
           items.push(makeTreeItem('Sign Out', { icon: new vscode.ThemeIcon('sign-out'), command: { command: 'contextEngineUploader.authLogout', title: 'Sign Out' } }));
         } else {

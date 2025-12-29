@@ -47,19 +47,30 @@ function createPythonEnvManager(deps) {
                 });
             }
 
+            let finished = false;
+
             child.on('error', (err) => {
-                resolve({ code: -1, stdout, stderr: stderr || err.message });
+                if (!finished) {
+                    finished = true;
+                    resolve({ code: -1, stdout, stderr: stderr || err.message });
+                }
             });
 
             child.on('close', (code) => {
-                resolve({ code: code === null ? -1 : code, stdout, stderr });
+                if (!finished) {
+                    finished = true;
+                    resolve({ code: code === null ? -1 : code, stdout, stderr });
+                }
             });
 
             // Handle cancellation if token provided
             if (options.token) {
                 options.token.onCancellationRequested(() => {
-                    try { child.kill(); } catch (_) { }
-                    resolve({ code: -1, stdout, stderr: 'Cancelled' });
+                    if (!finished) {
+                        finished = true;
+                        try { child.kill(); } catch (_) { }
+                        resolve({ code: -1, stdout, stderr: 'Cancelled' });
+                    }
                 });
             }
 
@@ -194,7 +205,7 @@ function createPythonEnvManager(deps) {
                         missing.push(moduleName);
                     }
                 } catch (error) {
-                    log(`Dependency check failed for ${moduleName} on ${pythonPath}: ${error.message || error}`);
+                    log(`Dependency check failed for ${moduleName} on ${pythonPath}: ${error instanceof Error ? error.message : String(error)}`);
                     return false;
                 }
             }
@@ -289,8 +300,9 @@ function createPythonEnvManager(deps) {
                 }
                 return true;
             } catch (e) {
-                log(`installDepsInto error: ${e && e.message ? e.message : String(e)}`);
-                vscode.window.showErrorMessage(`Context Engine Uploader: ${e.message}`);
+                const msg = e && e.message ? e.message : String(e);
+                log(`installDepsInto error: ${msg}`);
+                vscode.window.showErrorMessage(`Context Engine Uploader: ${msg}`);
                 return false;
             }
         });

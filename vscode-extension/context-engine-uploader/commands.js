@@ -45,6 +45,15 @@ function registerExtensionCommands(deps) {
         vscode.window.showErrorMessage(`Context Engine Uploader: ${prefix}: ${msg}`);
     };
 
+    const resolveEndpointOrThrow = () => {
+        const cfg = getEffectiveConfig();
+        const endpoint = (cfg.get('endpoint') || '').trim();
+        if (!endpoint) {
+            throw new Error('backend endpoint is not configured (contextEngineUploader.endpoint).');
+        }
+        return endpoint;
+    };
+
     // Start/Stop/Restart commands
     disposables.push(vscode.commands.registerCommand('contextEngineUploader.start', () => {
         runSequence('auto').catch(error => handleCatch(error, 'Start failed'));
@@ -72,7 +81,7 @@ function registerExtensionCommands(deps) {
         vscode.window.showInformationMessage('Context Engine git history upload (force sync bundle) started.');
         const outputChannel = getOutputChannel();
         if (outputChannel) { outputChannel.show(true); }
-        runSequence('force').catch(error => handleCatch(error, 'Git history upload failed'));
+        runSequence('uploadGitHistory').catch(error => handleCatch(error, 'Git history upload failed'));
     }));
 
     // Config commands
@@ -208,23 +217,13 @@ function registerExtensionCommands(deps) {
 
     // Auth commands
     disposables.push(vscode.commands.registerCommand('contextEngineUploader.authLogin', () => {
-        try {
-            const cfg = getEffectiveConfig();
-            const endpoint = (cfg.get('endpoint') || '').trim();
-            runAuthLoginFlow(endpoint || undefined, buildAuthDeps()).catch(error => handleCatch(error, 'Auth login failed'));
-        } catch (error) {
-            runAuthLoginFlow(undefined, buildAuthDeps()).catch(error2 => handleCatch(error2, 'Auth login failed'));
-        }
+        const endpoint = resolveEndpointOrThrow();
+        runAuthLoginFlow(endpoint, buildAuthDeps()).catch(error => handleCatch(error, 'Auth login failed'));
     }));
 
     disposables.push(vscode.commands.registerCommand('contextEngineUploader.authLogout', () => {
-        try {
-            const cfg = getEffectiveConfig();
-            const endpoint = (cfg.get('endpoint') || '').trim();
-            runAuthLogoutFlow(endpoint || undefined, buildAuthDeps()).catch(error => handleCatch(error, 'Auth logout failed'));
-        } catch (error) {
-            runAuthLogoutFlow(undefined, buildAuthDeps()).catch(error2 => handleCatch(error2, 'Auth logout failed'));
-        }
+        const endpoint = resolveEndpointOrThrow();
+        runAuthLogoutFlow(endpoint, buildAuthDeps()).catch(error => handleCatch(error, 'Auth logout failed'));
     }));
 
     return disposables;

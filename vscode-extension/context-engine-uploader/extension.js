@@ -2,7 +2,7 @@ const vscode = require('vscode');
 const { spawn, spawnSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
-const { checkAuthStatus, ensureAuthIfRequired, runAuthLoginFlow, runAuthLogoutFlow } = require('./auth_utils');
+const { ensureAuthIfRequired, runAuthLoginFlow, runAuthLogoutFlow } = require('./auth_utils');
 const profiles = require('./profiles');
 const sidebar = require('./sidebar');
 const { createBridgeManager } = require('./mcp_bridge');
@@ -345,6 +345,8 @@ function activate(context) {
       onboarding: onboardingManager,
       resolveBridgeCliInvocation: () => bridgeManager ? bridgeManager.resolveBridgeCliInvocation() : undefined,
       getWorkspaceFolderPath: () => configResolver ? configResolver.getWorkspaceFolderPath() : undefined,
+      spawn,
+      log,
     });
   } catch (error) {
     log(`Sidebar registration failed: ${error instanceof Error ? error.message : String(error)}`);
@@ -514,7 +516,7 @@ async function runSequence(mode = 'auto') {
   if (processManager) {
     await processManager.stopProcesses();
   }
-  const needsForce = mode === 'force' || (configResolver ? configResolver.needsForceSync(options.targetPath) : true);
+  const needsForce = mode === 'force' || mode === 'uploadGitHistory' || (configResolver ? configResolver.needsForceSync(options.targetPath) : true);
   if (needsForce) {
     setStatusBarState('indexing');
     if (outputChannel) { outputChannel.show(true); }
@@ -522,7 +524,8 @@ async function runSequence(mode = 'auto') {
     if (code === 0) {
       setStatusBarState('indexed');
       if (processManager) { processManager.ensureIndexedWatcher(options.targetPath); }
-      if (options.startWatchAfterForce && processManager) {
+      // Only start watching after a regular force sync, not after git history upload
+      if (mode === 'force' && options.startWatchAfterForce && processManager) {
         processManager.startWatch(options);
       }
     } else {

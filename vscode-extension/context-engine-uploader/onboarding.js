@@ -299,7 +299,10 @@ function createOnboardingManager(deps) {
             'Later'
           ).then(choice => {
             if (choice === 'Setup Workspace') {
-              vscode.commands.executeCommand('contextEngineUploader.setupWorkspace');
+              vscode.commands.executeCommand('contextEngineUploader.setupWorkspace').catch(error => {
+                const message = error instanceof Error ? error.message : String(error);
+                log(`Failed to execute setupWorkspace command: ${message}`);
+              });
             }
           });
         }

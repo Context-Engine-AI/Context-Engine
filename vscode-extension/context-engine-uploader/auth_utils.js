@@ -19,11 +19,11 @@ function getFetch(deps) {
  * Check auth status for the given endpoint using ctxce CLI.
  * Returns { state: 'ok' | 'missing' | 'expired' | 'error', userId?: string }
  */
-function checkAuthStatus(endpoint, deps) {
-  if (!deps || !deps.spawnSync || !deps.resolveBridgeCliInvocation || !deps.getWorkspaceFolderPath) {
+async function checkAuthStatus(endpoint, deps) {
+  if (!deps || !deps.spawn || !deps.resolveBridgeCliInvocation || !deps.getWorkspaceFolderPath) {
     return { state: 'error' };
   }
-  const { spawnSync, resolveBridgeCliInvocation, getWorkspaceFolderPath } = deps;
+  const { spawn, resolveBridgeCliInvocation, getWorkspaceFolderPath } = deps;
   const raw = (endpoint || '').trim();
   if (!raw) {
     return { state: 'error' };
@@ -42,30 +42,52 @@ function checkAuthStatus(endpoint, deps) {
   }
 
   const args = [...invocation.args, 'auth', 'status', '--json', '--backend-url', backendUrl];
-  let result;
-  try {
-    result = spawnSync(invocation.command, args, {
+
+  return new Promise((resolve) => {
+    const child = spawn(invocation.command, args, {
       cwd: getWorkspaceFolderPath() || process.cwd(),
       env: {
         ...process.env,
         CTXCE_AUTH_BACKEND_URL: backendUrl,
       },
-      encoding: 'utf8',
     });
-  } catch (_) {
-    return { state: 'error' };
-  }
 
-  const stdout = (result && result.stdout) || '';
-  let parsed;
-  try {
-    parsed = stdout ? JSON.parse(stdout) : null;
-  } catch (_) {
-    parsed = null;
-  }
-  const state = parsed && typeof parsed.state === 'string' ? parsed.state : 'error';
-  const userId = parsed && typeof parsed.userId === 'string' ? parsed.userId : undefined;
-  return { state, userId };
+    let stdout = '';
+    let stderr = '';
+    let finished = false;
+
+    const finish = (code) => {
+      if (finished) {
+        return;
+      }
+      finished = true;
+
+      const parsedOutput = stdout ? JSON.parse(stdout) : null;
+      const state = parsedOutput && typeof parsedOutput.state === 'string' ? parsedOutput.state : 'error';
+      const userId = parsedOutput && typeof parsedOutput.userId === 'string' ? parsedOutput.userId : undefined;
+      resolve({ state, userId });
+    };
+
+    if (child.stdout) {
+      child.stdout.on('data', (data) => {
+        stdout += data.toString();
+      });
+    }
+
+    if (child.stderr) {
+      child.stderr.on('data', (data) => {
+        stderr += data.toString();
+      });
+    }
+
+    child.on('close', (code) => {
+      finish(code);
+    });
+
+    child.on('error', () => {
+      finish(-1);
+    });
+  });
 }
 
 
@@ -307,13 +329,14 @@ async function runAuthLogoutFlow(explicitBackendUrl, deps) {
   let endpoint = '';
   if (explicitBackendUrl) {
     endpoint = explicitBackendUrl;
-  } else if (deps.getEffectiveConfig) {
+  } else if (typeof deps.getEffectiveConfig === 'function') {
     try {
       const cfg = deps.getEffectiveConfig();
       endpoint = (cfg.get('endpoint') || '').trim();
     } catch (_) { }
   }
   if (!endpoint) {
+    vscode.window.showErrorMessage('Context Engine Uploader: backend endpoint is not configured (contextEngineUploader.endpoint).');
     return;
   }
   let backendUrl = endpoint;

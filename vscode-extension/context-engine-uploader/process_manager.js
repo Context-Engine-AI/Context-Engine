@@ -39,6 +39,7 @@ function createProcessManager(deps) {
                 env.REMOTE_UPLOAD_MODE = 'development';
                 env.DEV_REMOTE_MODE = '1';
                 log('Context Engine Uploader: devRemoteMode enabled (REMOTE_UPLOAD_MODE=development, DEV_REMOTE_MODE=1).');
+                _hasLoggedBuildEnv = true;
             } else if (devRemoteMode) {
                 env.REMOTE_UPLOAD_MODE = 'development';
                 env.DEV_REMOTE_MODE = '1';
@@ -225,8 +226,13 @@ function createProcessManager(deps) {
 
             // Restrict listener to watched targetPath
             indexedWatchDisposables.push(vscode.workspace.onDidChangeTextDocument((event) => {
-                if (watchedTargetPath && event.document.uri.fsPath.startsWith(watchedTargetPath)) {
-                    flipToIdle();
+                if (watchedTargetPath) {
+                    const relativePath = path.relative(watchedTargetPath, event.document.uri.fsPath);
+                    // A file is inside the watched directory if the relative path doesn't start with '..' and is not absolute
+                    const isInsideWatchedDir = !relativePath.startsWith('..') && !path.isAbsolute(relativePath);
+                    if (isInsideWatchedDir) {
+                        flipToIdle();
+                    }
                 }
             }));
 
