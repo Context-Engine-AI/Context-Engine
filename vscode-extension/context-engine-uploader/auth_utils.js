@@ -62,10 +62,28 @@ async function checkAuthStatus(endpoint, deps) {
       }
       finished = true;
 
-      const parsedOutput = stdout ? JSON.parse(stdout) : null;
+      let parsedOutput = null;
+      if (stdout) {
+        try {
+          parsedOutput = JSON.parse(stdout);
+        } catch (_) {
+          parsedOutput = null;
+        }
+      }
       const state = parsedOutput && typeof parsedOutput.state === 'string' ? parsedOutput.state : 'error';
       const userId = parsedOutput && typeof parsedOutput.userId === 'string' ? parsedOutput.userId : undefined;
-      resolve({ state, userId });
+
+      // Include exitCode and stderr for debugging errors
+      const result = { state, userId, exitCode: code };
+      if (state === 'error' && (stderr || code !== 0)) {
+        result.stderr = stderr;
+        // Log error details for diagnostics
+        if (deps && typeof deps.log === 'function') {
+          deps.log(`checkAuthStatus failed: exit code ${code}${stderr ? `, stderr: ${stderr}` : ''}`);
+        }
+      }
+
+      resolve(result);
     };
 
     if (child.stdout) {
@@ -327,24 +345,28 @@ async function runAuthLogoutFlow(explicitBackendUrl, deps) {
   }
   const { vscode, spawn, resolveBridgeCliInvocation, getWorkspaceFolderPath, attachOutput, log } = deps;
   let endpoint = '';
-  if (explicitBackendUrl) {
-    endpoint = explicitBackendUrl;
-  } else if (typeof deps.getEffectiveConfig === 'function') {
-    try {
+  try {
+    if (deps && typeof deps.getEffectiveConfig === 'function') {
       const cfg = deps.getEffectiveConfig();
       endpoint = (cfg.get('endpoint') || '').trim();
-    } catch (_) { }
+    }
+  } catch (_) {
+    endpoint = '';
   }
   if (!endpoint) {
+    const settings = vscode.workspace.getConfiguration('contextEngineUploader');
+    endpoint = (settings.get('endpoint') || '').trim();
+  }
+  let backendUrl = explicitBackendUrl || endpoint;
+  if (!backendUrl) {
     vscode.window.showErrorMessage('Context Engine Uploader: backend endpoint is not configured (contextEngineUploader.endpoint).');
     return;
   }
-  let backendUrl = endpoint;
   try {
-    const u = new URL(endpoint);
+    const u = new URL(backendUrl);
     backendUrl = `${u.protocol}//${u.host}`;
   } catch (_) {
-    backendUrl = endpoint.replace(/\/+$/, '');
+    backendUrl = backendUrl.replace(/\/+$/, '');
   }
 
   const invocation = resolveBridgeCliInvocation();

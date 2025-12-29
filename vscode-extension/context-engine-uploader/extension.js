@@ -180,12 +180,10 @@ function activate(context) {
     DEFAULT_CONTAINER_ROOT
   });
 
-  const cp = require('child_process');
-
   try {
     pythonEnvManager = createPythonEnvManager({
       vscode,
-      spawn: cp.spawn,
+      spawn: spawn,
       path,
       fs,
       log,
@@ -204,7 +202,7 @@ function activate(context) {
   try {
     processManager = createProcessManager({
       vscode,
-      spawn: cp.spawn,
+      spawn: spawn,
       fs,
       path,
       log,
@@ -223,7 +221,7 @@ function activate(context) {
   try {
     bridgeManager = createBridgeManager({
       vscode,
-      spawn: cp.spawn,
+      spawn: spawn,
       path,
       fs,
       log,
@@ -241,13 +239,13 @@ function activate(context) {
   try {
     ctxConfigManager = createCtxConfigManager({
       vscode,
-      spawnSync: cp.spawnSync,
+      spawnSync: spawnSync,
       log,
       extensionRoot,
       getEffectiveConfig,
       resolveOptions: () => configResolver ? configResolver.resolveOptions() : undefined,
       ensurePythonDependencies: (pythonPath) => pythonEnvManager ? pythonEnvManager.ensurePythonDependencies(pythonPath) : Promise.resolve(false),
-      buildChildEnv: (options) => processManager ? processManager.buildChildEnv ? processManager.buildChildEnv(options) : {} : {},
+      buildChildEnv: (options) => processManager?.buildChildEnv?.(options) ?? {},
       resolveBridgeHttpUrl: () => bridgeManager ? bridgeManager.resolveBridgeHttpUrl() : undefined,
     });
   } catch (error) {
@@ -279,8 +277,11 @@ function activate(context) {
 
   try {
     // Ensure manager resources are cleaned up when the extension deactivates.
+    // All manager disposals are registered via context.subscriptions, so deactivate()
+    // only needs to return a resolved promise - VS Code handles the cleanup automatically.
     const managerDisposable = {
       dispose: () => {
+        try { if (processManager) { processManager.disposeIndexedWatcher(); processManager.dispose(); } } catch (_) { }
         try { if (mcpConfigManager && typeof mcpConfigManager.dispose === 'function') mcpConfigManager.dispose(); } catch (_) { }
         try { if (ctxConfigManager && typeof ctxConfigManager.dispose === 'function') ctxConfigManager.dispose(); } catch (_) { }
         try { if (bridgeManager && typeof bridgeManager.dispose === 'function') bridgeManager.dispose(); } catch (_) { }
@@ -582,10 +583,8 @@ function log(message) {
 }
 
 function deactivate() {
-  if (processManager) {
-    processManager.disposeIndexedWatcher();
-    return processManager.dispose();
-  }
+  // All manager disposals are handled via context.subscriptions.
+  // VS Code automatically calls dispose() on all subscriptions when deactivating.
   return Promise.resolve();
 }
 module.exports = {

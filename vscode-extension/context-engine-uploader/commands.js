@@ -216,14 +216,22 @@ function registerExtensionCommands(deps) {
     }));
 
     // Auth commands
-    disposables.push(vscode.commands.registerCommand('contextEngineUploader.authLogin', () => {
-        const endpoint = resolveEndpointOrThrow();
-        runAuthLoginFlow(endpoint, buildAuthDeps()).catch(error => handleCatch(error, 'Auth login failed'));
+    disposables.push(vscode.commands.registerCommand('contextEngineUploader.authLogin', async () => {
+        try {
+            const endpoint = resolveEndpointOrThrow();
+            await runAuthLoginFlow(endpoint, buildAuthDeps());
+        } catch (error) {
+            handleCatch(error, 'Auth login failed');
+        }
     }));
 
-    disposables.push(vscode.commands.registerCommand('contextEngineUploader.authLogout', () => {
-        const endpoint = resolveEndpointOrThrow();
-        runAuthLogoutFlow(endpoint, buildAuthDeps()).catch(error => handleCatch(error, 'Auth logout failed'));
+    disposables.push(vscode.commands.registerCommand('contextEngineUploader.authLogout', async () => {
+        try {
+            const endpoint = resolveEndpointOrThrow();
+            await runAuthLogoutFlow(endpoint, buildAuthDeps());
+        } catch (error) {
+            handleCatch(error, 'Auth logout failed');
+        }
     }));
 
     return disposables;

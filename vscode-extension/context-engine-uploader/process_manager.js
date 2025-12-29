@@ -21,7 +21,8 @@ function createProcessManager(deps) {
     let workspaceWatcher;
     let watchedTargetPath;
     let indexedWatchDisposables = [];
-    let _hasLoggedBuildEnv = false; // Only log devRemoteMode and PYTHONPATH once per session
+    let _hasLoggedDevRemoteMode = false; // Only log devRemoteMode once per session
+    let _hasLoggedPythonPath = false; // Only log PYTHONPATH once per session
 
     function buildChildEnv(options) {
         const env = {
@@ -32,14 +33,14 @@ function createProcessManager(deps) {
         try {
             const settings = getEffectiveConfig();
             const devRemoteMode = settings.get('devRemoteMode', false);
-            if (devRemoteMode && !_hasLoggedBuildEnv) {
+            if (devRemoteMode && !_hasLoggedDevRemoteMode) {
                 // Enable dev-remote upload mode for the standalone upload client.
                 // This causes standalone_upload_client.py to ignore any 'dev-workspace'
                 // directories when scanning for files to upload.
                 env.REMOTE_UPLOAD_MODE = 'development';
                 env.DEV_REMOTE_MODE = '1';
                 log('Context Engine Uploader: devRemoteMode enabled (REMOTE_UPLOAD_MODE=development, DEV_REMOTE_MODE=1).');
-                _hasLoggedBuildEnv = true;
+                _hasLoggedDevRemoteMode = true;
             } else if (devRemoteMode) {
                 env.REMOTE_UPLOAD_MODE = 'development';
                 env.DEV_REMOTE_MODE = '1';
@@ -67,9 +68,9 @@ function createProcessManager(deps) {
             if (fs.existsSync(libsPath)) {
                 const existing = env.PYTHONPATH || '';
                 env.PYTHONPATH = existing ? `${libsPath}${path.delimiter}${existing}` : libsPath;
-                if (!_hasLoggedBuildEnv) {
+                if (!_hasLoggedPythonPath) {
                     log(`Detected bundled python_libs at ${libsPath}; setting PYTHONPATH for child process.`);
-                    _hasLoggedBuildEnv = true;
+                    _hasLoggedPythonPath = true;
                 }
             }
         } catch (error) {

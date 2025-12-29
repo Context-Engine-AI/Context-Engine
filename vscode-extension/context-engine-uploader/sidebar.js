@@ -205,6 +205,10 @@ const _AUTH_LOGGED_IN_TTL_MS = 10_000;
  * @param {object} deps - needs spawn, resolveBridgeCliInvocation, getWorkspaceFolderPath
  */
 async function getCachedAuthLoggedIn(endpoint, deps) {
+  // Validate deps first before accessing any properties
+  if (!deps || typeof deps.resolveBridgeCliInvocation !== 'function' || typeof deps.getWorkspaceFolderPath !== 'function' || typeof deps.spawn !== 'function') {
+    return undefined;
+  }
   const workspacePath = typeof deps.getWorkspaceFolderPath === 'function' ? deps.getWorkspaceFolderPath() || '' : '';
   const key = `${endpoint || ''}::${workspacePath}`;
   if (!endpoint) {
@@ -214,10 +218,6 @@ async function getCachedAuthLoggedIn(endpoint, deps) {
   const cached = _authLoggedInCache.get(key);
   if (cached && cached.ts && (now - cached.ts) < _AUTH_LOGGED_IN_TTL_MS) {
     return cached.loggedIn;
-  }
-  // Use checkAuthStatus from auth_utils.js
-  if (!deps || typeof deps.resolveBridgeCliInvocation !== 'function' || typeof deps.getWorkspaceFolderPath !== 'function' || typeof deps.spawn !== 'function') {
-    return undefined;
   }
   const statusDeps = {
     spawn: deps.spawn,
@@ -252,6 +252,24 @@ function register(context, deps) {
   const log = deps && deps.log;
 
   const providers = [];
+
+  // Helper function to build auth menu items (Sign In / Sign Out)
+  async function buildAuthMenuItem(endpoint, authDeps) {
+    const isLoggedIn = await getCachedAuthLoggedIn(endpoint, authDeps);
+    if (isLoggedIn) {
+      return makeTreeItem('Sign Out', {
+        icon: new vscode.ThemeIcon('sign-out'),
+        command: { command: 'contextEngineUploader.authLogout', title: 'Sign Out' },
+        tooltip: 'Sign out from the configured endpoint.',
+      });
+    } else {
+      return makeTreeItem('Sign In', {
+        icon: new vscode.ThemeIcon('account'),
+        command: { command: 'contextEngineUploader.authLogin', title: 'Sign In' },
+        tooltip: 'Runs ctxce auth login for the configured endpoint.',
+      });
+    }
+  }
 
   const profilesProvider = createProvider(async element => {
     if (!profiles || typeof profiles.listProfiles !== 'function') {
@@ -545,20 +563,7 @@ function register(context, deps) {
           spawn,
           log,
         };
-        const isLoggedIn = await getCachedAuthLoggedIn(endpoint, authDeps);
-        if (isLoggedIn) {
-          items.push(makeTreeItem('Sign Out', {
-            icon: new vscode.ThemeIcon('sign-out'),
-            command: { command: 'contextEngineUploader.authLogout', title: 'Sign Out' },
-            tooltip: 'Sign out from the configured endpoint.',
-          }));
-        } else {
-          items.push(makeTreeItem('Sign In', {
-            icon: new vscode.ThemeIcon('account'),
-            command: { command: 'contextEngineUploader.authLogin', title: 'Sign In' },
-            tooltip: 'Runs ctxce auth login for the configured endpoint.',
-          }));
-        }
+        items.push(await buildAuthMenuItem(endpoint, authDeps));
       }
 
       return items;
@@ -643,12 +648,7 @@ function register(context, deps) {
           spawn,
           log,
         };
-        const isLoggedIn = await getCachedAuthLoggedIn(endpoint, authDeps);
-        if (isLoggedIn) {
-          items.push(makeTreeItem('Sign Out', { icon: new vscode.ThemeIcon('sign-out'), command: { command: 'contextEngineUploader.authLogout', title: 'Sign Out' } }));
-        } else {
-          items.push(makeTreeItem('Sign In', { icon: new vscode.ThemeIcon('account'), command: { command: 'contextEngineUploader.authLogin', title: 'Sign In' } }));
-        }
+        items.push(await buildAuthMenuItem(endpoint, authDeps));
       }
 
       return items;

@@ -52,7 +52,7 @@ function createConfigResolver(deps) {
                 entries = fs.readdirSync(resolved);
             } catch (error) {
                 log(`Auto targetPath discovery failed to read workspace folder: ${error instanceof Error ? error.message : String(error)}`);
-                return resolved;
+                return undefined;
             }
             const candidates = [];
             for (const name of entries) {
@@ -237,7 +237,7 @@ function createConfigResolver(deps) {
             return undefined;
         }
 
-        const scriptSource = workingDirectory === extensionRoot ? 'packaged' : (workingDirectory.includes('\\out') || workingDirectory.endsWith('/out') ? 'staged out' : 'custom');
+        const scriptSource = workingDirectory === extensionRoot ? 'packaged' : (path.basename(workingDirectory) === 'out' ? 'staged out' : 'custom');
         if (!endpoint) {
             vscode.window.showErrorMessage('Context Engine Uploader: set contextEngineUploader.endpoint.');
             return undefined;
