@@ -24,8 +24,8 @@ What do you need?
     |
     +-- Find similar code patterns (retry loops, error handling, etc.)
     |       |
-    |       +-- Have code example --> pattern_search with code snippet
-    |       +-- Describe pattern --> pattern_search with natural language
+    |       +-- Have code example --> pattern_search with code snippet (if enabled)
+    |       +-- Describe pattern --> pattern_search with natural language (if enabled)
     |
     +-- Find specific file types
     |       |
@@ -138,7 +138,9 @@ Use `context_answer` when you need an LLM-generated explanation grounded in code
 
 Returns an answer with file/line citations. Use `expand: true` to generate query variations for better retrieval.
 
-## Pattern Search: pattern_search
+## Pattern Search: pattern_search (Optional)
+
+> **Note:** This tool may not be available in all deployments. If pattern detection is disabled, calls return `{"ok": false, "error": "Pattern search module not available"}`.
 
 Find structurally similar code patterns across all languages. Accepts **either** code examples **or** natural language descriptions—auto-detects which.
 
@@ -379,6 +381,6 @@ Common issues:
 5. **Check index health** - Run `qdrant_status` if searches return unexpected results
 6. **Prune after refactors** - Run `qdrant_prune` after moving/deleting files
 7. **Index before search** - Always run `qdrant_index_root` on first use or after cloning a repo
-8. **Use pattern_search for structural matching** - When looking for code with similar control flow (retry loops, error handling), use `pattern_search` instead of `repo_search`
-9. **Describe patterns in natural language** - `pattern_search` understands "retry with backoff" just as well as actual code examples
+8. **Use pattern_search for structural matching** - When looking for code with similar control flow (retry loops, error handling), use `pattern_search` instead of `repo_search` (if enabled)
+9. **Describe patterns in natural language** - `pattern_search` understands "retry with backoff" just as well as actual code examples (if enabled)
 
