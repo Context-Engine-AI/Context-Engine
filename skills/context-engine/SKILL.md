@@ -22,6 +22,11 @@ What do you need?
     |       +-- Want LLM explanation --> context_answer
     |       +-- Just code snippets --> repo_search with include_snippet=true
     |
+    +-- Find similar code patterns (retry loops, error handling, etc.)
+    |       |
+    |       +-- Have code example --> pattern_search with code snippet (if enabled)
+    |       +-- Describe pattern --> pattern_search with natural language (if enabled)
+    |
     +-- Find specific file types
     |       |
     |       +-- Test files --> search_tests_for
@@ -35,7 +40,7 @@ What do you need?
     |
     +-- Git history --> search_commits_for
     |
-    +-- Store/recall knowledge --> store, find
+    +-- Store/recall knowledge --> memory_store, memory_find
     |
     +-- Blend code + notes --> context_search with include_memories=true
 ```
@@ -133,6 +138,74 @@ Use `context_answer` when you need an LLM-generated explanation grounded in code
 
 Returns an answer with file/line citations. Use `expand: true` to generate query variations for better retrieval.
 
+## Pattern Search: pattern_search (Optional)
+
+> **Note:** This tool may not be available in all deployments. If pattern detection is disabled, calls return `{"ok": false, "error": "Pattern search module not available"}`.
+
+Find structurally similar code patterns across all languages. Accepts **either** code examples **or** natural language descriptions—auto-detects which.
+
+**Code example query** - find similar control flow:
+```json
+{
+  "query": "for i in range(3): try: ... except: time.sleep(2**i)",
+  "limit": 10,
+  "include_snippet": true
+}
+```
+
+**Natural language query** - describe the pattern:
+```json
+{
+  "query": "retry with exponential backoff",
+  "limit": 10,
+  "include_snippet": true
+}
+```
+
+**Cross-language search** - Python pattern finds Go/Rust/Java equivalents:
+```json
+{
+  "query": "if err != nil { return err }",
+  "language": "go",
+  "limit": 10
+}
+```
+
+**Explicit mode override** - force code or description mode:
+```json
+{
+  "query": "error handling",
+  "query_mode": "description",
+  "limit": 10
+}
+```
+
+**Key parameters:**
+- `query` - Code snippet OR natural language description
+- `query_mode` - `"code"`, `"description"`, or `"auto"` (default)
+- `language` - Language hint for code examples (python, go, rust, etc.)
+- `limit` - Max results (default 10)
+- `min_score` - Minimum similarity threshold (default 0.3)
+- `include_snippet` - Include code snippets in results
+- `context_lines` - Lines of context around matches
+- `aroma_rerank` - Enable AROMA structural reranking (default true)
+- `aroma_alpha` - Weight for AROMA vs original score (default 0.6)
+- `target_languages` - Filter results to specific languages
+
+**Returns:**
+```json
+{
+  "ok": true,
+  "results": [...],
+  "total": 5,
+  "query_signature": "L2_2_B0_T2_M0",
+  "query_mode": "code",
+  "search_mode": "aroma"
+}
+```
+
+The `query_signature` encodes control flow: `L` (loops), `B` (branches), `T` (try/except), `M` (match).
+
 ## Specialized Search Tools
 
 **search_tests_for** - Find test files:
@@ -182,7 +255,7 @@ Notes:
 
 ## Memory: Store and Recall Knowledge
 
-Use `store` (or `memory_store`) to persist information for later retrieval:
+Use `memory_store` to persist information for later retrieval:
 ```json
 {
   "information": "Auth service uses JWT tokens with 24h expiry. Refresh tokens last 7 days.",
@@ -190,7 +263,7 @@ Use `store` (or `memory_store`) to persist information for later retrieval:
 }
 ```
 
-Use `find` to retrieve stored knowledge by similarity:
+Use `memory_find` to retrieve stored knowledge by similarity:
 ```json
 {"query": "token expiration", "limit": 5}
 ```
@@ -277,8 +350,7 @@ Set via `output_format` parameter.
 - `code_search` = `repo_search` (identical behavior)
 
 **Cross-server tools:**
-- `store` / `find` — Memory server tools for persistent knowledge
-- `memory_store` — Indexer-side convenience wrapper that writes to memory collection
+- `memory_store` / `memory_find` — Memory server tools for persistent knowledge
 
 Compat wrappers accept alternate parameter names:
 - `repo_search_compat` - Accepts `q`, `text`, `top_k` as aliases
@@ -304,8 +376,10 @@ Common issues:
 1. **Start broad, then filter** - Begin with a semantic query, add filters if too many results
 2. **Use multi-query** - Pass 2-3 query variations for better recall on complex searches
 3. **Include snippets** - Set `include_snippet: true` to see code context in results
-4. **Store decisions** - Use `store` to save architectural decisions and context for later
+4. **Store decisions** - Use `memory_store` to save architectural decisions and context for later
 5. **Check index health** - Run `qdrant_status` if searches return unexpected results
 6. **Prune after refactors** - Run `qdrant_prune` after moving/deleting files
 7. **Index before search** - Always run `qdrant_index_root` on first use or after cloning a repo
+8. **Use pattern_search for structural matching** - When looking for code with similar control flow (retry loops, error handling), use `pattern_search` instead of `repo_search` (if enabled)
+9. **Describe patterns in natural language** - `pattern_search` understands "retry with backoff" just as well as actual code examples (if enabled)
 
