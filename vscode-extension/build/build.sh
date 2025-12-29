@@ -70,9 +70,9 @@ if [[ "$BUNDLE_DEPS" == "--bundle-deps" ]]; then
     # On macOS, urllib3 v2 + system LibreSSL emits NotOpenSSLWarning; pin <2 there.
     if [[ "$(uname -s)" == "Darwin" ]]; then
         echo "Detected macOS; pinning urllib3<2 to avoid LibreSSL/OpenSSL warning."
-        "$PYTHON_BIN" -m pip install -t "$STAGE_DIR/python_libs" "urllib3<2" requests charset_normalizer "openai>=1.0"
+        "$PYTHON_BIN" -m pip install -t "$STAGE_DIR/python_libs" "urllib3<2" requests charset_normalizer "openai>=1.0" watchdog
     else
-        "$PYTHON_BIN" -m pip install -t "$STAGE_DIR/python_libs" requests urllib3 charset_normalizer "openai>=1.0"
+        "$PYTHON_BIN" -m pip install -t "$STAGE_DIR/python_libs" requests urllib3 charset_normalizer "openai>=1.0" watchdog
     fi
 fi
 

@@ -29,6 +29,17 @@ from datetime import datetime
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+
+# Watchdog for event-based file watching (graceful fallback to polling if unavailable)
+import threading
+
+try:
+    from watchdog.observers import Observer
+    from watchdog.events import FileSystemEventHandler
+    WATCHDOG_AVAILABLE = True
+except ImportError:
+    WATCHDOG_AVAILABLE = False
+
 from scripts.upload_auth_utils import get_auth_session
 
 # Configure logging
@@ -1318,8 +1329,126 @@ class RemoteUploadClient:
         return files
 
     def watch_loop(self, interval: int = 5):
-        """Main file watching loop using existing detection and upload methods."""
-        logger.info(f"[watch] Starting file monitoring (interval: {interval}s)")
+        """Event-driven or polling file watching based on watchdog availability."""
+        if WATCHDOG_AVAILABLE:
+            self._watch_loop_event_based(interval)
+        else:
+            self._watch_loop_polling(interval)
+    
+    def _watch_loop_event_based(self, interval: int = 5):
+        """Event-driven file watching using watchdog library."""
+        logger.info("[watch] Starting event-driven file monitoring")
+        logger.info(f"[watch] Monitoring: {self.workspace_path}")
+        logger.info("[watch] Press Ctrl+C to stop")
+        
+        class CodeFileEventHandler(FileSystemEventHandler):
+            """Event handler for code file changes."""
+            
+            def __init__(self, client, debounce_seconds=2.0):
+                super().__init__()
+                self.client = client
+                self.debounce_seconds = debounce_seconds
+                self._debounce_timer = None
+                self._pending_paths = set()
+                self._lock = threading.Lock()
+                
+            def on_any_event(self, event):
+                """Handle any file system event."""
+                if event.is_directory:
+                    return
+                    
+                # Filter to code files only
+                path = Path(event.src_path)
+                if idx.CODE_EXTS.get(path.suffix.lower(), "unknown") == "unknown":
+                    return
+                    
+                # Accumulate changes and debounce
+                with self._lock:
+                    self._pending_paths.add(path)
+                    if self._debounce_timer:
+                        self._debounce_timer.cancel()
+                    self._debounce_timer = threading.Timer(
+                        self.debounce_seconds,
+                        self._process_pending_changes
+                    )
+                    self._debounce_timer.start()
+            
+            def _process_pending_changes(self):
+                """Process accumulated changes after debounce period."""
+                with self._lock:
+                    if not self._pending_paths:
+                        return
+                    pending = list(self._pending_paths)
+                    self._pending_paths.clear()
+                    
+                try:
+                    # Add cached paths (for deletions)
+                    cached_file_hashes = _load_local_cache_file_hashes(
+                        self.client.workspace_path, 
+                        self.client.repo_name
+                    )
+                    all_paths = list(set(pending + [
+                        Path(p) for p in cached_file_hashes.keys()
+                    ]))
+                    
+                    changes = self.client.detect_file_changes(all_paths)
+                    meaningful_changes = (
+                        len(changes.get("created", [])) +
+                        len(changes.get("updated", [])) +
+                        len(changes.get("deleted", [])) +
+                        len(changes.get("moved", []))
+                    )
+                    
+                    if meaningful_changes > 0:
+                        logger.info(f"[watch] Detected {meaningful_changes} changes: { {k: len(v) for k, v in changes.items() if k != 'unchanged'} }")
+                        success = self.client.process_changes_and_upload(changes)
+                        if success:
+                            logger.info("[watch] Successfully uploaded changes")
+                        else:
+                            logger.error("[watch] Failed to upload changes")
+                    else:
+                        # Check for git history updates
+                        git_history = None
+                        try:
+                            git_history = _collect_git_history_for_workspace(self.client.workspace_path)
+                        except Exception:
+                            git_history = None
+                        
+                        if git_history:
+                            logger.info("[watch] Detected git history update; uploading git history metadata")
+                            success = self.client.upload_git_history_only(git_history)
+                            if success:
+                                logger.info("[watch] Successfully uploaded git history metadata")
+                            else:
+                                logger.error("[watch] Failed to upload git history metadata")
+                except Exception as e:
+                    logger.error(f"[watch] Error processing changes: {e}")
+        
+        observer = Observer()
+        handler = CodeFileEventHandler(self, debounce_seconds=2.0)
+        
+        try:
+            observer.schedule(handler, self.workspace_path, recursive=True)
+            observer.start()
+            logger.info("[watch] File watcher started successfully")
+            
+            # Keep the main thread alive
+            while True:
+                time.sleep(1)
+                
+        except KeyboardInterrupt:
+            logger.info("[watch] Received interrupt signal, stopping...")
+        except Exception as e:
+            logger.error(f"[watch] Error in watch loop: {e}")
+        finally:
+            observer.stop()
+            observer.join()
+            logger.info("[watch] File monitoring stopped")
+    
+    def _watch_loop_polling(self, interval: int = 5):
+        """Fallback polling-based file watching (original implementation)."""
+        logger.warning("[watch] watchdog library not available, will fall back to polling mode")
+        logger.info(f"[watch] Starting polling file monitoring (interval: {interval}s)")
         logger.info(f"[watch] Monitoring: {self.workspace_path}")
         logger.info(f"[watch] Press Ctrl+C to stop")
 
