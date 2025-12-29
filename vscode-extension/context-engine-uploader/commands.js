@@ -81,7 +81,8 @@ function registerExtensionCommands(deps) {
         vscode.window.showInformationMessage('Context Engine git history upload (force sync bundle) started.');
         const outputChannel = getOutputChannel();
         if (outputChannel) { outputChannel.show(true); }
-        runSequence('uploadGitHistory').catch(error => handleCatch(error, 'Git history upload failed'));
+        // Preserve old behavior: git history uploads reuse the regular force sync path.
+        runSequence('force').catch(error => handleCatch(error, 'Git history upload failed'));
     }));
 
     // Config commands
