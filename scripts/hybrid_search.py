@@ -548,22 +548,15 @@ def _run_hybrid_search_impl(
                     if os.environ.get("DEBUG_HYBRID_SEARCH"):
                         logger.debug("cache hit for hybrid results (unified)")
                     return val
-                # Fallback to local in-process dict to ensure deterministic hits (esp. in unit tests)
-                try:
-                    with _RESULTS_LOCK:
-                        if cache_key in _RESULTS_CACHE_OD:
-                            if os.environ.get("DEBUG_HYBRID_SEARCH"):
-                                logger.debug("cache hit for hybrid results (fallback OD)")
-                            return _RESULTS_CACHE_OD[cache_key]
-                except Exception:
-                    pass
             else:
+                # Local OrderedDict fallback when unified cache not available
                 with _RESULTS_LOCK:
-                    if cache_key in _RESULTS_CACHE:
-                        val = _RESULTS_CACHE.pop(cache_key)
-                        _RESULTS_CACHE[cache_key] = val
+                    if cache_key in _RESULTS_CACHE_OD:
+                        # Move to end for LRU behavior
+                        val = _RESULTS_CACHE_OD.pop(cache_key)
+                        _RESULTS_CACHE_OD[cache_key] = val
                         if os.environ.get("DEBUG_HYBRID_SEARCH"):
-                            logger.debug("cache hit for hybrid results (legacy)")
+                            logger.debug("cache hit for hybrid results (local)")
                         return val
 
     # Build optional filter
@@ -646,21 +639,13 @@ def _run_hybrid_search_impl(
                         if os.environ.get("DEBUG_HYBRID_SEARCH"):
                             logger.debug("duplicate served from cache (unified)")
                         return val
-                    try:
-                        with _RESULTS_LOCK:
-                            if cache_key in _RESULTS_CACHE_OD:
-                                if os.environ.get("DEBUG_HYBRID_SEARCH"):
-                                    logger.debug("duplicate served from cache (fallback OD)")
-                                return _RESULTS_CACHE_OD[cache_key]
-                    except Exception:
-                        pass
                 else:
                     with _RESULTS_LOCK:
-                        if cache_key in _RESULTS_CACHE:
-                            val = _RESULTS_CACHE.pop(cache_key)
-                            _RESULTS_CACHE[cache_key] = val
+                        if cache_key in _RESULTS_CACHE_OD:
+                            val = _RESULTS_CACHE_OD.pop(cache_key)
+                            _RESULTS_CACHE_OD[cache_key] = val
                             if os.environ.get("DEBUG_HYBRID_SEARCH"):
-                                logger.debug("duplicate served from cache (legacy)")
+                                logger.debug("duplicate served from cache (local)")
                             return val
             if os.environ.get("DEBUG_HYBRID_SEARCH"):
                 logger.debug("Duplicate without cache; bypassing dedup and continuing search")
@@ -1469,18 +1454,25 @@ def _run_hybrid_search_impl(
                 kw.add(t)
 
     import io as _io
+    from collections import OrderedDict as _FileCacheOD
 
     # File content cache to avoid re-reading files for each snippet
     # Controlled by HYBRID_SNIPPET_DISK_READ env var (default ON for backwards compatibility)
-    _file_lines_cache: Dict[str, List[str]] = {}
+    # Uses OrderedDict for LRU eviction to bound memory usage
+    _FILE_LINES_CACHE_MAX = int(os.environ.get("HYBRID_FILE_CACHE_MAX", "100") or 100)
+    _file_lines_cache: _FileCacheOD[str, List[str]] = _FileCacheOD()
+    _file_lines_cache_lock = threading.Lock()
     _snippet_disk_reads = os.environ.get("HYBRID_SNIPPET_DISK_READ", "1").strip().lower() not in {
         "0", "false", "no", "off"
     }
 
     def _get_file_lines(path: str) -> List[str]:
-        """Get file lines with caching to avoid repeated disk reads."""
-        if path in _file_lines_cache:
-            return _file_lines_cache[path]
+        """Get file lines with LRU caching to avoid repeated disk reads."""
+        with _file_lines_cache_lock:
+            if path in _file_lines_cache:
+                # Move to end for LRU ordering
+                _file_lines_cache.move_to_end(path)
+                return _file_lines_cache[path]
         if not _snippet_disk_reads:
             return []  # Disk reads disabled
         try:
@@ -1491,9 +1483,15 @@ def _run_hybrid_search_impl(
             if realp == "/work" or realp.startswith("/work/"):
                 with open(realp, "r", encoding="utf-8", errors="ignore") as f:
                     lines = f.readlines()
-                # Limit cache size to avoid memory issues
-                if len(_file_lines_cache) < 100:
+                # LRU eviction: remove oldest entries when at capacity
+                with _file_lines_cache_lock:
                     _file_lines_cache[path] = lines
+                    _file_lines_cache.move_to_end(path)
+                    while len(_file_lines_cache) > _FILE_LINES_CACHE_MAX:
+                        try:
+                            _file_lines_cache.popitem(last=False)
+                        except KeyError:
+                            break
                 return lines
         except Exception:
             logging.debug("Failed to read file for snippet lines: %s", path, exc_info=True)
@@ -1981,28 +1979,21 @@ def _run_hybrid_search_impl(
         items.append(item)
     if _USE_CACHE and cache_key is not None:
         if UNIFIED_CACHE_AVAILABLE:
+            # Use unified cache only - no duplication to local fallback
             _RESULTS_CACHE.set(cache_key, items)
-            # Mirror into local fallback dict for deterministic hits in tests
-            try:
-                with _RESULTS_LOCK:
-                    _RESULTS_CACHE_OD[cache_key] = items
-                    while len(_RESULTS_CACHE_OD) > MAX_RESULTS_CACHE:
-                        # pop oldest inserted (like LRU/FIFO)
-                        try:
-                            _RESULTS_CACHE_OD.popitem(last=False)
-                        except Exception:
-                            break
-            except Exception:
-                pass
             if os.environ.get("DEBUG_HYBRID_SEARCH"):
-                logger.debug("cache store for hybrid results")
+                logger.debug("cache store for hybrid results (unified)")
         else:
+            # Fallback to local OrderedDict when unified cache not available
             with _RESULTS_LOCK:
-                _RESULTS_CACHE[cache_key] = items
+                _RESULTS_CACHE_OD[cache_key] = items
+                while len(_RESULTS_CACHE_OD) > MAX_RESULTS_CACHE:
+                    try:
+                        _RESULTS_CACHE_OD.popitem(last=False)
+                    except Exception:
+                        break
                 if os.environ.get("DEBUG_HYBRID_SEARCH"):
-                    logger.debug("cache store for hybrid results")
-                while len(_RESULTS_CACHE) > MAX_RESULTS_CACHE:
-                    _RESULTS_CACHE.popitem(last=False)
+                    logger.debug("cache store for hybrid results (local)")
     return items
 
 

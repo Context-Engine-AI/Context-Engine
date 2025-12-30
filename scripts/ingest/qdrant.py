@@ -32,6 +32,30 @@ from scripts.ingest.config import (
 ENSURED_COLLECTIONS: set[str] = set()
 ENSURED_COLLECTIONS_LAST_CHECK: dict[str, float] = {}
 
+# TTL for ensured collections cache (default 1 hour). After TTL expires, entries are
+# eligible for eviction to bound memory in long-running processes with many collections.
+ENSURED_COLLECTIONS_TTL = float(os.environ.get("ENSURED_COLLECTIONS_TTL", "3600") or 3600)
+# Maximum number of collections to track (prevents unbounded growth)
+ENSURED_COLLECTIONS_MAX = int(os.environ.get("ENSURED_COLLECTIONS_MAX", "500") or 500)
+
+
+def _cleanup_stale_ensured_collections() -> int:
+    """Remove stale entries from ENSURED_COLLECTIONS based on TTL.
+
+    Returns number of entries removed.
+    """
+    if not ENSURED_COLLECTIONS_LAST_CHECK:
+        return 0
+    now = time.time()
+    stale = []
+    for coll, last_check in list(ENSURED_COLLECTIONS_LAST_CHECK.items()):
+        if (now - last_check) > ENSURED_COLLECTIONS_TTL:
+            stale.append(coll)
+    for coll in stale:
+        ENSURED_COLLECTIONS.discard(coll)
+        ENSURED_COLLECTIONS_LAST_CHECK.pop(coll, None)
+    return len(stale)
+
 
 class CollectionNeedsRecreateError(Exception):
     """Raised when a collection needs to be recreated to add new vector types."""
@@ -341,9 +365,17 @@ def ensure_collection_and_indexes_once(
     dim: int,
     vector_name: str | None,
 ) -> None:
-    """Ensure collection and indexes exist (cached per-process)."""
+    """Ensure collection and indexes exist (cached per-process).
+
+    Periodically cleans up stale entries based on TTL to prevent unbounded growth.
+    """
     if not collection:
         return
+
+    # Periodic cleanup: remove stale entries when cache is large
+    if len(ENSURED_COLLECTIONS) > ENSURED_COLLECTIONS_MAX // 2:
+        _cleanup_stale_ensured_collections()
+
     if collection in ENSURED_COLLECTIONS:
         try:
             ping_seconds = float(os.environ.get("ENSURED_COLLECTION_PING_SECONDS", "0") or 0)
@@ -370,6 +402,24 @@ def ensure_collection_and_indexes_once(
                 ENSURED_COLLECTIONS_LAST_CHECK.pop(collection, None)
             except Exception:
                 pass
+
+    # Enforce max size: evict oldest entries if at capacity
+    while len(ENSURED_COLLECTIONS) >= ENSURED_COLLECTIONS_MAX:
+        _cleanup_stale_ensured_collections()
+        if len(ENSURED_COLLECTIONS) >= ENSURED_COLLECTIONS_MAX:
+            # Still at capacity after cleanup - evict oldest
+            oldest_coll = None
+            oldest_time = float('inf')
+            for c, t in ENSURED_COLLECTIONS_LAST_CHECK.items():
+                if t < oldest_time:
+                    oldest_time = t
+                    oldest_coll = c
+            if oldest_coll:
+                ENSURED_COLLECTIONS.discard(oldest_coll)
+                ENSURED_COLLECTIONS_LAST_CHECK.pop(oldest_coll, None)
+            else:
+                break  # Safety: avoid infinite loop
+
     ensure_collection(client, collection, dim, vector_name)
     ensure_payload_indexes(client, collection)
     ENSURED_COLLECTIONS.add(collection)
