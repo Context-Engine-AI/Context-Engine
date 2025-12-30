@@ -1521,15 +1521,28 @@ class RemoteUploadClient:
                 """Handle any file system event."""
                 if event.is_directory:
                     return
-                    
-                # Filter to code files only
-                path = Path(event.src_path)
-                if detect_language(path) == "unknown":
+
+                # Collect paths to process (src_path and potentially dest_path for moves)
+                paths_to_process = []
+
+                # Always check src_path
+                src_path = Path(event.src_path)
+                if detect_language(src_path) != "unknown":
+                    paths_to_process.append(src_path)
+
+                # For FileMovedEvent, also process the destination path
+                if hasattr(event, 'dest_path') and event.dest_path:
+                    dest_path = Path(event.dest_path)
+                    if detect_language(dest_path) != "unknown":
+                        paths_to_process.append(dest_path)
+
+                if not paths_to_process:
                     return
-                    
+
                 # Accumulate changes and debounce
                 with self._lock:
-                    self._pending_paths.add(path)
+                    for path in paths_to_process:
+                        self._pending_paths.add(path)
                     if self._debounce_timer:
                         self._debounce_timer.cancel()
                     self._debounce_timer = threading.Timer(
@@ -1602,6 +1615,11 @@ class RemoteUploadClient:
         except Exception as e:
             logger.error(f"[watch] Error in watch loop: {e}")
         finally:
+            # Cancel any pending debounce timer before stopping observer
+            with handler._lock:
+                if handler._debounce_timer:
+                    handler._debounce_timer.cancel()
+                    handler._debounce_timer = None
             observer.stop()
             observer.join()
             logger.info("[watch] File monitoring stopped")

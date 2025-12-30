@@ -77,8 +77,11 @@ function createPythonEnvManager(deps) {
             // Safety timeout
             if (options.timeout) {
                 setTimeout(() => {
-                    try { child.kill(); } catch (_) { }
-                    // Don't resolve here, let 'close' handle it
+                    if (!finished) {
+                        finished = true;
+                        try { child.kill(); } catch (_) { }
+                        resolve({ code: -1, stdout, stderr: 'Process timeout' });
+                    }
                 }, options.timeout);
             }
         });
@@ -254,7 +257,8 @@ function createPythonEnvManager(deps) {
                     return false;
                 }
             } catch (e) {
-                log(`Failed to check for venv module: ${e.message}`);
+                const errorMsg = e instanceof Error ? e.message : String(e);
+                log(`Failed to check for venv module: ${errorMsg}`);
                 return false;
             }
 

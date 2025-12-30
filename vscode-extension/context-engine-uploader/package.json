@@ -336,7 +336,7 @@
         "contextEngineUploader.antigravityMcpPath": {
           "type": "string",
           "default": "",
-          "description": "Optional override for Antigravity's mcp_config.json path. Defaults to ~/.gemini/antigravity/mcp_config.json (or %USERPROFILE%\\AppData\\Local for Windows)."
+          "description": "Optional override for Antigravity's mcp_config.json path. Defaults to ~/.gemini/antigravity/mcp_config.json (or %USERPROFILE%\\AppData\\Local\\gemini\\antigravity\\mcp_config.json on Windows)."
         },
         "contextEngineUploader.claudeHookEnabled": {
           "type": "boolean",

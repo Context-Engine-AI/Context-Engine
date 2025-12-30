@@ -279,7 +279,7 @@ function createOnboardingManager(deps) {
     }
   }
 
-  function checkOnboarding(config, configResolver) {
+  async function checkOnboarding(config, configResolver) {
     try {
       if (!config || !configResolver) {
         return;
@@ -292,7 +292,7 @@ function createOnboardingManager(deps) {
       if (needsSetup && context && context.workspaceState) {
         const alreadyPrompted = !!context.workspaceState.get(ONBOARDING_PROMPT_KEY);
         if (!alreadyPrompted) {
-          context.workspaceState.update(ONBOARDING_PROMPT_KEY, true).catch(() => { });
+          await context.workspaceState.update(ONBOARDING_PROMPT_KEY, true);
           vscode.window.showInformationMessage(
             'Context Engine Uploader: finish setup for this workspace to start indexing/uploading.',
             'Setup Workspace',

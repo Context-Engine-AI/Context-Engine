@@ -1351,20 +1351,34 @@ class RemoteUploadClient:
                 self._debounce_timer = None
                 self._pending_paths = set()
                 self._lock = threading.Lock()
+                self._processing = False
                 
             def on_any_event(self, event):
                 """Handle any file system event."""
                 if event.is_directory:
                     return
-                    
-                # Filter to code files only
-                path = Path(event.src_path)
-                if idx.CODE_EXTS.get(path.suffix.lower(), "unknown") == "unknown":
+
+                # Collect paths to process (src_path and potentially dest_path for moves)
+                paths_to_process = []
+
+                # Always check src_path
+                src_path = Path(event.src_path)
+                if idx.CODE_EXTS.get(src_path.suffix.lower(), "unknown") != "unknown":
+                    paths_to_process.append(src_path)
+
+                # For FileMovedEvent, also process the destination path
+                if hasattr(event, 'dest_path') and event.dest_path:
+                    dest_path = Path(event.dest_path)
+                    if idx.CODE_EXTS.get(dest_path.suffix.lower(), "unknown") != "unknown":
+                        paths_to_process.append(dest_path)
+
+                if not paths_to_process:
                     return
-                    
+
                 # Accumulate changes and debounce
                 with self._lock:
-                    self._pending_paths.add(path)
+                    for path in paths_to_process:
+                        self._pending_paths.add(path)
                     if self._debounce_timer:
                         self._debounce_timer.cancel()
                     self._debounce_timer = threading.Timer(
@@ -1376,21 +1390,25 @@ class RemoteUploadClient:
             def _process_pending_changes(self):
                 """Process accumulated changes after debounce period."""
                 with self._lock:
+                    # Prevent re-entrancy
+                    if self._processing:
+                        return
                     if not self._pending_paths:
                         return
+                    self._processing = True
                     pending = list(self._pending_paths)
                     self._pending_paths.clear()
-                    
+
                 try:
                     # Add cached paths (for deletions)
                     cached_file_hashes = _load_local_cache_file_hashes(
-                        self.client.workspace_path, 
+                        self.client.workspace_path,
                         self.client.repo_name
                     )
                     all_paths = list(set(pending + [
                         Path(p) for p in cached_file_hashes.keys()
                     ]))
-                    
+
                     changes = self.client.detect_file_changes(all_paths)
                     meaningful_changes = (
                         len(changes.get("created", [])) +
@@ -1398,7 +1416,7 @@ class RemoteUploadClient:
                         len(changes.get("deleted", [])) +
                         len(changes.get("moved", []))
                     )
-                    
+
                     if meaningful_changes > 0:
                         logger.info(f"[watch] Detected {meaningful_changes} changes: { {k: len(v) for k, v in changes.items() if k != 'unchanged'} }")
                         success = self.client.process_changes_and_upload(changes)
@@ -1413,7 +1431,7 @@ class RemoteUploadClient:
                             git_history = _collect_git_history_for_workspace(self.client.workspace_path)
                         except Exception:
                             git_history = None
-                        
+
                         if git_history:
                             logger.info("[watch] Detected git history update; uploading git history metadata")
                             success = self.client.upload_git_history_only(git_history)
@@ -1423,6 +1441,11 @@ class RemoteUploadClient:
                                 logger.error("[watch] Failed to upload git history metadata")
                 except Exception as e:
                     logger.error(f"[watch] Error processing changes: {e}")
+                finally:
+                    # Clear processing flag even if an error occurred
+                    with self._lock:
+                        self._processing = False
+
         
         observer = Observer()
         handler = CodeFileEventHandler(self, debounce_seconds=2.0)
@@ -1441,6 +1464,11 @@ class RemoteUploadClient:
         except Exception as e:
             logger.error(f"[watch] Error in watch loop: {e}")
         finally:
+            # Cancel any pending debounce timer before stopping observer
+            with handler._lock:
+                if handler._debounce_timer:
+                    handler._debounce_timer.cancel()
+                    handler._debounce_timer = None
             observer.stop()
             observer.join()
             logger.info("[watch] File monitoring stopped")

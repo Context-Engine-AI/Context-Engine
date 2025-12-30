@@ -124,7 +124,7 @@ function registerExtensionCommands(deps) {
                     id: 'augment',
                 },
                 {
-                    label: 'Antigravity ( ~/.gemini/antigravity/mcp_config.json )',
+                    label: 'Antigravity (~/.gemini/antigravity/mcp_config.json)',
                     description: antigravityEnabled ? 'Enabled' : 'Disabled in settings',
                     id: 'antigravity',
                 },
