@@ -44,7 +44,14 @@ async def test_tier2_fallback_unconditional_with_language_filter(tmp_path, monke
     os.environ["USE_TREE_SITTER"] = "0"
     os.environ["HYBRID_IN_PROCESS"] = "1"
     os.environ["EMBEDDING_MODEL"] = "fake"
-    os.environ["REFRAG_GATE_FIRST"] = "1"  # ensure Tier-1 gate-first path is active
+    # Enable REFRAG_MODE to test with mini vectors; disable gating so Tier-1
+    # uses standard search (we control filtering via path_glob).
+    # Tier-2 fallback triggers when Tier-1 returns zero results.
+    os.environ["REFRAG_MODE"] = "1"
+    os.environ["REFRAG_GATE_FIRST"] = "0"
+    os.environ["PATTERN_VECTORS"] = "0"
+    # Disable multi-collection fallback to avoid creating extra collections
+    os.environ["CTX_MULTI_COLLECTION"] = "0"
 
     # Stub embeddings everywhere (FakeEmbedder produces 32-dim vectors)
     monkeypatch.setattr(ing, "TextEmbedding", lambda *a, **k: FakeEmbedder("fake"))
@@ -53,6 +60,10 @@ async def test_tier2_fallback_unconditional_with_language_filter(tmp_path, monke
     monkeypatch.setattr(srv, "_get_embedding_model", lambda *a, **k: FakeEmbedder("fake"))
     monkeypatch.setattr(hy, "TextEmbedding", lambda *a, **k: FakeEmbedder("fake"))
     monkeypatch.setattr(hy, "_get_embedding_model", lambda *a, **k: FakeEmbedder("fake"))
+
+    # Clear collection cache to ensure fresh schema checks
+    from scripts.ingest.qdrant import ENSURED_COLLECTIONS
+    ENSURED_COLLECTIONS.clear()
 
     # Create tiny repo
     (tmp_path / "pkg").mkdir()
