@@ -1496,7 +1496,7 @@ def _run_hybrid_search_impl(
                     _file_lines_cache[path] = lines
                 return lines
         except Exception:
-            pass
+            logging.debug("Failed to read file for snippet lines: %s", path, exc_info=True)
         return []
 
     def _snippet_contains(md: dict) -> int:
