@@ -44,7 +44,7 @@ jobs:
         
     - name: Set environment variables
       run: |
-        echo "QDRANT_URL=http://localhost:6333" >> $GITHUB_ENV
+        # QDRANT_URL is hardcoded in tests/conftest.py for CI (detects CI=true)
         echo "COLLECTION_NAME=test-ci-${{ github.run_id }}" >> $GITHUB_ENV
         echo "PYTHONPATH=${{ github.workspace }}/scripts:$PYTHONPATH" >> $GITHUB_ENV
         

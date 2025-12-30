@@ -62,8 +62,8 @@ def test_run_hybrid_search_list_globs(monkeypatch):
         _Pt("2", "tests/b_test.py"),
         _Pt("3", "docs/readme.md"),
     ]
-    # Patch the symbol used inside hybrid_search
-    monkeypatch.setattr(hyb, "QdrantClient", lambda *a, **k: FakeQdrant(pts))
+    # Patch client factory used inside hybrid_search so we don't hit real Qdrant
+    monkeypatch.setattr(hyb, "get_qdrant_client", lambda *a, **k: FakeQdrant(pts))
     monkeypatch.setenv("EMBEDDING_MODEL", "unit-test")
     monkeypatch.setenv("QDRANT_URL", "http://localhost:6333")
 
@@ -94,7 +94,7 @@ def test_run_hybrid_search_slugged_path_globs(monkeypatch):
         _Pt("1", "/work/repo-slug/src/a.py"),
         _Pt("2", "/work/other/docs/readme.md"),
     ]
-    monkeypatch.setattr(hyb, "QdrantClient", lambda *a, **k: FakeQdrant(pts))
+    monkeypatch.setattr(hyb, "get_qdrant_client", lambda *a, **k: FakeQdrant(pts))
     monkeypatch.setenv("EMBEDDING_MODEL", "unit-test")
     monkeypatch.setenv("QDRANT_URL", "http://localhost:6333")
     monkeypatch.setattr(hyb, "TextEmbedding", lambda *a, **k: FakeEmbed())

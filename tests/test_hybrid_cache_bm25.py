@@ -69,8 +69,8 @@ def test_results_cache_hit_is_deterministic_and_avoids_second_backend_call(monke
     ]
     backend = _CountingQdrant(pts)
 
-    # Monkeypatch backends and model
-    monkeypatch.setattr(hyb, "QdrantClient", lambda *a, **k: backend)
+    # Monkeypatch backends and model (patch client factory used in hybrid_search)
+    monkeypatch.setattr(hyb, "get_qdrant_client", lambda *a, **k: backend)
     monkeypatch.setattr(hyb, "TextEmbedding", lambda *a, **k: _FakeEmbed())
     monkeypatch.setattr(hyb, "_get_embedding_model", lambda *a, **k: _FakeEmbed())
     monkeypatch.setenv("EMBEDDING_MODEL", "unit-test")
