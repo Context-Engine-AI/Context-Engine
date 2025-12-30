@@ -40,6 +40,17 @@ from scripts.mcp_auth import (
 
 from qdrant_client import QdrantClient, models
 
+# Import connection pooling for proper resource management
+try:
+    from scripts.qdrant_client_manager import (
+        get_qdrant_client,
+        return_qdrant_client,
+        pooled_qdrant_client,
+    )
+    _POOL_AVAILABLE = True
+except ImportError:
+    _POOL_AVAILABLE = False
+
 # Env
 QDRANT_URL = os.environ.get("QDRANT_URL", "http://qdrant:6333")
 DEFAULT_COLLECTION = (
@@ -72,40 +83,35 @@ try:
 except Exception:
     MEMORY_VECTOR_DIM = 768
 
-# Lazy embedding model cache with double-checked locking.
-# RATIONALE: Avoid loading the embedding model (100–500 MB) on module import.
-# On slow storage (Ceph + HDD), eager loading can cause 30–60s startup delays.
-# Instead, load on first tool call (store/find). Subsequent calls reuse cached instance.
-_EMBED_MODEL_CACHE: Dict[str, Any] = {}
-_EMBED_MODEL_LOCK = threading.Lock()
+# ---------------------------------------------------------------------------
+# Embedding Model Management
+# ---------------------------------------------------------------------------
+# Use the centralized embedder from scripts.embedder for consistent caching.
+# This eliminates duplicate model loading and ensures consistent behavior.
+
+# Reference to the centralized cache for cold-skip detection
+try:
+    from scripts.embedder import get_embedding_model as _centralized_get_embedding_model
+    from scripts.embedder import _EMBED_MODEL_CACHE
+    _EMBEDDER_AVAILABLE = True
+except ImportError:
+    _EMBEDDER_AVAILABLE = False
+    _EMBED_MODEL_CACHE: Dict[str, Any] = {}  # Fallback empty cache
 
 def _get_embedding_model():
-    """Lazily load and cache the embedding model to avoid startup I/O.
+    """Get the embedding model using the centralized embedder.
 
-    Uses the centralized embedder factory if available, with fallback
-    to direct fastembed initialization for backwards compatibility.
+    Uses scripts.embedder.get_embedding_model() which provides:
+    - Thread-safe lazy loading with double-checked locking
+    - Qwen3 model support with feature flags
+    - Automatic cache invalidation on corrupted downloads
     """
-    # Try centralized embedder factory first (supports Qwen3 feature flag)
-    try:
-        from scripts.embedder import get_embedding_model
-        return get_embedding_model(EMBEDDING_MODEL)
-    except ImportError:
-        pass
+    if _EMBEDDER_AVAILABLE:
+        return _centralized_get_embedding_model(EMBEDDING_MODEL)
 
-    # Fallback to original implementation
+    # Fallback for environments without centralized embedder (rare)
     from fastembed import TextEmbedding
-    m = _EMBED_MODEL_CACHE.get(EMBEDDING_MODEL)
-    if m is None:
-        with _EMBED_MODEL_LOCK:
-            m = _EMBED_MODEL_CACHE.get(EMBEDDING_MODEL)
-            if m is None:
-                m = TextEmbedding(model_name=EMBEDDING_MODEL)
-                try:
-                    _ = next(m.embed(["warmup"]))
-                except Exception:
-                    pass
-                _EMBED_MODEL_CACHE[EMBEDDING_MODEL] = m
-    return m
+    return TextEmbedding(model_name=EMBEDDING_MODEL)
 
 # Track ensured collections to reduce redundant ensure calls.
 # RATIONALE: Avoid repeated Qdrant network calls for the same collection.
@@ -253,7 +259,27 @@ def _start_readyz_server():
         return False
 
 
-client = QdrantClient(url=QDRANT_URL, api_key=os.environ.get("QDRANT_API_KEY"))
+# ---------------------------------------------------------------------------
+# Qdrant Client Management
+# ---------------------------------------------------------------------------
+# Use connection pooling when available, fallback to creating clients on-demand.
+# This prevents socket exhaustion under load and improves connection reuse.
+
+def _get_qdrant_client() -> QdrantClient:
+    """Get a Qdrant client from pool or create one."""
+    if _POOL_AVAILABLE:
+        return get_qdrant_client(
+            url=QDRANT_URL,
+            api_key=os.environ.get("QDRANT_API_KEY")
+        )
+    return QdrantClient(url=QDRANT_URL, api_key=os.environ.get("QDRANT_API_KEY"))
+
+
+def _return_qdrant_client(client: QdrantClient):
+    """Return a client to the pool (no-op if pooling unavailable)."""
+    if _POOL_AVAILABLE and client is not None:
+        return_qdrant_client(client)
+
 
 # Ensure collection exists with dual vectors
 
@@ -269,11 +295,14 @@ def _ensure_collection(name: str):
     - MEMORY_PROBE_EMBED_DIM=0  -> skip model probing; use MEMORY_VECTOR_DIM/EMBED_DIM
     - MEMORY_ENSURE_ON_START=0  -> ensure lazily on first tool call
     """
+    client = _get_qdrant_client()
     try:
         client.get_collection(name)
         return True
     except Exception:
         pass
+    finally:
+        _return_qdrant_client(client)
 
     # Choose dense dimension based on config: probe (default) vs env-configured
     if MEMORY_PROBE_EMBED_DIM:
@@ -319,14 +348,19 @@ def _ensure_collection(name: str):
     except Exception:
         pass
 
-    client.create_collection(
-        collection_name=name,
-        vectors_config=vectors_cfg,
-        hnsw_config=models.HnswConfigDiff(m=16, ef_construct=256),
-    )
-    vector_names = list(vectors_cfg.keys())
-    print(f"[MEMORY_SERVER] Created collection '{name}' with vectors: {vector_names}")
-    return True
+    # Get a fresh client for collection creation
+    client = _get_qdrant_client()
+    try:
+        client.create_collection(
+            collection_name=name,
+            vectors_config=vectors_cfg,
+            hnsw_config=models.HnswConfigDiff(m=16, ef_construct=256),
+        )
+        vector_names = list(vectors_cfg.keys())
+        print(f"[MEMORY_SERVER] Created collection '{name}' with vectors: {vector_names}")
+        return True
+    finally:
+        _return_qdrant_client(client)
 
 
 # Optional eager collection ensure on startup (enabled by default for backward compatibility).
@@ -463,7 +497,14 @@ def memory_store(
     )
     # wait=True blocks until Qdrant confirms write; set MEMORY_UPSERT_WAIT=0 for async writes
     _upsert_wait = os.environ.get("MEMORY_UPSERT_WAIT", "1").strip().lower() in {"1", "true", "yes", "on"}
-    client.upsert(collection_name=coll, points=[point], wait=_upsert_wait)
+
+    # Use pooled client for upsert
+    client = _get_qdrant_client()
+    try:
+        client.upsert(collection_name=coll, points=[point], wait=_upsert_wait)
+    finally:
+        _return_qdrant_client(client)
+
     return {
         "ok": True,
         "id": pid,
@@ -536,46 +577,51 @@ def memory_find(
     flt = models.Filter(must=must) if must else None
 
     # Two searches (prefer query_points) then simple RRF-like merge
-    if use_dense:
-        try:
-            qp_dense = client.query_points(
-                collection_name=coll,
-                query=dense,
-                using=VECTOR_NAME,
-                query_filter=flt,
-                limit=max(10, lim),
-                with_payload=True,
-            )
-            res_dense = getattr(qp_dense, "points", qp_dense)
-        except AttributeError:
-            res_dense = client.search(
-                collection_name=coll,
-                query_vector=(VECTOR_NAME, dense),
-                query_filter=flt,
-                limit=max(10, lim),
-                with_payload=True,
-            )
-    else:
-        res_dense = []
-
+    # Use pooled client for all search operations
+    client = _get_qdrant_client()
     try:
-        qp_lex = client.query_points(
-            collection_name=coll,
-            query=lex,
-            using=LEX_VECTOR_NAME,
-            query_filter=flt,
-            limit=max(10, lim),
-            with_payload=True,
-        )
-        res_lex = getattr(qp_lex, "points", qp_lex)
-    except AttributeError:
-        res_lex = client.search(
-            collection_name=coll,
-            query_vector=(LEX_VECTOR_NAME, lex),
-            query_filter=flt,
-            limit=max(10, lim),
-            with_payload=True,
-        )
+        if use_dense:
+            try:
+                qp_dense = client.query_points(
+                    collection_name=coll,
+                    query=dense,
+                    using=VECTOR_NAME,
+                    query_filter=flt,
+                    limit=max(10, lim),
+                    with_payload=True,
+                )
+                res_dense = getattr(qp_dense, "points", qp_dense)
+            except AttributeError:
+                res_dense = client.search(
+                    collection_name=coll,
+                    query_vector=(VECTOR_NAME, dense),
+                    query_filter=flt,
+                    limit=max(10, lim),
+                    with_payload=True,
+                )
+        else:
+            res_dense = []
+
+        try:
+            qp_lex = client.query_points(
+                collection_name=coll,
+                query=lex,
+                using=LEX_VECTOR_NAME,
+                query_filter=flt,
+                limit=max(10, lim),
+                with_payload=True,
+            )
+            res_lex = getattr(qp_lex, "points", qp_lex)
+        except AttributeError:
+            res_lex = client.search(
+                collection_name=coll,
+                query_vector=(LEX_VECTOR_NAME, lex),
+                query_filter=flt,
+                limit=max(10, lim),
+                with_payload=True,
+            )
+    finally:
+        _return_qdrant_client(client)
 
     def is_memory_like(payload: Dict[str, Any]) -> bool:
         md = (payload or {}).get("metadata") or {}
