@@ -52,7 +52,7 @@ def _wait_for_qdrant(url: str, timeout: int = 60) -> bool:
                 if 200 <= r.status < 300:
                     return True
         except Exception:
-            pass
+            pass  # Qdrant may not be ready yet; ignore transient errors and retry until timeout.
         time.sleep(1)
     return False
 
@@ -121,7 +121,7 @@ def qdrant_url():
         try:
             container.stop()
         except Exception:
-            pass
+            pass  # Best-effort cleanup: ignore container shutdown errors in tests
 
 
 # Alias for backward compatibility with existing tests
@@ -150,12 +150,16 @@ def test_collection(qdrant_url):
     yield collection_name
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="function", autouse=True)
 def _cleanup_test_collections(qdrant_url):
-    """Automatically clean up all test collections after each test module."""
+    """Clean up test collections after each test function that uses test_collection.
+
+    This fixture has function scope to match the test_collection fixture, ensuring
+    collections are cleaned up immediately after each test rather than accumulating.
+    """
     yield
 
-    # Cleanup after module completes
+    # Only cleanup if this test used test_collection fixture
     if not _test_collections:
         return
 
@@ -199,6 +203,6 @@ def _final_cleanup_all_test_collections():
                 try:
                     client.delete_collection(col.name)
                 except Exception:
-                    pass
+                    pass  # Best effort per-collection cleanup; ignore if delete fails
     except Exception:
         pass  # Best effort cleanup

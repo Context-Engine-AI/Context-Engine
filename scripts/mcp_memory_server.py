@@ -45,7 +45,6 @@ try:
     from scripts.qdrant_client_manager import (
         get_qdrant_client,
         return_qdrant_client,
-        pooled_qdrant_client,
     )
     _POOL_AVAILABLE = True
 except ImportError:
