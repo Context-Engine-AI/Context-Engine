@@ -7,8 +7,7 @@ from types import SimpleNamespace
 import pytest
 from qdrant_client import QdrantClient, models
 
-# Reuse the existing Qdrant testcontainer fixture
-from tests.test_integration_qdrant import qdrant_container  # noqa: F401
+# qdrant_container fixture is provided by conftest.py (no import needed)
 
 
 ing = importlib.import_module("scripts.ingest_code")
