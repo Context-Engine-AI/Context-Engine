@@ -13,6 +13,13 @@ function getDefaultAugmentMcpPath() {
   return path.join(os.homedir(), '.augment', 'settings.json');
 }
 
+function getDefaultAntigravityMcpPath() {
+  const home = (process.platform === 'win32')
+    ? (process.env.USERPROFILE || os.homedir())
+    : os.homedir();
+  return path.join(home, '.gemini', 'antigravity', 'mcp_config.json');
+}
+
 function createMcpConfigManager(deps) {
   const vscode = deps.vscode;
   const log = deps.log;
@@ -43,6 +50,61 @@ function createMcpConfigManager(deps) {
     } catch (_) {
       // ignore
     }
+  }
+
+  async function writeAntigravityMcpServers(configPath, indexerUrl, memoryUrl, transportMode, serverMode = 'bridge', workspaceHint) {
+    // TODO: Factor the shared "ensure dir + load JSON + applyMcpServersUpdate + writeJsonConfig" pattern
+    // into a helper so Claude/Windsurf/Augment/Antigravity all call the same utility.
+    try {
+      fs.mkdirSync(path.dirname(configPath), { recursive: true });
+    } catch (error) {
+      log(`Failed to ensure Antigravity MCP directory: ${error instanceof Error ? error.message : String(error)}`);
+      vscode.window.showErrorMessage('Context Engine Uploader: failed to prepare Antigravity MCP directory.');
+      return false;
+    }
+
+    const config = loadJsonConfigOrDefault(
+      configPath,
+      { mcpServers: {} },
+      'Context Engine Uploader: existing Antigravity mcp_config.json is invalid JSON; not modified.',
+      'Failed to parse Antigravity mcp_config.json'
+    );
+    if (!config) {
+      return false;
+    }
+    ensureMcpServersObject(config);
+
+    const servers = config.mcpServers;
+    const mode = (typeof transportMode === 'string' ? transportMode.trim() : 'sse-remote') || 'sse-remote';
+
+    log(`Preparing to write Antigravity mcp_config.json at ${configPath} with indexerUrl=${indexerUrl || '""'} memoryUrl=${memoryUrl || '""'}`);
+
+    applyMcpServersUpdate(servers, {
+      serverMode,
+      transportMode: mode,
+      indexerUrl,
+      memoryUrl,
+      bridgeWorkspace: resolveBridgeWorkspacePath() || workspaceHint || '',
+      bridgeHttpUrl: () => resolveBridgeHttpUrl(),
+      makeBridgeHttpServer: (url) => ({ type: 'http', url }),
+      makeDirectHttpServer: (url) => ({ type: 'http', url }),
+      makeRemoteSseServer: (url) => makeMcpRemoteServer(url, { allowHttpForNonLocal: true, useCmdOnWindows: true }),
+      deleteContextEngineInDirect: true,
+    });
+
+    const success = writeJsonConfig(
+      configPath,
+      config,
+      'Context Engine Uploader: Antigravity MCP config updated. Use Manage MCP Servers → Refresh to reload.',
+      'Wrote Antigravity mcp_config.json at',
+      'Context Engine Uploader: failed to write Antigravity mcp_config.json.',
+      'Failed to write Antigravity mcp_config.json'
+    );
+
+    if (success) {
+      vscode.window.showInformationMessage('Antigravity requires a manual Refresh inside Manage MCP Servers to pick up changes.');
+    }
+    return success;
   }
 
   function getClaudeHookCommand() {
@@ -655,6 +717,7 @@ function createMcpConfigManager(deps) {
     const claudeEnabled = settings.get('mcpClaudeEnabled', true);
     const windsurfEnabled = settings.get('mcpWindsurfEnabled', false);
     const augmentEnabled = settings.get('mcpAugmentEnabled', false);
+    const antigravityEnabled = settings.get('mcpAntigravityEnabled', false);
     const claudeHookEnabled = settings.get('claudeHookEnabled', false);
     const isLinux = process.platform === 'linux';
 
@@ -663,7 +726,9 @@ function createMcpConfigManager(deps) {
     const wantsWindsurf = targets ? targets.includes('windsurf') : windsurfEnabled;
     const wantsAugment = targets ? targets.includes('augment') : augmentEnabled;
 
-    if (!wantsClaude && !wantsWindsurf && !wantsAugment && !claudeHookEnabled) {
+    const wantsAntigravity = targets ? targets.includes('antigravity') : antigravityEnabled;
+
+    if (!wantsClaude && !wantsWindsurf && !wantsAugment && !wantsAntigravity && !claudeHookEnabled) {
       vscode.window.showInformationMessage('Context Engine Uploader: MCP config writing is disabled in settings.');
       return;
     }
@@ -728,6 +793,13 @@ function createMcpConfigManager(deps) {
       const result = await writeAugmentMcpServers(augPath, indexerUrl, memoryUrl, transportMode, serverMode, workspaceHint);
       wroteAny = wroteAny || result;
     }
+    if (wantsAntigravity) {
+      const customPath = (settings.get('antigravityMcpPath') || '').trim();
+      const agPath = customPath || getDefaultAntigravityMcpPath();
+      const workspaceHint = getWorkspaceFolderPath();
+      const result = await writeAntigravityMcpServers(agPath, indexerUrl, memoryUrl, transportMode, serverMode, workspaceHint);
+      wroteAny = wroteAny || result;
+    }
     if (claudeHookEnabled) {
       const root = getWorkspaceFolderPath();
       if (!root) {
@@ -769,4 +841,5 @@ module.exports = {
   createMcpConfigManager,
   getDefaultWindsurfMcpPath,
   getDefaultAugmentMcpPath,
+  getDefaultAntigravityMcpPath,
 };

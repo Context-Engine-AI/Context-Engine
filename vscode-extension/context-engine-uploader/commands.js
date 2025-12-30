@@ -100,6 +100,7 @@ function registerExtensionCommands(deps) {
             const claudeEnabled = !!cfg.get('mcpClaudeEnabled', true);
             const windsurfEnabled = !!cfg.get('mcpWindsurfEnabled', false);
             const augmentEnabled = !!cfg.get('mcpAugmentEnabled', false);
+            const antigravityEnabled = !!cfg.get('mcpAntigravityEnabled', false);
 
             const items = [
                 {
@@ -122,6 +123,11 @@ function registerExtensionCommands(deps) {
                     description: augmentEnabled ? 'Enabled' : 'Disabled in settings',
                     id: 'augment',
                 },
+                {
+                    label: 'Antigravity ( ~/.gemini/antigravity/mcp_config.json )',
+                    description: antigravityEnabled ? 'Enabled' : 'Disabled in settings',
+                    id: 'antigravity',
+                },
             ];
 
             const picked = await vscode.window.showQuickPick(items, { placeHolder: 'Select which MCP config to write' });
@@ -137,6 +143,8 @@ function registerExtensionCommands(deps) {
                 await writeMcpConfig({ targets: ['windsurf'] });
             } else if (picked.id === 'augment') {
                 await writeMcpConfig({ targets: ['augment'] });
+            } else if (picked.id === 'antigravity') {
+                await writeMcpConfig({ targets: ['antigravity'] });
             }
         } catch (error) {
             handleCatch(error, 'MCP config select failed');
@@ -153,6 +161,10 @@ function registerExtensionCommands(deps) {
 
     disposables.push(vscode.commands.registerCommand('contextEngineUploader.writeMcpConfigAugment', () => {
         writeMcpConfig({ targets: ['augment'] }).catch(error => handleCatch(error, 'Failed to write Augment MCP config'));
+    }));
+
+    disposables.push(vscode.commands.registerCommand('contextEngineUploader.writeMcpConfigAntigravity', () => {
+        writeMcpConfig({ targets: ['antigravity'] }).catch(error => handleCatch(error, 'Failed to write Antigravity MCP config'));
     }));
 
     // Onboarding/Stack commands

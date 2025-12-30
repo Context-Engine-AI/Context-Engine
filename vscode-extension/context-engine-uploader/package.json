@@ -84,6 +84,10 @@
         "title": "Context Engine Uploader: Write MCP Config (Augment Code / settings.json)"
       },
       {
+        "command": "contextEngineUploader.writeMcpConfigAntigravity",
+        "title": "Context Engine Uploader: Write MCP Config (Antigravity / mcp_config.json)"
+      },
+      {
         "command": "contextEngineUploader.writeCtxConfig",
         "title": "Context Engine Uploader: Write CTX Config (ctx_config.json/.env)"
       },
@@ -254,6 +258,11 @@
           "default": false,
           "description": "Enable writing Augment Code's global MCP config (writes ~/.augment/settings.json by default)."
         },
+        "contextEngineUploader.mcpAntigravityEnabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable writing Antigravity's global MCP config (writes ~/.gemini/antigravity/mcp_config.json by default)."
+        },
         "contextEngineUploader.autoWriteMcpConfigOnStartup": {
           "type": "boolean",
           "default": false,
@@ -323,6 +332,11 @@
           "type": "string",
           "default": "",
           "description": "Optional override for Augment Code's settings.json path. Defaults to ~/.augment/settings.json."
+        },
+        "contextEngineUploader.antigravityMcpPath": {
+          "type": "string",
+          "default": "",
+          "description": "Optional override for Antigravity's mcp_config.json path. Defaults to ~/.gemini/antigravity/mcp_config.json (or %USERPROFILE%\\AppData\\Local for Windows)."
         },
         "contextEngineUploader.claudeHookEnabled": {
           "type": "boolean",
