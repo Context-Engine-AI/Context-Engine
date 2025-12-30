@@ -1471,10 +1471,10 @@ def _run_hybrid_search_impl(
     import io as _io
 
     # File content cache to avoid re-reading files for each snippet
-    # Guarded by HYBRID_SNIPPET_DISK_READ env var (default OFF in production)
+    # Controlled by HYBRID_SNIPPET_DISK_READ env var (default ON for backwards compatibility)
     _file_lines_cache: Dict[str, List[str]] = {}
-    _snippet_disk_reads = os.environ.get("HYBRID_SNIPPET_DISK_READ", "0").strip().lower() in {
-        "1", "true", "yes", "on"
+    _snippet_disk_reads = os.environ.get("HYBRID_SNIPPET_DISK_READ", "1").strip().lower() not in {
+        "0", "false", "no", "off"
     }
 
     def _get_file_lines(path: str) -> List[str]:
