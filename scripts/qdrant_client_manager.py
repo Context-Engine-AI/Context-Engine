@@ -16,7 +16,7 @@ from qdrant_client import QdrantClient
 # Connection pool implementation
 class QdrantConnectionPool:
     """Thread-safe connection pool for QdrantClient instances."""
-    
+
     def __init__(self, max_size: int = 10, max_lifetime: float = 300.0):
         self.max_size = max_size
         self.max_lifetime = max_lifetime  # seconds
@@ -25,23 +25,26 @@ class QdrantConnectionPool:
         self._created_count = 0
         self._hits = 0
         self._misses = 0
-    
+        # Track temporary (overflow) clients for cleanup on shutdown
+        self._overflow_clients: weakref.WeakSet = weakref.WeakSet()
+        self._overflow_refs: List[QdrantClient] = []  # Strong refs to prevent premature GC
+
     def get_client(self, url: str, api_key: Optional[str] = None) -> QdrantClient:
         """Get a client from pool or create a new one."""
         with self._pool_lock:
             # Clean up expired connections
             self._cleanup_expired()
-            
+
             # Try to find a matching client in pool
             for i, conn in enumerate(self._pool):
-                if (conn['url'] == url and 
-                    conn['api_key'] == api_key and 
+                if (conn['url'] == url and
+                    conn['api_key'] == api_key and
                     conn['in_use'] == False):
                     conn['in_use'] = True
                     conn['last_used'] = time.time()
                     self._hits += 1
                     return conn['client']
-            
+
             # No suitable client found, create a new one
             if self._created_count < self.max_size:
                 client = QdrantClient(url=url, api_key=api_key)
@@ -58,9 +61,12 @@ class QdrantConnectionPool:
                 self._misses += 1
                 return client
             else:
-                # Pool is full, create a temporary client (not pooled)
+                # Pool is full, create a temporary client (tracked for shutdown cleanup)
                 self._misses += 1
-                return QdrantClient(url=url, api_key=api_key)
+                client = QdrantClient(url=url, api_key=api_key)
+                self._overflow_clients.add(client)
+                self._overflow_refs.append(client)
+                return client
     
     def return_client(self, client: QdrantClient):
         """Return a client to the pool."""
@@ -91,8 +97,9 @@ class QdrantConnectionPool:
             self._created_count -= 1
     
     def close_all(self):
-        """Close all connections in the pool."""
+        """Close all connections in the pool and overflow clients."""
         with self._pool_lock:
+            # Close pooled connections
             for conn in self._pool:
                 try:
                     conn['client'].close()
@@ -100,7 +107,16 @@ class QdrantConnectionPool:
                     pass
             self._pool.clear()
             self._created_count = 0
-    
+
+            # Close overflow (temporary) clients
+            for client in self._overflow_refs:
+                try:
+                    client.close()
+                except Exception:
+                    pass
+            self._overflow_refs.clear()
+            # WeakSet will be empty once refs are cleared
+
     def get_stats(self) -> Dict[str, int]:
         """Get pool statistics."""
         with self._pool_lock:
@@ -109,7 +125,8 @@ class QdrantConnectionPool:
                 'created_count': self._created_count,
                 'hits': self._hits,
                 'misses': self._misses,
-                'in_use': sum(1 for conn in self._pool if conn['in_use'])
+                'in_use': sum(1 for conn in self._pool if conn['in_use']),
+                'overflow_clients': len(self._overflow_refs)
             }
 
 

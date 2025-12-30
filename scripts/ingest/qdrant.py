@@ -10,6 +10,7 @@ from __future__ import annotations
 import os
 import time
 import hashlib
+import threading
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 
@@ -27,8 +28,9 @@ from scripts.ingest.config import (
 
 
 # ---------------------------------------------------------------------------
-# Collection tracking
+# Collection tracking (thread-safe)
 # ---------------------------------------------------------------------------
+_ensured_lock = threading.Lock()
 ENSURED_COLLECTIONS: set[str] = set()
 ENSURED_COLLECTIONS_LAST_CHECK: dict[str, float] = {}
 
@@ -39,10 +41,12 @@ ENSURED_COLLECTIONS_TTL = float(os.environ.get("ENSURED_COLLECTIONS_TTL", "3600"
 ENSURED_COLLECTIONS_MAX = int(os.environ.get("ENSURED_COLLECTIONS_MAX", "500") or 500)
 
 
-def _cleanup_stale_ensured_collections() -> int:
+def _cleanup_stale_ensured_collections_unlocked() -> int:
     """Remove stale entries from ENSURED_COLLECTIONS based on TTL.
 
     Returns number of entries removed.
+
+    NOTE: Caller MUST hold _ensured_lock before calling this function.
     """
     if not ENSURED_COLLECTIONS_LAST_CHECK:
         return 0
@@ -367,66 +371,80 @@ def ensure_collection_and_indexes_once(
 ) -> None:
     """Ensure collection and indexes exist (cached per-process).
 
+    Thread-safe: uses _ensured_lock to protect cache mutations.
     Periodically cleans up stale entries based on TTL to prevent unbounded growth.
     """
     if not collection:
         return
 
-    # Periodic cleanup: remove stale entries when cache is large
-    if len(ENSURED_COLLECTIONS) > ENSURED_COLLECTIONS_MAX // 2:
-        _cleanup_stale_ensured_collections()
+    # Fast path: check if already ensured (read under lock for consistency)
+    with _ensured_lock:
+        if collection in ENSURED_COLLECTIONS:
+            try:
+                ping_seconds = float(os.environ.get("ENSURED_COLLECTION_PING_SECONDS", "0") or 0)
+            except Exception:
+                ping_seconds = 0.0
 
-    if collection in ENSURED_COLLECTIONS:
-        try:
-            ping_seconds = float(os.environ.get("ENSURED_COLLECTION_PING_SECONDS", "0") or 0)
-        except Exception:
-            ping_seconds = 0.0
+            if ping_seconds <= 0:
+                return
 
-        if ping_seconds <= 0:
-            return
-
-        try:
             now = time.time()
             last = ENSURED_COLLECTIONS_LAST_CHECK.get(collection, 0.0)
             if (now - last) < ping_seconds:
                 return
+            # Need to ping - release lock for network call
+            need_ping = True
+        else:
+            need_ping = False
+
+    # Ping outside lock to avoid holding lock during network I/O
+    if need_ping:
+        try:
             client.get_collection(collection)
-            ENSURED_COLLECTIONS_LAST_CHECK[collection] = now
+            with _ensured_lock:
+                ENSURED_COLLECTIONS_LAST_CHECK[collection] = time.time()
             return
         except Exception:
-            try:
+            with _ensured_lock:
                 ENSURED_COLLECTIONS.discard(collection)
-            except Exception:
-                pass
-            try:
                 ENSURED_COLLECTIONS_LAST_CHECK.pop(collection, None)
-            except Exception:
-                pass
+            # Fall through to re-ensure
 
-    # Enforce max size: evict oldest entries if at capacity
-    while len(ENSURED_COLLECTIONS) >= ENSURED_COLLECTIONS_MAX:
-        _cleanup_stale_ensured_collections()
-        if len(ENSURED_COLLECTIONS) >= ENSURED_COLLECTIONS_MAX:
-            # Still at capacity after cleanup - evict oldest
-            oldest_coll = None
-            oldest_time = float('inf')
-            for c, t in ENSURED_COLLECTIONS_LAST_CHECK.items():
-                if t < oldest_time:
-                    oldest_time = t
-                    oldest_coll = c
-            if oldest_coll:
-                ENSURED_COLLECTIONS.discard(oldest_coll)
-                ENSURED_COLLECTIONS_LAST_CHECK.pop(oldest_coll, None)
-            else:
-                break  # Safety: avoid infinite loop
+    # Slow path: need to ensure collection exists
+    with _ensured_lock:
+        # Double-check after acquiring lock (another thread may have ensured it)
+        if collection in ENSURED_COLLECTIONS:
+            return
 
+        # Periodic cleanup: remove stale entries when cache is large
+        if len(ENSURED_COLLECTIONS) > ENSURED_COLLECTIONS_MAX // 2:
+            _cleanup_stale_ensured_collections_unlocked()
+
+        # Enforce max size: evict oldest entries if at capacity
+        while len(ENSURED_COLLECTIONS) >= ENSURED_COLLECTIONS_MAX:
+            _cleanup_stale_ensured_collections_unlocked()
+            if len(ENSURED_COLLECTIONS) >= ENSURED_COLLECTIONS_MAX:
+                # Still at capacity after cleanup - evict oldest
+                oldest_coll = None
+                oldest_time = float('inf')
+                for c, t in ENSURED_COLLECTIONS_LAST_CHECK.items():
+                    if t < oldest_time:
+                        oldest_time = t
+                        oldest_coll = c
+                if oldest_coll:
+                    ENSURED_COLLECTIONS.discard(oldest_coll)
+                    ENSURED_COLLECTIONS_LAST_CHECK.pop(oldest_coll, None)
+                else:
+                    break  # Safety: avoid infinite loop
+
+    # Create collection outside lock to avoid holding lock during network I/O
     ensure_collection(client, collection, dim, vector_name)
     ensure_payload_indexes(client, collection)
-    ENSURED_COLLECTIONS.add(collection)
-    try:
+
+    # Mark as ensured
+    with _ensured_lock:
+        ENSURED_COLLECTIONS.add(collection)
         ENSURED_COLLECTIONS_LAST_CHECK[collection] = time.time()
-    except Exception:
-        pass
 
 
 def get_indexed_file_hash(

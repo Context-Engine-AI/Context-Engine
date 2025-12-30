@@ -131,7 +131,9 @@ def qdrant_container(qdrant_url):
     return qdrant_url
 
 
-# Track collections created during tests for cleanup
+# Track collections created during tests for cleanup (thread-safe for pytest-xdist)
+import threading
+_test_collections_lock = threading.Lock()
 _test_collections: list[tuple[str, str]] = []  # (qdrant_url, collection_name)
 
 
@@ -143,32 +145,52 @@ def test_collection(qdrant_url):
         def test_something(qdrant_url, test_collection):
             # test_collection is a unique name like "test-a1b2c3d4"
             # It will be automatically deleted after the test
+
+    Thread-safe: uses lock for pytest-xdist compatibility.
     """
     import uuid
     collection_name = f"test-{uuid.uuid4().hex[:8]}"
-    _test_collections.append((qdrant_url, collection_name))
+    with _test_collections_lock:
+        _test_collections.append((qdrant_url, collection_name))
     yield collection_name
+
+    # Clean up THIS test's collection immediately after the test
+    # This ensures each test cleans up its own collection, avoiding cross-test races
+    try:
+        from qdrant_client import QdrantClient
+        client = QdrantClient(url=qdrant_url, timeout=10)
+        client.delete_collection(collection_name)
+    except Exception:
+        pass  # Collection might not exist or already deleted
+
+    # Remove from tracking list
+    with _test_collections_lock:
+        _test_collections[:] = [(u, n) for u, n in _test_collections
+                                 if not (u == qdrant_url and n == collection_name)]
 
 
 @pytest.fixture(scope="function", autouse=True)
 def _cleanup_test_collections(qdrant_url):
-    """Clean up test collections after each test function that uses test_collection.
+    """Clean up any orphaned test collections after each test function.
 
-    This fixture has function scope to match the test_collection fixture, ensuring
-    collections are cleaned up immediately after each test rather than accumulating.
+    This is a safety net for collections that weren't cleaned up by test_collection fixture.
+    Thread-safe: uses lock for pytest-xdist compatibility.
     """
     yield
 
-    # Only cleanup if this test used test_collection fixture
-    if not _test_collections:
+    # Only cleanup if there are orphaned collections
+    with _test_collections_lock:
+        if not _test_collections:
+            return
+        # Get list of collections to delete (ones that match our URL)
+        to_delete = [name for url, name in _test_collections if url == qdrant_url]
+
+    if not to_delete:
         return
 
     try:
         from qdrant_client import QdrantClient
         client = QdrantClient(url=qdrant_url, timeout=10)
-
-        # Get list of collections to delete (ones that match our URL)
-        to_delete = [name for url, name in _test_collections if url == qdrant_url]
 
         for collection_name in to_delete:
             try:
@@ -177,7 +199,8 @@ def _cleanup_test_collections(qdrant_url):
                 pass  # Collection might not exist or already deleted
 
         # Remove cleaned up entries
-        _test_collections[:] = [(u, n) for u, n in _test_collections if u != qdrant_url]
+        with _test_collections_lock:
+            _test_collections[:] = [(u, n) for u, n in _test_collections if u != qdrant_url]
     except Exception:
         pass  # Best effort cleanup
 
