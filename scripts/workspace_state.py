@@ -2278,6 +2278,75 @@ def clear_symbol_cache(
     return dirs_removed
 
 
+def clear_file_hash_cache(
+    workspace_path: Optional[str] = None,
+    repo_name: Optional[str] = None,
+    collection_name: Optional[str] = None,
+) -> bool:
+    """
+    Clear file hash cache for a workspace/repo.
+
+    This forces the indexer to re-index all files on the next run,
+    which is necessary after a collection is recreated.
+
+    Parameters:
+        workspace_path: Path to workspace root (default: auto-detect)
+        repo_name: Specific repo directory name to clear (multi-repo mode)
+        collection_name: Collection name to match - only clears cache for repos
+                        whose derived collection name matches (multi-repo mode)
+
+    Returns True if cache was cleared, False otherwise.
+    """
+    workspace_root = workspace_path or _resolve_workspace_root()
+
+    cache_paths: List[Path] = []
+
+    if is_multi_repo_mode():
+        if repo_name:
+            # Direct repo name specified
+            cache_paths.append(_get_repo_state_dir(repo_name) / CACHE_FILENAME)
+        elif collection_name:
+            # Find repo(s) whose collection name matches
+            repos_dir = Path(workspace_root) / STATE_DIRNAME / "repos"
+            if repos_dir.exists():
+                for repo_dir in repos_dir.iterdir():
+                    if not repo_dir.is_dir():
+                        continue
+                    try:
+                        # Compute the collection name for this repo
+                        repo_coll = _generate_collection_name_from_repo(repo_dir.name)
+                        if repo_coll == collection_name:
+                            cache_paths.append(repo_dir / CACHE_FILENAME)
+                    except Exception:
+                        pass
+        # If no specific target, don't clear anything in multi-repo mode
+        # (backwards compatible - don't nuke all caches)
+    else:
+        try:
+            cache_paths.append(_get_cache_path(workspace_root))
+        except Exception:
+            cache_paths.append(Path(workspace_root) / ".codebase" / CACHE_FILENAME)
+
+    cleared = False
+    for cache_path in cache_paths:
+        if not cache_path.exists():
+            continue
+        try:
+            cache = _read_cache_file_cached(cache_path)
+            if "file_hashes" in cache and cache["file_hashes"]:
+                cache["file_hashes"] = {}
+                cache["updated_at"] = datetime.now().isoformat()
+                cache["cleared_reason"] = "collection_recreated"
+                _atomic_write_state(cache_path, cache)
+                _memoize_cache_obj(cache_path, cache)
+                print(f"[CACHE_CLEAR] Cleared file hash cache at {cache_path}")
+                cleared = True
+        except Exception as e:
+            print(f"[CACHE_CLEAR_WARNING] Failed to clear cache at {cache_path}: {e}")
+
+    return cleared
+
+
 def compare_symbol_changes(old_symbols: dict, new_symbols: dict) -> tuple[list, list]:
     """
     Compare old and new symbols to identify changes.

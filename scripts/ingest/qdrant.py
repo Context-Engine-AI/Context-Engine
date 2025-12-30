@@ -25,6 +25,19 @@ from scripts.ingest.config import (
     logical_repo_reuse_enabled,
 )
 
+# Import cache clearing function (lazy to avoid circular imports)
+_clear_file_hash_cache = None
+
+def _get_clear_file_hash_cache():
+    global _clear_file_hash_cache
+    if _clear_file_hash_cache is None:
+        try:
+            from scripts.workspace_state import clear_file_hash_cache
+            _clear_file_hash_cache = clear_file_hash_cache
+        except ImportError:
+            _clear_file_hash_cache = lambda **kw: False
+    return _clear_file_hash_cache
+
 
 # ---------------------------------------------------------------------------
 # Collection tracking
@@ -64,14 +77,22 @@ def ensure_collection(client: QdrantClient, name: str, dim: int, vector_name: st
                 has_sparse = sparse_cfg and LEX_SPARSE_NAME in (sparse_cfg if isinstance(sparse_cfg, dict) else {})
 
                 if LEX_SPARSE_MODE and not has_sparse:
-                    print(f"[COLLECTION_INFO] Collection {name} lacks sparse vector '{LEX_SPARSE_NAME}' - recreating...")
-                    backup_file = _backup_memories_before_recreate(name)
-                    try:
-                        client.delete_collection(name)
-                        print(f"[COLLECTION_INFO] Deleted existing collection {name}")
-                    except Exception:
-                        pass
-                    raise CollectionNeedsRecreateError(f"Collection {name} needs sparse vectors")
+                    # Guard: only auto-recreate if COLLECTION_AUTO_RECREATE=1
+                    auto_recreate = os.environ.get("COLLECTION_AUTO_RECREATE", "").strip().lower() in {
+                        "1", "true", "yes", "on",
+                    }
+                    if auto_recreate:
+                        print(f"[COLLECTION_INFO] Collection {name} lacks sparse vector '{LEX_SPARSE_NAME}' - recreating (COLLECTION_AUTO_RECREATE=1)...")
+                        backup_file = _backup_memories_before_recreate(name)
+                        try:
+                            client.delete_collection(name)
+                            print(f"[COLLECTION_INFO] Deleted existing collection {name}")
+                        except Exception:
+                            pass
+                        raise CollectionNeedsRecreateError(f"Collection {name} needs sparse vectors")
+                    else:
+                        print(f"[COLLECTION_WARNING] Collection {name} lacks sparse vector '{LEX_SPARSE_NAME}'. "
+                              f"Set COLLECTION_AUTO_RECREATE=1 to recreate, or disable LEX_SPARSE_MODE.")
 
                 missing = {}
                 if not has_lex:
@@ -115,14 +136,22 @@ def ensure_collection(client: QdrantClient, name: str, dim: int, vector_name: st
                         )
                         print(f"[COLLECTION_SUCCESS] Successfully updated collection {name} with missing vectors")
                     except Exception as update_e:
-                        print(f"[COLLECTION_WARNING] Cannot add missing vectors to {name} ({update_e}). Recreating collection...")
-                        backup_file = _backup_memories_before_recreate(name)
-                        try:
-                            client.delete_collection(name)
-                            print(f"[COLLECTION_INFO] Deleted existing collection {name}")
-                        except Exception:
-                            pass
-                        raise CollectionNeedsRecreateError(f"Collection {name} needs recreation for new vectors")
+                        # Guard: only auto-recreate if COLLECTION_AUTO_RECREATE=1
+                        auto_recreate = os.environ.get("COLLECTION_AUTO_RECREATE", "").strip().lower() in {
+                            "1", "true", "yes", "on",
+                        }
+                        if auto_recreate:
+                            print(f"[COLLECTION_WARNING] Cannot add missing vectors to {name} ({update_e}). Recreating collection (COLLECTION_AUTO_RECREATE=1)...")
+                            backup_file = _backup_memories_before_recreate(name)
+                            try:
+                                client.delete_collection(name)
+                                print(f"[COLLECTION_INFO] Deleted existing collection {name}")
+                            except Exception:
+                                pass
+                            raise CollectionNeedsRecreateError(f"Collection {name} needs recreation for new vectors")
+                        else:
+                            print(f"[COLLECTION_WARNING] Cannot add missing vectors to {name} ({update_e}). "
+                                  f"Set COLLECTION_AUTO_RECREATE=1 to recreate collection.")
         except CollectionNeedsRecreateError:
             print(f"[COLLECTION_INFO] Collection {name} needs recreation - proceeding...")
             raise
@@ -172,6 +201,17 @@ def ensure_collection(client: QdrantClient, name: str, dim: int, vector_name: st
     )
     sparse_info = f", sparse: [{LEX_SPARSE_NAME}]" if sparse_cfg else ""
     print(f"[COLLECTION_INFO] Successfully created new collection {name} with vectors: {list(vectors_cfg.keys())}{sparse_info}")
+
+    # Clear file hash cache to force re-indexing after collection recreation
+    # In multi-repo mode, only clear cache for repo(s) matching this collection
+    try:
+        clear_fn = _get_clear_file_hash_cache()
+        if clear_fn(collection_name=name):
+            print(f"[COLLECTION_INFO] File hash cache cleared for {name} - files will be re-indexed")
+        else:
+            print(f"[COLLECTION_INFO] No file hash cache found to clear for {name}")
+    except Exception as cache_e:
+        print(f"[COLLECTION_WARNING] Failed to clear file hash cache: {cache_e}")
 
     _restore_memories_after_recreate(name, backup_file)
 
