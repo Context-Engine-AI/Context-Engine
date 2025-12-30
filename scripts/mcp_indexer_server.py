@@ -267,7 +267,8 @@ MCP_TOOL_TIMEOUT_SECS = safe_float(
 )
 
 # Set default environment variables for context_answer functionality
-os.environ.setdefault("DEBUG_CONTEXT_ANSWER", "1")
+# DEBUG_CONTEXT_ANSWER defaults to 0 for production; enable explicitly if needed
+os.environ.setdefault("DEBUG_CONTEXT_ANSWER", "0")
 os.environ.setdefault("REFRAG_DECODER", "1")
 os.environ.setdefault("LLAMACPP_URL", "http://localhost:8080")
 os.environ.setdefault("USE_GPU_DECODER", "0")

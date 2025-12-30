@@ -265,23 +265,28 @@ class RequestDeduplicator:
                 logger.error(f"Deduplication cleanup error: {e}")
     
     def _cleanup_expired(self) -> None:
-        """Clean up expired request fingerprints."""
-        current_time = time.time()
+        """Clean up expired request fingerprints.
+
+        Thread-safe: holds lock during both iteration and deletion to avoid
+        'dict changed size during iteration' race conditions.
+        """
         expired_keys = []
-        
-        for key, fp in self._fingerprints.items():
-            if fp.is_expired(self.dedup_window_seconds):
-                expired_keys.append(key)
-        
+
         with self._lock:
+            # Iterate under lock to avoid race with concurrent modifications
+            for key, fp in list(self._fingerprints.items()):
+                if fp.is_expired(self.dedup_window_seconds):
+                    expired_keys.append(key)
+
+            # Delete under the same lock
             for key in expired_keys:
-                del self._fingerprints[key]
+                self._fingerprints.pop(key, None)
                 # Remove from access order
                 try:
                     self._access_order.remove(key)
                 except ValueError:
                     pass
-        
+
         if expired_keys:
             logger.debug(f"Cleaned up {len(expired_keys)} expired request fingerprints")
     

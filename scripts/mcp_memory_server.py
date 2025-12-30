@@ -461,7 +461,9 @@ def memory_store(
     point = models.PointStruct(
         id=pid, vector={VECTOR_NAME: dense, LEX_VECTOR_NAME: lex}, payload=payload
     )
-    client.upsert(collection_name=coll, points=[point], wait=True)
+    # wait=True blocks until Qdrant confirms write; set MEMORY_UPSERT_WAIT=0 for async writes
+    _upsert_wait = os.environ.get("MEMORY_UPSERT_WAIT", "1").strip().lower() in {"1", "true", "yes", "on"}
+    client.upsert(collection_name=coll, points=[point], wait=_upsert_wait)
     return {
         "ok": True,
         "id": pid,

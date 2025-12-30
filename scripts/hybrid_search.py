@@ -354,7 +354,44 @@ def run_hybrid_search(
     repo: str | list[str] | None = None,  # Filter by repo name(s); "*" to disable auto-filter
     per_query: int | None = None,  # Base candidate retrieval per query (default: adaptive)
 ) -> List[Dict[str, Any]]:
-    client = QdrantClient(url=os.environ.get("QDRANT_URL", QDRANT_URL), api_key=API_KEY)
+    # Use pooled client instead of creating a new one per request
+    client = get_qdrant_client(
+        url=os.environ.get("QDRANT_URL", QDRANT_URL),
+        api_key=API_KEY
+    )
+    try:
+        return _run_hybrid_search_impl(
+            client, queries, limit, per_path, language, under, kind, symbol, ext,
+            not_filter, case, path_regex, path_glob, not_glob, expand, model,
+            collection, mode, repo, per_query
+        )
+    finally:
+        return_qdrant_client(client)
+
+
+def _run_hybrid_search_impl(
+    client: QdrantClient,
+    queries: List[str],
+    limit: int,
+    per_path: int,
+    language: str | None,
+    under: str | None,
+    kind: str | None,
+    symbol: str | None,
+    ext: str | None,
+    not_filter: str | None,
+    case: str | None,
+    path_regex: str | None,
+    path_glob: str | list[str] | None,
+    not_glob: str | list[str] | None,
+    expand: bool,
+    model: Any,
+    collection: str | None,
+    mode: str | None,
+    repo: str | list[str] | None,
+    per_query: int | None,
+) -> List[Dict[str, Any]]:
+    """Internal implementation of hybrid search with provided client."""
     model_name = os.environ.get("EMBEDDING_MODEL", MODEL_NAME)
     if model:
         _model = model
@@ -1433,6 +1470,35 @@ def run_hybrid_search(
 
     import io as _io
 
+    # File content cache to avoid re-reading files for each snippet
+    # Guarded by HYBRID_SNIPPET_DISK_READ env var (default OFF in production)
+    _file_lines_cache: Dict[str, List[str]] = {}
+    _snippet_disk_reads = os.environ.get("HYBRID_SNIPPET_DISK_READ", "0").strip().lower() in {
+        "1", "true", "yes", "on"
+    }
+
+    def _get_file_lines(path: str) -> List[str]:
+        """Get file lines with caching to avoid repeated disk reads."""
+        if path in _file_lines_cache:
+            return _file_lines_cache[path]
+        if not _snippet_disk_reads:
+            return []  # Disk reads disabled
+        try:
+            p = path
+            if not os.path.isabs(p):
+                p = os.path.join("/work", p)
+            realp = os.path.realpath(p)
+            if realp == "/work" or realp.startswith("/work/"):
+                with open(realp, "r", encoding="utf-8", errors="ignore") as f:
+                    lines = f.readlines()
+                # Limit cache size to avoid memory issues
+                if len(_file_lines_cache) < 100:
+                    _file_lines_cache[path] = lines
+                return lines
+        except Exception:
+            pass
+        return []
+
     def _snippet_contains(md: dict) -> int:
         # returns number of keyword hits found in a small local snippet
         try:
@@ -1441,19 +1507,11 @@ def run_hybrid_search(
             eline = int(md.get("end_line") or 0)
             txt = (md.get("text") or md.get("code") or "")
             if not txt and path and sline:
-                p = path
-                try:
-                    if not os.path.isabs(p):
-                        p = os.path.join("/work", p)
-                    realp = os.path.realpath(p)
-                    if realp == "/work" or realp.startswith("/work/"):
-                        with open(realp, "r", encoding="utf-8", errors="ignore") as f:
-                            lines = f.readlines()
-                        si = max(1, sline - 3)
-                        ei = min(len(lines), max(sline, eline) + 3)
-                        txt = "".join(lines[si-1:ei])
-                except Exception:
-                    txt = txt or ""
+                lines = _get_file_lines(path)
+                if lines:
+                    si = max(1, sline - 3)
+                    ei = min(len(lines), max(sline, eline) + 3)
+                    txt = "".join(lines[si-1:ei])
             lt = (txt or "").lower()
             if not lt:
                 return 0
@@ -1473,19 +1531,11 @@ def run_hybrid_search(
             eline = int(md.get("end_line") or 0)
             txt = (md.get("text") or md.get("code") or "")
             if not txt and path and sline:
-                p = path
-                try:
-                    if not os.path.isabs(p):
-                        p = os.path.join("/work", p)
-                    realp = os.path.realpath(p)
-                    if realp == "/work" or realp.startswith("/work/"):
-                        with open(realp, "r", encoding="utf-8", errors="ignore") as f:
-                            lines = f.readlines()
-                        si = max(1, sline - 3)
-                        ei = min(len(lines), max(sline, eline) + 3)
-                        txt = "".join(lines[si-1:ei])
-                except Exception:
-                    txt = txt or ""
+                lines = _get_file_lines(path)
+                if lines:
+                    si = max(1, sline - 3)
+                    ei = min(len(lines), max(sline, eline) + 3)
+                    txt = "".join(lines[si-1:ei])
             if not txt:
                 return 0.0
             total = 0
