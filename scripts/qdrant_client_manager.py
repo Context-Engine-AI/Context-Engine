@@ -3,6 +3,7 @@
 Qdrant client lifecycle management to prevent socket leaks.
 Provides connection pooling and singleton client management.
 """
+import atexit
 import os
 import threading
 import time
@@ -251,9 +252,27 @@ def reset_qdrant_client(url: Optional[str] = None, api_key: Optional[str] = None
 def get_qdrant_pool_stats() -> Dict[str, int]:
     """
     Get connection pool statistics.
-    
+
     Returns:
         Dictionary with pool statistics including size, hits, misses, etc.
     """
     pool = _get_connection_pool()
     return pool.get_stats()
+
+
+# ---------------------------------------------------------------------------
+# Process Cleanup
+# ---------------------------------------------------------------------------
+# Register atexit handler to close all connections on process shutdown.
+# This prevents socket leaks in long-running servers and ensures clean termination.
+
+def _atexit_cleanup():
+    """Cleanup handler called on process exit."""
+    try:
+        close_qdrant_client()
+    except Exception:
+        pass  # Best effort cleanup on exit
+
+
+# Register the cleanup handler
+atexit.register(_atexit_cleanup)
