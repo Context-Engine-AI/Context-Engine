@@ -37,21 +37,21 @@ class FakeEmbedder:
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_tier2_fallback_unconditional_with_language_filter(tmp_path, monkeypatch, qdrant_container):
-    # Env for services
-    os.environ["QDRANT_URL"] = qdrant_container
-    os.environ["COLLECTION_NAME"] = f"test-{uuid.uuid4().hex[:8]}"
-    os.environ["USE_TREE_SITTER"] = "0"
-    os.environ["HYBRID_IN_PROCESS"] = "1"
-    os.environ["EMBEDDING_MODEL"] = "fake"
-    # Enable REFRAG_MODE to test with mini vectors; disable gating so Tier-1
-    # uses standard search (we control filtering via path_glob).
-    # Tier-2 fallback triggers when Tier-1 returns zero results.
-    os.environ["REFRAG_MODE"] = "1"
-    os.environ["REFRAG_GATE_FIRST"] = "0"
-    os.environ["PATTERN_VECTORS"] = "0"
+@pytest.mark.parametrize("refrag_mode", ["0", "1"], ids=["refrag_off", "refrag_on"])
+async def test_tier2_fallback_unconditional_with_language_filter(tmp_path, monkeypatch, qdrant_container, refrag_mode):
+    # Use monkeypatch to ensure proper test isolation for env vars
+    monkeypatch.setenv("QDRANT_URL", qdrant_container)
+    monkeypatch.setenv("COLLECTION_NAME", f"test-{uuid.uuid4().hex[:8]}")
+    monkeypatch.setenv("USE_TREE_SITTER", "0")
+    monkeypatch.setenv("HYBRID_IN_PROCESS", "1")
+    monkeypatch.setenv("EMBEDDING_MODEL", "fake")
+    # Test Tier-2 fallback with both REFRAG_MODE on and off.
+    # Tier-2 triggers when Tier-1 returns zero results (due to path_glob).
+    monkeypatch.setenv("REFRAG_MODE", refrag_mode)
+    monkeypatch.setenv("REFRAG_GATE_FIRST", "0")
+    monkeypatch.setenv("PATTERN_VECTORS", "0")
     # Disable multi-collection fallback to avoid creating extra collections
-    os.environ["CTX_MULTI_COLLECTION"] = "0"
+    monkeypatch.setenv("CTX_MULTI_COLLECTION", "0")
 
     # Stub embeddings everywhere (FakeEmbedder produces 32-dim vectors)
     monkeypatch.setattr(ing, "TextEmbedding", lambda *a, **k: FakeEmbedder("fake"))

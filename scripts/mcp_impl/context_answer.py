@@ -2659,9 +2659,9 @@ async def _context_answer_impl(
     original_queries = list(queries)
 
     try:
-        # Enable ReFRAG gate-first for context compression
-        os.environ["REFRAG_MODE"] = "1"
-        os.environ["REFRAG_GATE_FIRST"] = os.environ.get("REFRAG_GATE_FIRST", "1") or "1"
+        # Enable ReFRAG gate-first for context compression (use setdefault to respect explicit overrides)
+        os.environ.setdefault("REFRAG_MODE", "1")
+        os.environ.setdefault("REFRAG_GATE_FIRST", "1")
         os.environ["COLLECTION_NAME"] = coll
         if budget_tokens is not None and str(budget_tokens).strip() != "":
             os.environ["MICRO_BUDGET_TOKENS"] = str(budget_tokens)
