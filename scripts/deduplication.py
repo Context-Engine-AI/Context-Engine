@@ -12,7 +12,7 @@ import hashlib
 import threading
 import json
 from typing import Any, Dict, List, Optional, Tuple, Union
-from collections import defaultdict, deque
+from collections import defaultdict, OrderedDict
 import logging
 
 logger = logging.getLogger("deduplication")
@@ -130,7 +130,9 @@ class RequestDeduplicator:
         
         # Storage for request fingerprints
         self._fingerprints: Dict[str, RequestFingerprint] = {}
-        self._access_order = deque()  # For LRU tracking
+        # OrderedDict for O(1) LRU tracking (move_to_end, popitem)
+        # Keys track access order; values are timestamps for debugging
+        self._access_order: OrderedDict[str, float] = OrderedDict()
         
         # Thread safety
         self._lock = threading.RLock()
@@ -281,24 +283,21 @@ class RequestDeduplicator:
             # Delete under the same lock
             for key in expired_keys:
                 self._fingerprints.pop(key, None)
-                # Remove from access order
-                try:
-                    self._access_order.remove(key)
-                except ValueError:
-                    pass
+                # Remove from access order (O(1) with OrderedDict)
+                self._access_order.pop(key, None)
 
         if expired_keys:
             logger.debug(f"Cleaned up {len(expired_keys)} expired request fingerprints")
-    
+
     def _evict_if_needed(self) -> None:
         """Evict oldest entries if cache is full."""
         with self._lock:
             while len(self._fingerprints) >= self.max_cache_size:
                 try:
-                    oldest_key = self._access_order.popleft()
-                    if oldest_key in self._fingerprints:
-                        del self._fingerprints[oldest_key]
-                except (IndexError, KeyError):
+                    # popitem(last=False) removes oldest entry in O(1)
+                    oldest_key, _ = self._access_order.popitem(last=False)
+                    self._fingerprints.pop(oldest_key, None)
+                except KeyError:
                     break
     
     def is_duplicate(self, request_data: Dict[str, Any]) -> Tuple[bool, Optional[str]]:
@@ -319,14 +318,8 @@ class RequestDeduplicator:
             # Synchronous TTL cleanup to avoid stale matches in tight loops
             expired_keys = [k for k, fp in self._fingerprints.items() if fp.is_expired(self.dedup_window_seconds)]
             for k in expired_keys:
-                try:
-                    del self._fingerprints[k]
-                    try:
-                        self._access_order.remove(k)
-                    except ValueError:
-                        pass
-                except Exception:
-                    pass
+                self._fingerprints.pop(k, None)
+                self._access_order.pop(k, None)  # O(1) with OrderedDict
             if expired_keys:
                 # Keep cache_size accurate after purge
                 self._stats['cache_size'] = len(self._fingerprints)
@@ -343,12 +336,11 @@ class RequestDeduplicator:
                 # Update access statistics
                 self._fingerprints[similar_fp].access()
 
-                # Update access order for LRU
-                try:
-                    self._access_order.remove(similar_fp)
-                    self._access_order.append(similar_fp)
-                except ValueError:
-                    self._access_order.append(similar_fp)
+                # Update access order for LRU (O(1) with move_to_end)
+                if similar_fp in self._access_order:
+                    self._access_order.move_to_end(similar_fp)
+                else:
+                    self._access_order[similar_fp] = time.time()
 
                 self._stats['deduped_requests'] += 1
                 self._stats['cache_hits'] += 1
@@ -361,7 +353,7 @@ class RequestDeduplicator:
 
                 # Store new fingerprint
                 self._fingerprints[candidate_fp] = candidate_obj
-                self._access_order.append(candidate_fp)
+                self._access_order[candidate_fp] = time.time()
 
                 self._stats['unique_requests'] += 1
                 self._stats['cache_size'] = len(self._fingerprints)

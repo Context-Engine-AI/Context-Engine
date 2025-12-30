@@ -88,14 +88,15 @@ except Exception:
 # Use the centralized embedder from scripts.embedder for consistent caching.
 # This eliminates duplicate model loading and ensures consistent behavior.
 
-# Reference to the centralized cache for cold-skip detection
+# Reference to the centralized embedder for cold-skip detection
 try:
     from scripts.embedder import get_embedding_model as _centralized_get_embedding_model
-    from scripts.embedder import _EMBED_MODEL_CACHE
+    from scripts.embedder import is_model_cached as _is_model_cached
     _EMBEDDER_AVAILABLE = True
 except ImportError:
     _EMBEDDER_AVAILABLE = False
-    _EMBED_MODEL_CACHE: Dict[str, Any] = {}  # Fallback empty cache
+    def _is_model_cached(model_name: str = "") -> bool:  # type: ignore[misc]
+        return False  # Fallback: assume not cached
 
 def _get_embedding_model():
     """Get the embedding model using the centralized embedder.
@@ -543,7 +544,7 @@ def memory_find(
     _ensure_once(coll)
 
     use_dense = True
-    if MEMORY_COLD_SKIP_DENSE and EMBEDDING_MODEL not in _EMBED_MODEL_CACHE:
+    if MEMORY_COLD_SKIP_DENSE and not _is_model_cached(EMBEDDING_MODEL):
         use_dense = False
     if use_dense:
         model = _get_embedding_model()

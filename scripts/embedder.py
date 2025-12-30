@@ -235,3 +235,28 @@ def get_model_dimension(model_name: Optional[str] = None) -> int:
     # Default: BGE-base and similar 768-dimension models
     return 768
 
+
+def is_model_cached(model_name: Optional[str] = None) -> bool:
+    """Check if an embedding model is already loaded in the cache.
+
+    This is useful for cold-start detection to avoid blocking on model loading.
+
+    Args:
+        model_name: Model name to check. If None, uses EMBEDDING_MODEL env var.
+
+    Returns:
+        True if the model is already cached, False otherwise.
+    """
+    if model_name is None:
+        model_name = os.environ.get("EMBEDDING_MODEL", DEFAULT_MODEL)
+    return model_name in _EMBED_MODEL_CACHE
+
+
+def get_cached_models() -> List[str]:
+    """Get list of currently cached model names.
+
+    Returns:
+        List of model names currently in the cache.
+    """
+    return list(_EMBED_MODEL_CACHE.keys())
+

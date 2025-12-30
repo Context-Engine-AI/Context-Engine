@@ -1467,26 +1467,37 @@ def _run_hybrid_search_impl(
     }
 
     def _get_file_lines(path: str) -> List[str]:
-        """Get file lines with LRU caching to avoid repeated disk reads."""
-        with _file_lines_cache_lock:
-            if path in _file_lines_cache:
-                # Move to end for LRU ordering
-                _file_lines_cache.move_to_end(path)
-                return _file_lines_cache[path]
-        if not _snippet_disk_reads:
-            return []  # Disk reads disabled
+        """Get file lines with LRU caching to avoid repeated disk reads.
+
+        Cache key is normalized to realpath to prevent duplicate entries
+        for the same file accessed via different path forms.
+        """
+        # Normalize path for consistent cache keys
+        p = path
+        if not os.path.isabs(p):
+            p = os.path.join("/work", p)
         try:
-            p = path
-            if not os.path.isabs(p):
-                p = os.path.join("/work", p)
-            realp = os.path.realpath(p)
-            if realp == "/work" or realp.startswith("/work/"):
-                with open(realp, "r", encoding="utf-8", errors="ignore") as f:
+            cache_key = os.path.realpath(p)
+        except Exception:
+            cache_key = p  # Fallback if realpath fails
+
+        with _file_lines_cache_lock:
+            if cache_key in _file_lines_cache:
+                # Move to end for LRU ordering
+                _file_lines_cache.move_to_end(cache_key)
+                return _file_lines_cache[cache_key]
+
+        if not _snippet_disk_reads:
+            return []  # Disk reads disabled; caller should handle empty gracefully
+
+        try:
+            if cache_key == "/work" or cache_key.startswith("/work/"):
+                with open(cache_key, "r", encoding="utf-8", errors="ignore") as f:
                     lines = f.readlines()
                 # LRU eviction: remove oldest entries when at capacity
                 with _file_lines_cache_lock:
-                    _file_lines_cache[path] = lines
-                    _file_lines_cache.move_to_end(path)
+                    _file_lines_cache[cache_key] = lines
+                    _file_lines_cache.move_to_end(cache_key)
                     while len(_file_lines_cache) > _FILE_LINES_CACHE_MAX:
                         try:
                             _file_lines_cache.popitem(last=False)
