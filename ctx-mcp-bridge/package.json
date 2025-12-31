@@ -1,6 +1,6 @@
 {
   "name": "@context-engine-bridge/context-engine-mcp-bridge",
-  "version": "0.0.12",
+  "version": "0.0.13",
   "description": "Context Engine MCP bridge (http/stdio proxy combining indexer + memory servers)",
   "bin": {
     "ctxce": "bin/ctxce.js",
