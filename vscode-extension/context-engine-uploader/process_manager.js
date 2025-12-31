@@ -102,7 +102,8 @@ function createProcessManager(deps) {
         }
         if (child.stdout) {
             child.stdout.on('data', data => {
-                outputChannel.append(`[${label}] ${data}`);
+                const chunk = data.toString();
+                outputChannel.append(`[${label}] ${chunk}`);
             });
         }
         if (child.stderr) {
@@ -271,11 +272,13 @@ function createProcessManager(deps) {
                 };
                 child.on('close', finish);
                 child.on('error', error => {
-                    log(`Force sync failed: ${error.message}`);
+                    const msg = error instanceof Error ? error.message : String(error);
+                    log(`Force sync failed: ${msg}`);
                     finish(1);
                 });
             } catch (error) {
-                log(`Failed to spawn force sync process: ${error.message}`);
+                const msg = error instanceof Error ? error.message : String(error);
+                log(`Failed to spawn force sync process: ${msg}`);
                 resolve(1);
             }
         });
@@ -297,23 +300,23 @@ function createProcessManager(deps) {
             const outputChannel = getOutputChannel();
             if (outputChannel) { outputChannel.show(true); }
             setStatusBarState('watch');
-            child.on('close', code => {
-                log(`Watch exited with code ${code}`);
+
+            const cleanupWatch = (reason) => {
+                log(`Watch process stopped: ${reason}`);
                 if (watchProcess === child) {
                     watchProcess = undefined;
                     if (getStatusMode() !== 'indexing') {
                         setStatusBarState('idle');
                     }
                 }
+            };
+
+            child.on('close', code => {
+                cleanupWatch(`exited with code ${code !== undefined ? code : 'unknown'}`);
             });
             child.on('error', error => {
-                log(`Watch failed: ${error.message}`);
-                if (watchProcess === child) {
-                    watchProcess = undefined;
-                    if (getStatusMode() !== 'indexing') {
-                        setStatusBarState('idle');
-                    }
-                }
+                const msg = error instanceof Error ? error.message : String(error);
+                cleanupWatch(`failed with error: ${msg}`);
             });
             vscode.window.showInformationMessage('Context Engine remote watch started.');
         } catch (error) {

@@ -101,9 +101,6 @@ function createMcpConfigManager(deps) {
       'Failed to write Antigravity mcp_config.json'
     );
 
-    if (success) {
-      vscode.window.showInformationMessage('Antigravity requires a manual Refresh inside Manage MCP Servers to pick up changes.');
-    }
     return success;
   }
 

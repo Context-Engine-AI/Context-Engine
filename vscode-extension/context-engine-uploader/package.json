@@ -28,6 +28,7 @@
     "onCommand:contextEngineUploader.writeMcpConfigClaude",
     "onCommand:contextEngineUploader.writeMcpConfigWindsurf",
     "onCommand:contextEngineUploader.writeMcpConfigAugment",
+    "onCommand:contextEngineUploader.writeMcpConfigAntigravity",
     "onCommand:contextEngineUploader.cloneAndStartStack",
     "onCommand:contextEngineUploader.startSavedStack"
   ],

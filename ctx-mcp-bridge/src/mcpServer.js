@@ -330,6 +330,7 @@ async function fetchBridgeCollectionState({
   sessionId,
   repoName,
   bridgeStateToken,
+  backendHint,
 }) {
   try {
     if (!UPLOAD_SERVICE_URL) {
@@ -506,6 +507,7 @@ async function createBridgeServer(options) {
       sessionId,
       repoName,
       bridgeStateToken: BRIDGE_STATE_TOKEN,
+      backendHint,
     });
     if (state) {
       const serving = state.serving_collection || state.active_collection;
