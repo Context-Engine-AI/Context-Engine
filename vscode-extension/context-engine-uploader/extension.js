@@ -521,7 +521,8 @@ async function runSequence(mode = 'auto') {
   if (needsForce) {
     setStatusBarState('indexing');
     if (outputChannel) { outputChannel.show(true); }
-    const code = processManager ? await processManager.runOnce(options) : 1;
+    const runOnceMode = mode === 'uploadGitHistory' ? 'uploadGitHistory' : 'force';
+    const code = processManager ? await processManager.runOnce(options, runOnceMode) : 1;
     if (code === 0) {
       setStatusBarState('indexed');
       if (processManager) { processManager.ensureIndexedWatcher(options.targetPath); }

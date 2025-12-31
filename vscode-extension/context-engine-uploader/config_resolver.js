@@ -44,7 +44,7 @@ function createConfigResolver(deps) {
         try {
             const resolved = path.resolve(workspaceFolderPath);
             if (!fs.existsSync(resolved)) {
-                return undefined;
+                return workspaceFolderPath;
             }
             const rootLooksLikeRepo = looksLikeRepoRoot(resolved);
             let entries;
@@ -52,7 +52,7 @@ function createConfigResolver(deps) {
                 entries = fs.readdirSync(resolved);
             } catch (error) {
                 log(`Auto targetPath discovery failed to read workspace folder: ${error instanceof Error ? error.message : String(error)}`);
-                return undefined;
+                return resolved;
             }
             const candidates = [];
             for (const name of entries) {

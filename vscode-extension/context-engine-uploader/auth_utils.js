@@ -194,7 +194,7 @@ async function ensureAuthIfRequired(endpoint, deps) {
     const state = parsed && typeof parsed.state === 'string' ? parsed.state : undefined;
     const exitCode = result && typeof result.status === 'number' ? result.status : undefined;
     log(`Context Engine Uploader: auth status JSON state=${state || '<unknown>'} exitCode=${exitCode !== undefined ? exitCode : '<none>'}`);
-    if (state === 'ok' || result.status === 0) {
+    if (state === 'ok') {
       return;
     }
 

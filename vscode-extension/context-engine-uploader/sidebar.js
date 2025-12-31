@@ -703,7 +703,7 @@ function register(context, deps) {
         profilesProvider.refresh();
         statusProvider.refresh();
         actionsProvider.refresh();
-      }, 2000);
+      }, 7500);
     }
   };
 

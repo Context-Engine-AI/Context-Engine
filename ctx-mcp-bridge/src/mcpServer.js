@@ -130,7 +130,7 @@ function selectClientForTool(name, indexerClient, memoryClient) {
     return indexerClient;
   }
   const lowered = name.toLowerCase();
-  if (memoryClient && (lowered.startsWith("memory.") || lowered.startsWith("mcp_memory_") || lowered.includes("memory"))) {
+  if (memoryClient && (lowered.startsWith("memory.") || lowered.startsWith("mcp_memory_"))) {
     return memoryClient;
   }
   return indexerClient;

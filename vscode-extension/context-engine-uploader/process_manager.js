@@ -244,7 +244,7 @@ function createProcessManager(deps) {
         }
     }
 
-    async function runOnce(options) {
+    async function runOnce(options, mode = 'force') {
         if (forceProcess) {
             log('Force sync already in progress; terminating existing process.');
             await terminateProcess(forceProcess, 'force');
@@ -254,7 +254,10 @@ function createProcessManager(deps) {
             try {
                 const args = buildArgs(options, 'force');
                 const baseEnv = buildChildEnv(options);
-                const childEnv = { ...baseEnv, REMOTE_UPLOAD_GIT_FORCE: '1' };
+                const childEnv = { ...baseEnv };
+                if (mode === 'uploadGitHistory') {
+                    childEnv.REMOTE_UPLOAD_GIT_FORCE = '1';
+                }
                 const child = spawn(options.pythonPath, args, { cwd: options.workingDirectory, env: childEnv });
                 forceProcess = child;
                 attachOutput(child, 'force');

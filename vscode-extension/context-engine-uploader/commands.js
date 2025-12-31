@@ -7,19 +7,6 @@ function registerExtensionCommands(deps) {
         throw new Error('registerExtensionCommands: deps object is required');
     }
 
-    const requiredDeps = [
-        'vscode', 'log', 'getEffectiveConfig', 'getOutputChannel', 'runSequence',
-        'stopProcesses', 'writeMcpConfig', 'writeCtxConfig', 'startHttpBridgeProcess',
-        'stopHttpBridgeProcess', 'buildAuthDeps', 'runAuthLoginFlow', 'runAuthLogoutFlow',
-        'getOnboardingManager', 'getLogsTerminalManager'
-    ];
-
-    for (const key of requiredDeps) {
-        if (deps[key] === undefined || deps[key] === null) {
-            throw new Error(`registerExtensionCommands: dependency "${key}" is missing or null`);
-        }
-    }
-
     const vscode = deps.vscode;
     const log = deps.log;
 
@@ -45,6 +32,13 @@ function registerExtensionCommands(deps) {
         vscode.window.showErrorMessage(`Context Engine Uploader: ${prefix}: ${msg}`);
     };
 
+    const requireDep = (value, name) => {
+        if (value === undefined || value === null) {
+            throw new Error(`Context Engine Uploader: ${name} is unavailable (extension failed to initialize this component).`);
+        }
+        return value;
+    };
+
     const resolveEndpointOrThrow = () => {
         const cfg = getEffectiveConfig();
         const endpoint = (cfg.get('endpoint') || '').trim();
@@ -56,17 +50,29 @@ function registerExtensionCommands(deps) {
 
     // Start/Stop/Restart commands
     disposables.push(vscode.commands.registerCommand('contextEngineUploader.start', () => {
-        runSequence('auto').catch(error => handleCatch(error, 'Start failed'));
+        try {
+            requireDep(runSequence, 'runSequence')('auto').catch(error => handleCatch(error, 'Start failed'));
+        } catch (error) {
+            handleCatch(error, 'Start failed');
+        }
     }));
 
     disposables.push(vscode.commands.registerCommand('contextEngineUploader.stop', () => {
-        stopProcesses().catch(error => handleCatch(error, 'Stop failed'));
+        try {
+            requireDep(stopProcesses, 'stopProcesses')().catch(error => handleCatch(error, 'Stop failed'));
+        } catch (error) {
+            handleCatch(error, 'Stop failed');
+        }
     }));
 
     disposables.push(vscode.commands.registerCommand('contextEngineUploader.restart', () => {
-        stopProcesses()
-            .then(() => runSequence('auto'))
-            .catch(error => handleCatch(error, 'Restart failed'));
+        try {
+            requireDep(stopProcesses, 'stopProcesses')()
+                .then(() => requireDep(runSequence, 'runSequence')('auto'))
+                .catch(error => handleCatch(error, 'Restart failed'));
+        } catch (error) {
+            handleCatch(error, 'Restart failed');
+        }
     }));
 
     // Index commands
@@ -74,24 +80,39 @@ function registerExtensionCommands(deps) {
         vscode.window.showInformationMessage('Context Engine indexing started.');
         const outputChannel = getOutputChannel();
         if (outputChannel) { outputChannel.show(true); }
-        runSequence('force').catch(error => handleCatch(error, 'Index failed'));
+        try {
+            requireDep(runSequence, 'runSequence')('force').catch(error => handleCatch(error, 'Index failed'));
+        } catch (error) {
+            handleCatch(error, 'Index failed');
+        }
     }));
 
     disposables.push(vscode.commands.registerCommand('contextEngineUploader.uploadGitHistory', () => {
         vscode.window.showInformationMessage('Context Engine git history upload (force sync bundle) started.');
         const outputChannel = getOutputChannel();
         if (outputChannel) { outputChannel.show(true); }
-        // Preserve old behavior: git history uploads reuse the regular force sync path.
-        runSequence('force').catch(error => handleCatch(error, 'Git history upload failed'));
+        try {
+            requireDep(runSequence, 'runSequence')('uploadGitHistory').catch(error => handleCatch(error, 'Git history upload failed'));
+        } catch (error) {
+            handleCatch(error, 'Git history upload failed');
+        }
     }));
 
     // Config commands
     disposables.push(vscode.commands.registerCommand('contextEngineUploader.writeCtxConfig', () => {
-        writeCtxConfig().catch(error => handleCatch(error, 'Failed to write CTX config'));
+        try {
+            requireDep(writeCtxConfig, 'writeCtxConfig')().catch(error => handleCatch(error, 'Failed to write CTX config'));
+        } catch (error) {
+            handleCatch(error, 'Failed to write CTX config');
+        }
     }));
 
     disposables.push(vscode.commands.registerCommand('contextEngineUploader.writeMcpConfig', () => {
-        writeMcpConfig().catch(error => handleCatch(error, 'Failed to write MCP config'));
+        try {
+            requireDep(writeMcpConfig, 'writeMcpConfig')().catch(error => handleCatch(error, 'Failed to write MCP config'));
+        } catch (error) {
+            handleCatch(error, 'Failed to write MCP config');
+        }
     }));
 
     disposables.push(vscode.commands.registerCommand('contextEngineUploader.writeMcpConfigSelect', async () => {
@@ -136,15 +157,15 @@ function registerExtensionCommands(deps) {
             }
 
             if (picked.id === 'all') {
-                await writeMcpConfig();
+                await requireDep(writeMcpConfig, 'writeMcpConfig')();
             } else if (picked.id === 'claude') {
-                await writeMcpConfig({ targets: ['claude'] });
+                await requireDep(writeMcpConfig, 'writeMcpConfig')({ targets: ['claude'] });
             } else if (picked.id === 'windsurf') {
-                await writeMcpConfig({ targets: ['windsurf'] });
+                await requireDep(writeMcpConfig, 'writeMcpConfig')({ targets: ['windsurf'] });
             } else if (picked.id === 'augment') {
-                await writeMcpConfig({ targets: ['augment'] });
+                await requireDep(writeMcpConfig, 'writeMcpConfig')({ targets: ['augment'] });
             } else if (picked.id === 'antigravity') {
-                await writeMcpConfig({ targets: ['antigravity'] });
+                await requireDep(writeMcpConfig, 'writeMcpConfig')({ targets: ['antigravity'] });
             }
         } catch (error) {
             handleCatch(error, 'MCP config select failed');
@@ -152,25 +173,41 @@ function registerExtensionCommands(deps) {
     }));
 
     disposables.push(vscode.commands.registerCommand('contextEngineUploader.writeMcpConfigClaude', () => {
-        writeMcpConfig({ targets: ['claude'] }).catch(error => handleCatch(error, 'Failed to write Claude MCP config'));
+        try {
+            requireDep(writeMcpConfig, 'writeMcpConfig')({ targets: ['claude'] }).catch(error => handleCatch(error, 'Failed to write Claude MCP config'));
+        } catch (error) {
+            handleCatch(error, 'Failed to write Claude MCP config');
+        }
     }));
 
     disposables.push(vscode.commands.registerCommand('contextEngineUploader.writeMcpConfigWindsurf', () => {
-        writeMcpConfig({ targets: ['windsurf'] }).catch(error => handleCatch(error, 'Failed to write Windsurf MCP config'));
+        try {
+            requireDep(writeMcpConfig, 'writeMcpConfig')({ targets: ['windsurf'] }).catch(error => handleCatch(error, 'Failed to write Windsurf MCP config'));
+        } catch (error) {
+            handleCatch(error, 'Failed to write Windsurf MCP config');
+        }
     }));
 
     disposables.push(vscode.commands.registerCommand('contextEngineUploader.writeMcpConfigAugment', () => {
-        writeMcpConfig({ targets: ['augment'] }).catch(error => handleCatch(error, 'Failed to write Augment MCP config'));
+        try {
+            requireDep(writeMcpConfig, 'writeMcpConfig')({ targets: ['augment'] }).catch(error => handleCatch(error, 'Failed to write Augment MCP config'));
+        } catch (error) {
+            handleCatch(error, 'Failed to write Augment MCP config');
+        }
     }));
 
     disposables.push(vscode.commands.registerCommand('contextEngineUploader.writeMcpConfigAntigravity', () => {
-        writeMcpConfig({ targets: ['antigravity'] }).catch(error => handleCatch(error, 'Failed to write Antigravity MCP config'));
+        try {
+            requireDep(writeMcpConfig, 'writeMcpConfig')({ targets: ['antigravity'] }).catch(error => handleCatch(error, 'Failed to write Antigravity MCP config'));
+        } catch (error) {
+            handleCatch(error, 'Failed to write Antigravity MCP config');
+        }
     }));
 
     // Onboarding/Stack commands
     disposables.push(vscode.commands.registerCommand('contextEngineUploader.cloneAndStartStack', async () => {
         try {
-            const onboardingManager = getOnboardingManager();
+            const onboardingManager = requireDep(getOnboardingManager, 'getOnboardingManager')();
             if (!onboardingManager || typeof onboardingManager.cloneAndStartStack !== 'function') {
                 throw new Error('Context Engine onboarding is unavailable in this session.');
             }
@@ -182,7 +219,7 @@ function registerExtensionCommands(deps) {
 
     disposables.push(vscode.commands.registerCommand('contextEngineUploader.startSavedStack', async () => {
         try {
-            const onboardingManager = getOnboardingManager();
+            const onboardingManager = requireDep(getOnboardingManager, 'getOnboardingManager')();
             if (!onboardingManager || typeof onboardingManager.startSavedStack !== 'function') {
                 throw new Error('Context Engine onboarding is unavailable in this session.');
             }
@@ -208,7 +245,7 @@ function registerExtensionCommands(deps) {
 
     disposables.push(vscode.commands.registerCommand('contextEngineUploader.tailUploadServiceLogs', () => {
         try {
-            const logsTerminalManager = getLogsTerminalManager();
+            const logsTerminalManager = requireDep(getLogsTerminalManager, 'getLogsTerminalManager')();
             if (logsTerminalManager && typeof logsTerminalManager.open === 'function') {
                 logsTerminalManager.open();
             } else {
@@ -221,18 +258,26 @@ function registerExtensionCommands(deps) {
 
     // Bridge commands
     disposables.push(vscode.commands.registerCommand('contextEngineUploader.startMcpHttpBridge', () => {
-        startHttpBridgeProcess().catch(error => handleCatch(error, 'HTTP MCP bridge start failed'));
+        try {
+            requireDep(startHttpBridgeProcess, 'startHttpBridgeProcess')().catch(error => handleCatch(error, 'HTTP MCP bridge start failed'));
+        } catch (error) {
+            handleCatch(error, 'HTTP MCP bridge start failed');
+        }
     }));
 
     disposables.push(vscode.commands.registerCommand('contextEngineUploader.stopMcpHttpBridge', () => {
-        stopHttpBridgeProcess().catch(error => handleCatch(error, 'HTTP MCP bridge stop failed'));
+        try {
+            requireDep(stopHttpBridgeProcess, 'stopHttpBridgeProcess')().catch(error => handleCatch(error, 'HTTP MCP bridge stop failed'));
+        } catch (error) {
+            handleCatch(error, 'HTTP MCP bridge stop failed');
+        }
     }));
 
     // Auth commands
     disposables.push(vscode.commands.registerCommand('contextEngineUploader.authLogin', async () => {
         try {
             const endpoint = resolveEndpointOrThrow();
-            await runAuthLoginFlow(endpoint, buildAuthDeps());
+            await requireDep(runAuthLoginFlow, 'runAuthLoginFlow')(endpoint, requireDep(buildAuthDeps, 'buildAuthDeps')());
         } catch (error) {
             handleCatch(error, 'Auth login failed');
         }
@@ -241,7 +286,7 @@ function registerExtensionCommands(deps) {
     disposables.push(vscode.commands.registerCommand('contextEngineUploader.authLogout', async () => {
         try {
             const endpoint = resolveEndpointOrThrow();
-            await runAuthLogoutFlow(endpoint, buildAuthDeps());
+            await requireDep(runAuthLogoutFlow, 'runAuthLogoutFlow')(endpoint, requireDep(buildAuthDeps, 'buildAuthDeps')());
         } catch (error) {
             handleCatch(error, 'Auth logout failed');
         }
