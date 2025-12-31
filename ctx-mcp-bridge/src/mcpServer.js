@@ -9,7 +9,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
-import { loadAnyAuthEntry, loadAuthEntry } from "./authConfig.js";
+import { loadAnyAuthEntry, loadAuthEntry, saveAuthEntry } from "./authConfig.js";
 import { maybeRemapToolArgs, maybeRemapToolResult } from "./resultPathMapping.js";
 import * as oauthHandler from "./oauthHandler.js";
 
@@ -149,6 +149,29 @@ function isSessionError(error) {
       msg.includes("Mcp-Session-Id header is required") ||
       msg.includes("Server not initialized") ||
       msg.includes("Session not found")
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Detect actual backend auth rejection (from mcp_auth.py ValidationError).
+ * These indicate the session is truly invalid on the backend, not just
+ * an MCP SDK transport issue that can be fixed by reinit.
+ */
+function isAuthRejectionError(error) {
+  try {
+    const msg =
+      (error && typeof error.message === "string" && error.message) ||
+      (typeof error === "string" ? error : String(error || ""));
+    if (!msg) {
+      return false;
+    }
+    return (
+      msg.includes("Invalid or expired session") ||
+      msg.includes("Missing session for authorized operation") ||
+      msg.includes("Not authenticated")
     );
   } catch {
     return false;
@@ -341,8 +364,18 @@ async function fetchBridgeCollectionState({
     if (!resp.ok) {
       if (resp.status === 401 || resp.status === 403) {
         debugLog(
-          `[ctxce] /bridge/state responded ${resp.status}; missing or invalid token/session, falling back to ctx_config defaults.`,
+          `[ctxce] /bridge/state responded ${resp.status}; missing or invalid token/session, marking local session as expired.`,
         );
+        if (backendHint) {
+          try {
+            const entry = loadAuthEntry(backendHint);
+            if (entry) {
+              saveAuthEntry(backendHint, { ...entry, expiresAt: 1 });
+            }
+          } catch {
+            // ignore failures
+          }
+        }
         return null;
       }
       throw new Error(`bridge/state responded ${resp.status}`);
@@ -695,11 +728,29 @@ async function createBridgeServer(options) {
         if (isSessionError(err) && !sessionRetried) {
           debugLog(
             "[ctxce] tools/call: detected remote MCP session error; reinitializing clients and retrying once: " +
-              String(err),
+            String(err),
           );
           await initializeRemoteClients(true);
           sessionRetried = true;
           continue;
+        }
+
+        // Backend auth rejection (mcp_auth.py ValidationError) - expire local auth
+        if (isAuthRejectionError(err)) {
+          debugLog(
+            "[ctxce] tools/call: backend auth rejection; marking local session as expired: " +
+            String(err),
+          );
+          if (backendHint) {
+            try {
+              const entry = loadAuthEntry(backendHint);
+              if (entry) {
+                saveAuthEntry(backendHint, { ...entry, expiresAt: 1 });
+              }
+            } catch {
+              // ignore failures
+            }
+          }
         }
 
         if (!isTransientToolError(err) || attempt === maxAttempts - 1) {
@@ -708,7 +759,7 @@ async function createBridgeServer(options) {
 
         debugLog(
           `[ctxce] tools/call: transient error (attempt ${attempt + 1}/${maxAttempts}), retrying: ` +
-            String(err),
+          String(err),
         );
         // Loop will retry
       }
