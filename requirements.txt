@@ -24,7 +24,7 @@ tree_sitter_yaml>=0.7.0
 tree_sitter_html>=0.23.0
 tree_sitter_css>=0.23.0
 tree_sitter_markdown>=0.5.0
-mcp==1.17.0
+mcp==1.23.0
 fastmcp==2.12.4
 fastapi
 uvicorn[standard]
