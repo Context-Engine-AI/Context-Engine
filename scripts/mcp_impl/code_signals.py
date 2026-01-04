@@ -85,7 +85,8 @@ def _init_code_intent_centroids():
         if _CODE_INTENT_CACHE.get("initialized"):
             return
         try:
-            model_name = os.environ.get("EMBEDDING_MODEL", "BAAI/bge-base-en-v1.5")
+            from scripts.embedder import DEFAULT_MODEL
+            model_name = os.environ.get("EMBEDDING_MODEL", DEFAULT_MODEL)
             model = _get_embedding_model(model_name)
             if model is None:
                 _CODE_INTENT_CACHE["initialized"] = False
@@ -129,7 +130,8 @@ def _detect_code_intent_embedding(query: str) -> float:
         return 0.5  # Neutral if init failed
 
     try:
-        model_name = os.environ.get("EMBEDDING_MODEL", "BAAI/bge-base-en-v1.5")
+        from scripts.embedder import DEFAULT_MODEL
+        model_name = os.environ.get("EMBEDDING_MODEL", DEFAULT_MODEL)
         model = _get_embedding_model(model_name)
         if model is None:
             return 0.5

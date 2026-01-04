@@ -179,10 +179,11 @@ def main():
         )
         return
 
+    from scripts.embedder import DEFAULT_MODEL
     qdrant_url = os.environ.get("QDRANT_URL", "http://localhost:6333")
     api_key = os.environ.get("QDRANT_API_KEY")
     collection = os.environ.get("COLLECTION_NAME") or os.environ.get("DEFAULT_COLLECTION") or "codebase"
-    model_name = os.environ.get("EMBEDDING_MODEL", "BAAI/bge-base-en-v1.5")
+    model_name = os.environ.get("EMBEDDING_MODEL", DEFAULT_MODEL)
 
     # Resolve collection name based on multi-repo mode
     multi_repo = bool(is_multi_repo_mode and is_multi_repo_mode())

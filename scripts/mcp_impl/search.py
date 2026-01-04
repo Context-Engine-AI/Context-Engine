@@ -523,8 +523,9 @@ async def _repo_search_impl(
     if use_hybrid_inproc:
         try:
             from scripts.hybrid_search import run_hybrid_search  # type: ignore
+            from scripts.embedder import DEFAULT_MODEL
 
-            model_name = os.environ.get("EMBEDDING_MODEL", "BAAI/bge-base-en-v1.5")
+            model_name = os.environ.get("EMBEDDING_MODEL", DEFAULT_MODEL)
             model = get_embedding_model_fn(model_name) if get_embedding_model_fn else None
             # Determine effective hybrid candidate limit: if rerank is enabled, search up to rerank_top_n
             try:
@@ -634,8 +635,9 @@ async def _repo_search_impl(
         if not json_lines:
             try:
                 from scripts.hybrid_search import run_hybrid_search  # type: ignore
+                from scripts.embedder import DEFAULT_MODEL
 
-                model_name = os.environ.get("EMBEDDING_MODEL", "BAAI/bge-base-en-v1.5")
+                model_name = os.environ.get("EMBEDDING_MODEL", DEFAULT_MODEL)
                 model = get_embedding_model_fn(model_name) if get_embedding_model_fn else None
                 items = run_hybrid_search(
                     queries=queries,
@@ -948,10 +950,9 @@ async def _repo_search_impl(
             if use_rerank_inproc:
                 try:
                     from scripts.rerank_local import rerank_in_process  # type: ignore
+                    from scripts.embedder import DEFAULT_MODEL
 
-                    model_name = os.environ.get(
-                        "EMBEDDING_MODEL", "BAAI/bge-base-en-v1.5"
-                    )
+                    model_name = os.environ.get("EMBEDDING_MODEL", DEFAULT_MODEL)
                     model = get_embedding_model_fn(model_name) if get_embedding_model_fn else None
                     rq = queries[0] if queries else ""
                     items = rerank_in_process(

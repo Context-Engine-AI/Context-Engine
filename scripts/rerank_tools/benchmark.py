@@ -62,9 +62,9 @@ def get_real_candidates(query: str, limit: int = 30) -> List[Dict[str, Any]]:
     """Get real candidates from hybrid search (production pipeline)."""
     try:
         from scripts.hybrid_search import run_hybrid_search
-        from scripts.embedder import get_embedding_model
+        from scripts.embedder import get_embedding_model, DEFAULT_MODEL
 
-        model_name = os.environ.get("EMBEDDING_MODEL", "BAAI/bge-base-en-v1.5")
+        model_name = os.environ.get("EMBEDDING_MODEL", DEFAULT_MODEL)
         model = get_embedding_model(model_name)
 
         # Run real hybrid search (dense + lexical fusion)

@@ -61,11 +61,13 @@ def _env_truthy(val: str | None, default: bool) -> bool:
     return val.strip().lower() in {"1", "true", "yes", "on"}
 
 
+from scripts.embedder import DEFAULT_MODEL
+
 # ---------------------------------------------------------------------------
 # Core environment-based constants
 # ---------------------------------------------------------------------------
 
-MODEL_NAME = os.environ.get("EMBEDDING_MODEL", "BAAI/bge-base-en-v1.5")
+MODEL_NAME = os.environ.get("EMBEDDING_MODEL", DEFAULT_MODEL)
 QDRANT_URL = os.environ.get("QDRANT_URL", "http://localhost:6333")
 API_KEY = os.environ.get("QDRANT_API_KEY")
 

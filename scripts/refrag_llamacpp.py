@@ -38,7 +38,8 @@ def get_phi_path() -> str:
 
 
 def get_encoder_model() -> str:
-    return str(os.environ.get("REFRAG_ENCODER_MODEL", "BAAI/bge-base-en-v1.5")).strip()
+    from scripts.embedder import DEFAULT_MODEL
+    return str(os.environ.get("REFRAG_ENCODER_MODEL", DEFAULT_MODEL)).strip()
 
 
 def get_sense_policy() -> str:

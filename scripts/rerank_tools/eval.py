@@ -76,10 +76,9 @@ def get_candidates(query: str, limit: int = 30) -> List[Dict[str, Any]]:
     """Get candidates from hybrid search."""
     try:
         from scripts.hybrid_search import run_hybrid_search
-        from scripts.embedder import get_embedding_model
+        from scripts.embedder import get_embedding_model, DEFAULT_MODEL
 
-        # Use BAAI/bge-base-en-v1.5 which is supported by fastembed
-        model_name = os.environ.get("EMBEDDING_MODEL", "BAAI/bge-base-en-v1.5")
+        model_name = os.environ.get("EMBEDDING_MODEL", DEFAULT_MODEL)
         model = get_embedding_model(model_name)
 
         results = run_hybrid_search(

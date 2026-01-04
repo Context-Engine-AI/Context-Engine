@@ -13,8 +13,10 @@ from pathlib import Path
 
 from qdrant_client import QdrantClient, models
 
+from scripts.embedder import DEFAULT_MODEL
+
 COLLECTION = os.environ.get("COLLECTION_NAME", "codebase")
-MODEL_NAME = os.environ.get("EMBEDDING_MODEL", "BAAI/bge-base-en-v1.5")
+MODEL_NAME = os.environ.get("EMBEDDING_MODEL", DEFAULT_MODEL)
 QDRANT_URL = os.environ.get("QDRANT_URL", "http://localhost:6333")
 API_KEY = os.environ.get("QDRANT_API_KEY")
 REPO_NAME = os.environ.get("REPO_NAME", "workspace")

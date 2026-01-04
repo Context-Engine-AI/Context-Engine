@@ -16,10 +16,12 @@ except ImportError:
     from fastembed import TextEmbedding
 
 
+from scripts.embedder import DEFAULT_MODEL
+
 # Env configuration
 QDRANT_URL = os.environ.get("QDRANT_URL", "http://qdrant:6333")
 COLLECTION = os.environ.get("COLLECTION_NAME", "codebase")
-MODEL = os.environ.get("EMBEDDING_MODEL", "BAAI/bge-base-en-v1.5")
+MODEL = os.environ.get("EMBEDDING_MODEL", DEFAULT_MODEL)
 
 # Quick-win boosts
 SYMBOL_BOOST = float(os.environ.get("HYBRID_SYMBOL_BOOST", "0.15") or 0.15)

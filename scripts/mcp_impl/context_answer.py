@@ -2627,8 +2627,9 @@ async def _context_answer_impl(
                     pass
 
     # Collection + model setup (reuse indexer defaults)
+    from scripts.embedder import DEFAULT_MODEL
     coll = (collection or _default_collection()) or ""
-    model_name = os.environ.get("EMBEDDING_MODEL", "BAAI/bge-base-en-v1.5")
+    model_name = os.environ.get("EMBEDDING_MODEL", DEFAULT_MODEL)
     model = get_embedding_model_fn(model_name)
 
     # Prepare environment toggles for ReFRAG gate-first and budgeting

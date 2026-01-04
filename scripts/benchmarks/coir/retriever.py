@@ -35,8 +35,10 @@ import numpy as np
 # Ensure project root is in path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
+from scripts.embedder import DEFAULT_MODEL
+
 # Read .env settings
-EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", "BAAI/bge-base-en-v1.5")
+EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", DEFAULT_MODEL)
 RERANKER_ENABLED = os.environ.get("RERANKER_ENABLED", "true").lower() in ("true", "1", "yes")
 
 
@@ -69,7 +71,7 @@ class ContextEngineRetriever:
         Note: Collection naming is automatic based on corpus fingerprint.
         Each unique corpus+config gets its own named collection for reuse.
         """
-        self.model_name = model_name or os.environ.get("EMBEDDING_MODEL", "BAAI/bge-base-en-v1.5")
+        self.model_name = model_name or os.environ.get("EMBEDDING_MODEL", DEFAULT_MODEL)
         self.use_hybrid_search = use_hybrid_search
         self.rerank_enabled = rerank_enabled
         self.batch_size = batch_size

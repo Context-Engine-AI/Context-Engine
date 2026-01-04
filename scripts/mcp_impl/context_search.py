@@ -747,8 +747,9 @@ async def _context_search_impl(
     if not code_hits and queries:
         try:
             from scripts.hybrid_search import run_hybrid_search  # type: ignore
+            from scripts.embedder import DEFAULT_MODEL
 
-            model_name = os.environ.get("EMBEDDING_MODEL", "BAAI/bge-base-en-v1.5")
+            model_name = os.environ.get("EMBEDDING_MODEL", DEFAULT_MODEL)
             model = get_embedding_model_fn(model_name) if get_embedding_model_fn else None
             items2 = run_hybrid_search(
                 queries=queries,
@@ -992,12 +993,13 @@ async def _context_search_impl(
 
             from scripts.utils import sanitize_vector_name  # local util
 
+            from scripts.embedder import DEFAULT_MODEL
             client = QdrantClient(
                 url=QDRANT_URL,
                 api_key=os.environ.get("QDRANT_API_KEY"),
                 timeout=float(os.environ.get("QDRANT_TIMEOUT", "20") or 20),
             )
-            model_name = os.environ.get("EMBEDDING_MODEL", "BAAI/bge-base-en-v1.5")
+            model_name = os.environ.get("EMBEDDING_MODEL", DEFAULT_MODEL)
             vec_name = sanitize_vector_name(model_name)
             model = get_embedding_model_fn(model_name) if get_embedding_model_fn else None
 

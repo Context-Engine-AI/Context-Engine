@@ -2099,7 +2099,8 @@ if __name__ == "__main__":
     logger.info(f"  Qdrant URL: {os.environ.get('QDRANT_URL', 'not set')}")
     logger.info(f"  Collection: {os.environ.get('COLLECTION_NAME', 'codebase')}")
     logger.info(f"  Transport: {os.environ.get('FASTMCP_TRANSPORT', 'sse')}")
-    logger.info(f"  Embedding Model: {os.environ.get('EMBEDDING_MODEL', 'BAAI/bge-base-en-v1.5')}")
+    from scripts.embedder import DEFAULT_MODEL
+    logger.info(f"  Embedding Model: {os.environ.get('EMBEDDING_MODEL', DEFAULT_MODEL)}")
     logger.info(f"  Embedding Provider: {os.environ.get('EMBEDDING_PROVIDER', 'fastembed')}")
     logger.info(f"  ReFRAG Decoder: {os.environ.get('REFRAG_DECODER', '1')}")
     logger.info(f"  Rerank Learning: {os.environ.get('RERANK_LEARNING', '1')}")
@@ -2130,7 +2131,7 @@ if __name__ == "__main__":
             "on",
         }:
             _ = _get_embedding_model(
-                os.environ.get("EMBEDDING_MODEL", "BAAI/bge-base-en-v1.5")
+                os.environ.get("EMBEDDING_MODEL", DEFAULT_MODEL)
             )
     except Exception:
         pass

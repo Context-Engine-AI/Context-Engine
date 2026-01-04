@@ -172,7 +172,8 @@ def restore_memories(
     if not vectors_included:
         if not embedding_model_name:
             # Use default model
-            embedding_model_name = os.environ.get("EMBEDDING_MODEL", "BAAI/bge-base-en-v1.5")
+            from scripts.embedder import DEFAULT_MODEL
+            embedding_model_name = os.environ.get("EMBEDDING_MODEL", DEFAULT_MODEL)
 
         print(f"Vectors not included in backup, will re-embed with: {embedding_model_name}")
         embedding_model = get_embedding_model(embedding_model_name)

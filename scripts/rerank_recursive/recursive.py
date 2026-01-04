@@ -110,8 +110,8 @@ class RecursiveReranker:
             if self._embedder is not None:
                 return self._embedder
             try:
-                from scripts.embedder import get_embedding_model
-                model_name = os.environ.get("EMBEDDING_MODEL", "BAAI/bge-base-en-v1.5")
+                from scripts.embedder import get_embedding_model, DEFAULT_MODEL
+                model_name = os.environ.get("EMBEDDING_MODEL", DEFAULT_MODEL)
                 self._embedder = get_embedding_model(model_name)
             except Exception:
                 self._embedder = None

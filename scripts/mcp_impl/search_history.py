@@ -122,7 +122,8 @@ async def _search_commits_for_impl(
                 except Exception:
                     _sanitize_vector_name = None
 
-                model_name = os.environ.get("MODEL_NAME", "BAAI/bge-base-en-v1.5")
+                from scripts.embedder import DEFAULT_MODEL
+                model_name = os.environ.get("EMBEDDING_MODEL", DEFAULT_MODEL)
                 vec_name: Optional[str]
                 if _sanitize_vector_name is not None:
                     try:

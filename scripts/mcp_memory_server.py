@@ -59,9 +59,11 @@ DEFAULT_COLLECTION = (
     or os.environ.get("COLLECTION_NAME")
     or "codebase"
 )
+from scripts.embedder import DEFAULT_MODEL
+
 LEX_VECTOR_NAME = os.environ.get("LEX_VECTOR_NAME", "lex")
 LEX_VECTOR_DIM = int(os.environ.get("LEX_VECTOR_DIM", "4096") or 4096)
-EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", "BAAI/bge-base-en-v1.5")
+EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", DEFAULT_MODEL)
 
 # Minimal embedding via fastembed (CPU)
 

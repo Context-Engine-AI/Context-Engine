@@ -44,10 +44,12 @@ except ImportError:
 # Type alias for embedding model (TextEmbedding or compatible)
 EmbeddingModel = Any if TextEmbedding is None else TextEmbedding
 
+from scripts.embedder import DEFAULT_MODEL
+
 # ---------------------------------------------------------------------------
 # Configuration constants
 # ---------------------------------------------------------------------------
-MODEL_NAME = os.environ.get("EMBEDDING_MODEL", "BAAI/bge-base-en-v1.5")
+MODEL_NAME = os.environ.get("EMBEDDING_MODEL", DEFAULT_MODEL)
 
 # ---------------------------------------------------------------------------
 # Unified cache system

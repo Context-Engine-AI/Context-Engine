@@ -56,7 +56,9 @@ from scripts.ingest.config import (
     LEX_SPARSE_MODE,
 )
 
-EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", "BAAI/bge-base-en-v1.5")
+from scripts.embedder import DEFAULT_MODEL
+
+EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", DEFAULT_MODEL)
 
 # Import Context-Engine's AST/symbol extraction (optional)
 try:
@@ -242,7 +244,7 @@ def create_collection(
     """Create or recreate the CoIR collection with proper vector config."""
     # Use sanitized model name for vector name (matches hybrid_search)
     from scripts.utils import sanitize_vector_name
-    model_name = os.environ.get("EMBEDDING_MODEL", "BAAI/bge-base-en-v1.5")
+    model_name = os.environ.get("EMBEDDING_MODEL", DEFAULT_MODEL)
     vector_name = sanitize_vector_name(model_name)
 
     if recreate:
@@ -389,7 +391,7 @@ def index_coir_corpus(
     dim = get_model_dimension(model)
     # Use sanitized model name for vector name (matches hybrid_search/repo_search)
     from scripts.utils import sanitize_vector_name
-    model_name = os.environ.get("EMBEDDING_MODEL", "BAAI/bge-base-en-v1.5")
+    model_name = os.environ.get("EMBEDDING_MODEL", DEFAULT_MODEL)
     vector_name = sanitize_vector_name(model_name)
     start_time = time.time()
     

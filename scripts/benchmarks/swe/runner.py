@@ -163,10 +163,11 @@ def _apply_swe_env_config(
     semantic_chunks: bool,
 ) -> None:
     """Apply explicit SWE benchmark settings (avoid env drift)."""
+    from scripts.embedder import DEFAULT_MODEL
     if embedding_model:
         os.environ["EMBEDDING_MODEL"] = embedding_model
     else:
-        os.environ.setdefault("EMBEDDING_MODEL", "BAAI/bge-base-en-v1.5")
+        os.environ.setdefault("EMBEDDING_MODEL", DEFAULT_MODEL)
 
     os.environ["HYBRID_EXPAND"] = "1" if expand_enabled else "0"
     os.environ["SEMANTIC_EXPANSION_ENABLED"] = "1" if expand_enabled else "0"
@@ -422,12 +423,13 @@ async def evaluate_instance(
             from scripts import ingest_code
 
             qdrant_url = os.environ.get("QDRANT_URL", "http://localhost:6333")
+            from scripts.embedder import DEFAULT_MODEL
             ingest_code.index_repo(
                 root=repo_path,
                 qdrant_url=qdrant_url,
                 api_key=os.environ.get("QDRANT_API_KEY", ""),
                 collection=collection_name,
-                model_name=os.environ.get("EMBEDDING_MODEL", "BAAI/bge-base-en-v1.5"),
+                model_name=os.environ.get("EMBEDDING_MODEL", DEFAULT_MODEL),
                 recreate=False,  # Reuse if same commit (collection name includes commit hash)
             )
         result.index_time_s = time.perf_counter() - t0

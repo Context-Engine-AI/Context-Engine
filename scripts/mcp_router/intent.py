@@ -158,8 +158,8 @@ def _embed_texts(texts: list[str]) -> list[list[float]]:
 
     # Try centralized embedder factory first
     try:
-        from scripts.embedder import get_embedding_model
-        model_name = os.environ.get("EMBEDDING_MODEL", "BAAI/bge-base-en-v1.5")
+        from scripts.embedder import get_embedding_model, DEFAULT_MODEL
+        model_name = os.environ.get("EMBEDDING_MODEL", DEFAULT_MODEL)
         em = get_embedding_model(model_name)
         raw = list(em.embed(texts))
         return [v.tolist() if hasattr(v, "tolist") else list(v) for v in raw]
@@ -169,7 +169,8 @@ def _embed_texts(texts: list[str]) -> list[list[float]]:
     # Try fastembed directly
     try:
         from fastembed import TextEmbedding
-        model_name = os.environ.get("EMBEDDING_MODEL", "BAAI/bge-base-en-v1.5")
+        from scripts.embedder import DEFAULT_MODEL
+        model_name = os.environ.get("EMBEDDING_MODEL", DEFAULT_MODEL)
         em = TextEmbedding(model_name=model_name)
         raw = list(em.embed(texts))
         return [v.tolist() if hasattr(v, "tolist") else list(v) for v in raw]

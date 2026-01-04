@@ -26,8 +26,10 @@ def build_logger():
 
 LOGGER = build_logger()
 
+from scripts.embedder import DEFAULT_MODEL
+
 QDRANT_URL = os.environ.get("QDRANT_URL", "http://qdrant:6333")
-MODEL = os.environ.get("EMBEDDING_MODEL", "BAAI/bge-base-en-v1.5")
+MODEL = os.environ.get("EMBEDDING_MODEL", DEFAULT_MODEL)
 ROOT = Path(os.environ.get("WATCH_ROOT", "/work")).resolve()
 
 # Debounce interval for file system events

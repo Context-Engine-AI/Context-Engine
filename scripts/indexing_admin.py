@@ -1039,8 +1039,9 @@ def _determine_embedding_dim(model_name: str) -> int:
 def _normalize_cloned_collection_schema(*, collection_name: str, qdrant_url: str) -> None:
     if QdrantClient is None:
         return
+    from scripts.embedder import DEFAULT_MODEL
     vector_name = None
-    model_name = os.environ.get("EMBEDDING_MODEL", "BAAI/bge-base-en-v1.5")
+    model_name = os.environ.get("EMBEDDING_MODEL", DEFAULT_MODEL)
     dim = _determine_embedding_dim(model_name)
     if _sanitize_vector_name is not None:
         try:

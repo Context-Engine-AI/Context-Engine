@@ -293,14 +293,16 @@ def expand_queries_semantically(
             client = QdrantClient(url=qdrant_url, api_key=api_key)
         
         if model is None and FASTEMBED_AVAILABLE:
-            model_name = os.environ.get("EMBEDDING_MODEL", "BAAI/bge-base-en-v1.5")
+            from scripts.embedder import DEFAULT_MODEL
+            model_name = os.environ.get("EMBEDDING_MODEL", DEFAULT_MODEL)
             if _EMBEDDER_FACTORY:
                 model = _get_embedding_model(model_name)
             else:
                 model = TextEmbedding(model_name=model_name)
         else:
             # When caller injects a model, prefer its name for vector selection if available
-            model_name = getattr(model, "model_name", os.environ.get("EMBEDDING_MODEL", "BAAI/bge-base-en-v1.5"))
+            from scripts.embedder import DEFAULT_MODEL
+            model_name = getattr(model, "model_name", os.environ.get("EMBEDDING_MODEL", DEFAULT_MODEL))
         
         # Qdrant collections with multiple vectors require the vector name
         vector_name = None

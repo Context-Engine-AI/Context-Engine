@@ -67,10 +67,12 @@ except ImportError:
     def _get_imports_calls(_lang, _text):  # noqa: unused args for fallback
         return [], []
 
+from scripts.embedder import DEFAULT_MODEL
+
 # Default configuration
 DEFAULT_COLLECTION = "cosqa-corpus"
 DEFAULT_BATCH_SIZE = 256  # Larger batches for faster embedding throughput
-EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", "BAAI/bge-base-en-v1.5")
+EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", DEFAULT_MODEL)
 
 # Metadata key for corpus fingerprint (stored in collection)
 CORPUS_FINGERPRINT_KEY = "_corpus_fingerprint"
@@ -91,7 +93,7 @@ def get_embedding_model():
         return _get_model()
     except ImportError:
         from fastembed import TextEmbedding
-        model_name = os.environ.get("EMBEDDING_MODEL", "BAAI/bge-base-en-v1.5")
+        model_name = os.environ.get("EMBEDDING_MODEL", DEFAULT_MODEL)
         return TextEmbedding(model_name=model_name)
 
 
@@ -99,7 +101,7 @@ def get_model_dimension(model) -> int:
     """Get embedding dimension from model."""
     try:
         from scripts.embedder import get_model_dimension as _get_dim
-        model_name = os.environ.get("EMBEDDING_MODEL", "BAAI/bge-base-en-v1.5")
+        model_name = os.environ.get("EMBEDDING_MODEL", DEFAULT_MODEL)
         return _get_dim(model_name)
     except ImportError:
         # Probe dimension
@@ -226,7 +228,7 @@ def create_collection(
 
     # Use sanitized model name for vector name (matches hybrid_search)
     from scripts.utils import sanitize_vector_name
-    model_name = os.environ.get("EMBEDDING_MODEL", "BAAI/bge-base-en-v1.5")
+    model_name = os.environ.get("EMBEDDING_MODEL", DEFAULT_MODEL)
     vector_name = sanitize_vector_name(model_name)
 
     if recreate:
@@ -376,7 +378,7 @@ def index_corpus(
     dim = get_model_dimension(model)
     # Use sanitized model name for vector name (matches hybrid_search/repo_search)
     from scripts.utils import sanitize_vector_name
-    model_name = os.environ.get("EMBEDDING_MODEL", "BAAI/bge-base-en-v1.5")
+    model_name = os.environ.get("EMBEDDING_MODEL", DEFAULT_MODEL)
     vector_name = sanitize_vector_name(model_name)
 
     # Create collection (recreate=True will drop existing)

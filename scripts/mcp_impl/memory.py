@@ -65,7 +65,8 @@ async def _memory_store_impl(
         from scripts.mcp_impl.workspace import _default_collection
         coll = (collection or _default_collection()) or ""
 
-    model_name = os.environ.get("EMBEDDING_MODEL", "BAAI/bge-base-en-v1.5")
+    from scripts.embedder import DEFAULT_MODEL
+    model_name = os.environ.get("EMBEDDING_MODEL", DEFAULT_MODEL)
     vector_name = sanitize_vector_name(model_name)
 
     # Minimal lexical hashing (aligns with ingest_code defaults)
@@ -203,7 +204,8 @@ async def _memory_find_impl(
     if not coll:
         return {"ok": False, "error": "no collection configured", "results": [], "count": 0}
 
-    model_name = os.environ.get("EMBEDDING_MODEL", "BAAI/bge-base-en-v1.5")
+    from scripts.embedder import DEFAULT_MODEL
+    model_name = os.environ.get("EMBEDDING_MODEL", DEFAULT_MODEL)
     vector_name = sanitize_vector_name(model_name)
 
     # Lexical vector settings

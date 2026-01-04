@@ -183,10 +183,11 @@ async def search_dense_only(query: str, limit: int = 10) -> SearchResult:
         from scripts.hybrid.embed import get_embedding_model
         from scripts.utils import sanitize_vector_name
         
+        from scripts.embedder import DEFAULT_MODEL
         # Get client and model
         client = get_qdrant_client()
         model = get_embedding_model()
-        model_name = os.environ.get("EMBEDDING_MODEL", "BAAI/bge-base-en-v1.5")
+        model_name = os.environ.get("EMBEDDING_MODEL", DEFAULT_MODEL)
         vec_name = sanitize_vector_name(model_name)
         
         loop = asyncio.get_running_loop()
