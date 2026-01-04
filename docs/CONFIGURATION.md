@@ -20,6 +20,7 @@ Complete environment variable reference for Context Engine.
 - [Ports](#ports)
 - [Search & Expansion](#search--expansion)
 - [Memory Blending](#memory-blending)
+- [Sinkhorn Fusion](#sinkhorn-fusion-experimental)
 
 ---
 
@@ -379,6 +380,47 @@ Set `FNAME_BOOST=0` to disable, or increase (e.g., `0.25`) for stronger path wei
 | MEMORY_AUTODETECT | Auto-detect memory collection | 1 |
 | MEMORY_COLLECTION_TTL_SECS | Cache TTL for collection detection | 300 |
 
+## Sinkhorn Fusion (Experimental)
+
+mHC-inspired doubly stochastic normalization for improved signal balancing and result diversification.
+
+### Master Toggle
+
+| Name | Description | Default |
+|------|-------------|---------|
+| HYBRID_SINKHORN | Enable all Sinkhorn features with sensible defaults | 0 (off) |
+
+When enabled, all three sub-features activate. Individual toggles below can override.
+
+### Sub-Toggles
+
+| Name | Description | Default |
+|------|-------------|---------|
+| HYBRID_SINKHORN_FUSION | Signal fusion: normalize scoring signals to prevent any single signal from dominating | inherits HYBRID_SINKHORN |
+| HYBRID_SINKHORN_QUERY_NORM | Query-doc balancing: equalize contributions from each PRF expansion query | inherits HYBRID_SINKHORN |
+| HYBRID_SINKHORN_DIVERSIFY | Birkhoff diversification: coverage-based diversification (replaces MMR) | inherits HYBRID_SINKHORN |
+
+### Tuning Knobs
+
+| Name | Description | Default |
+|------|-------------|---------|
+| HYBRID_SINKHORN_ITERS | Sinkhorn iterations (used by Birkhoff diversification) | 5 |
+| HYBRID_SINKHORN_ALPHA | Boost balance for RRF fusion: 0=raw boosts, 1=fully balanced boosts | 0.5 |
+| HYBRID_BIRKHOFF_COVERAGE | Diversification weight: 0=relevance only, 1=coverage only | 0.5 |
+
+Notes:
+- Fusion replaces the positive score components and preserves penalties; it does not blend with the original scores.
+
+**Usage:**
+```bash
+# Enable all Sinkhorn features
+export HYBRID_SINKHORN=1
+
+# Or enable selectively
+export HYBRID_SINKHORN_FUSION=1
+export HYBRID_SINKHORN_QUERY_NORM=1
+```
+
 ---
 
 ## Exclusions (.qdrantignore)
@@ -419,4 +461,3 @@ docker compose run --rm indexer --root /work --no-default-excludes --exclude '/v
 | Large (1k+ files) | 120 (default) | 20 | 128+ |
 
 For large monorepos, set `INDEX_PROGRESS_EVERY=200` for visibility.
-

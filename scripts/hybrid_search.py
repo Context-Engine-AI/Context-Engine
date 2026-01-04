@@ -103,6 +103,14 @@ from scripts.hybrid_config import (
     MAX_RESULTS_CACHE,
     # Output config
     INCLUDE_WHY,
+    # mHC-inspired Sinkhorn fusion
+    HYBRID_SINKHORN,
+    HYBRID_SINKHORN_FUSION,
+    HYBRID_SINKHORN_QUERY_NORM,
+    HYBRID_SINKHORN_DIVERSIFY,
+    HYBRID_SINKHORN_ITERS,
+    HYBRID_SINKHORN_ALPHA,
+    HYBRID_BIRKHOFF_COVERAGE,
 )
 
 # ---------------------------------------------------------------------------
@@ -211,6 +219,11 @@ from scripts.hybrid_ranking import (
     _scale_rrf_k,
     _adaptive_per_query,
     _normalize_scores,
+    # mHC-inspired Sinkhorn functions
+    _sinkhorn_knopp,
+    _birkhoff_diversify,
+    _sinkhorn_query_doc_balance,
+    _soft_rrf_fusion,
     # Sparse lexical scoring
     sparse_lex_score,
     # Lexical scoring
@@ -1243,28 +1256,108 @@ def _run_hybrid_search_impl(
                     dense_query(client, vec_name, v, flt, _prf_per_query, collection)
                     for v in embedded2
                 ]
-                for res2 in result_sets2:
-                    for rank, p in enumerate(res2, 1):
-                        pid = str(p.id)
-                        score_map.setdefault(
-                            pid,
-                            {
-                                "pt": p,
-                                "s": 0.0,
-                                "d": 0.0,
-                                "lx": 0.0,
-                                "sym_sub": 0.0,
-                                "sym_eq": 0.0,
-                                "core": 0.0,
-                                "vendor": 0.0,
-                                "langb": 0.0,
-                                "rec": 0.0,
-                                "test": 0.0,
-                            },
-                        )
-                        dens = prf_dw * _scaled_rrf(rank)
-                        score_map[pid]["d"] += dens
-                        score_map[pid]["s"] += dens
+
+                # mHC query-doc balancing (feature-flagged)
+                if HYBRID_SINKHORN_QUERY_NORM and len(result_sets2) >= 2:
+                    try:
+                        # Build query×doc affinity matrix from RRF scores
+                        # Collect all unique doc IDs across PRF queries
+                        all_pids: List[str] = []
+                        pid_idx: Dict[str, int] = {}
+                        for res2 in result_sets2:
+                            for p in res2:
+                                pid = str(p.id)
+                                if pid not in pid_idx:
+                                    pid_idx[pid] = len(all_pids)
+                                    all_pids.append(pid)
+
+                        n_queries = len(result_sets2)
+                        n_docs = len(all_pids)
+
+                        if n_docs >= 2:
+                            # Build affinity matrix: query_doc_scores[q][d] = RRF score
+                            query_doc_scores: List[List[float]] = [[0.0] * n_docs for _ in range(n_queries)]
+                            pt_cache: Dict[str, Any] = {}
+                            for q_idx, res2 in enumerate(result_sets2):
+                                for rank, p in enumerate(res2, 1):
+                                    pid = str(p.id)
+                                    d_idx = pid_idx[pid]
+                                    query_doc_scores[q_idx][d_idx] = _scaled_rrf(rank)
+                                    pt_cache[pid] = p
+
+                            # Equalize per-query contribution (row-normalized)
+                            balanced = _sinkhorn_query_doc_balance(query_doc_scores)
+
+                            # Compute total original mass for global scaling
+                            total_orig = sum(
+                                sum(query_doc_scores[q][d] for q in range(n_queries))
+                                for d in range(n_docs)
+                            )
+                            total_balanced = sum(
+                                sum(balanced[q][d] for q in range(n_queries))
+                                for d in range(n_docs)
+                            )
+                            # Global scale preserves total PRF contribution magnitude
+                            global_scale = total_orig / max(total_balanced, 1e-8) if total_orig > 0 else 1.0
+
+                            # Aggregate balanced scores per doc (sum across queries)
+                            for d_idx, pid in enumerate(all_pids):
+                                balanced_sum = sum(balanced[q][d_idx] for q in range(n_queries))
+                                # Scale by global mass to preserve overall magnitude
+                                dens = prf_dw * balanced_sum * global_scale
+
+                                score_map.setdefault(
+                                    pid,
+                                    {
+                                        "pt": pt_cache.get(pid),
+                                        "s": 0.0, "d": 0.0, "lx": 0.0,
+                                        "sym_sub": 0.0, "sym_eq": 0.0, "core": 0.0,
+                                        "vendor": 0.0, "langb": 0.0, "rec": 0.0, "test": 0.0,
+                                    },
+                                )
+                                score_map[pid]["d"] += dens
+                                score_map[pid]["s"] += dens
+
+                            if os.environ.get("DEBUG_HYBRID_SEARCH"):
+                                logger.debug(f"Sinkhorn query-doc balance applied: {n_queries} queries × {n_docs} docs")
+                        else:
+                            # Not enough docs, fallback to standard accumulation
+                            raise ValueError("Not enough docs for Sinkhorn")
+                    except Exception as e:
+                        if os.environ.get("DEBUG_HYBRID_SEARCH"):
+                            logger.debug(f"Sinkhorn query-doc balance failed, using standard: {e}")
+                        # Fallback to standard accumulation
+                        for res2 in result_sets2:
+                            for rank, p in enumerate(res2, 1):
+                                pid = str(p.id)
+                                score_map.setdefault(
+                                    pid,
+                                    {
+                                        "pt": p, "s": 0.0, "d": 0.0, "lx": 0.0,
+                                        "sym_sub": 0.0, "sym_eq": 0.0, "core": 0.0,
+                                        "vendor": 0.0, "langb": 0.0, "rec": 0.0, "test": 0.0,
+                                    },
+                                )
+                                dens = prf_dw * _scaled_rrf(rank)
+                                score_map[pid]["d"] += dens
+                                score_map[pid]["s"] += dens
+                else:
+                    # Standard accumulation (no Sinkhorn)
+                    for res2 in result_sets2:
+                        for rank, p in enumerate(res2, 1):
+                            pid = str(p.id)
+                            score_map.setdefault(
+                                pid,
+                                {
+                                    "pt": p,
+                                    "s": 0.0, "d": 0.0, "lx": 0.0,
+                                    "sym_sub": 0.0, "sym_eq": 0.0, "core": 0.0,
+                                    "vendor": 0.0, "langb": 0.0, "rec": 0.0, "test": 0.0,
+                                },
+                            )
+                            dens = prf_dw * _scaled_rrf(rank)
+                            score_map[pid]["d"] += dens
+                            score_map[pid]["s"] += dens
             except Exception:
                 pass
 
@@ -1435,6 +1528,101 @@ def _run_hybrid_search_impl(
                 rec_comp = RECENCY_WEIGHT * norm
                 rec["rec"] += rec_comp
                 rec["s"] += rec_comp
+
+    if HYBRID_SINKHORN_FUSION:
+        try:
+            # Weighted Rank-based Fusion: RRF with boost balancing
+            # Primary signals (d, lx) keep their weight, boosts are balanced
+            signal_keys = ("d", "lx", "sym_sub", "sym_eq", "core", "langb", "rec", "impl")
+            items = list(score_map.items())  # (pid, rec)
+            if len(items) >= 2:
+                # Build score components and track original positive mass
+                score_components: Dict[str, Dict[str, float]] = {}
+                orig_pos_sums: Dict[str, float] = {}
+                penalties: Dict[str, float] = {}
+                for pid, rec in items:
+                    comps = {}
+                    pos_sum = 0.0
+                    for key in signal_keys:
+                        val = float(rec.get(key, 0.0) or 0.0)
+                        if val > 0.0:
+                            comps[key] = val
+                            pos_sum += val
+                    score_components[pid] = comps
+                    orig_pos_sums[pid] = pos_sum
+                    penalties[pid] = rec["s"] - pos_sum
+
+                # Apply weighted rank-based fusion
+                boost_balance = max(0.0, min(1.0, HYBRID_SINKHORN_ALPHA))
+                if boost_balance > 0.0 and len(score_components) >= 2:
+                    # Use scaled RRF k for collection size
+                    scaled_k = _scale_rrf_k(RRF_K, _coll_size)
+                    # Use env weights for primary signals
+                    weights = {
+                        "d": DENSE_WEIGHT,
+                        "lx": LEXICAL_WEIGHT,
+                        "sym_sub": 0.15,
+                        "sym_eq": 0.2,
+                        "core": 0.1,
+                        "langb": 0.05,
+                        "rec": 0.1,
+                        "impl": 0.1,
+                    }
+                    fused = _soft_rrf_fusion(
+                        score_components,
+                        signal_weights=weights,
+                        rrf_k=scaled_k,
+                        boost_balance=boost_balance,
+                    )
+                    # Scale fused scores to match original positive mass
+                    orig_total = sum(orig_pos_sums.values())
+                    fused_total = sum(fused.values())
+                    if fused_total > 1e-12 and orig_total > 1e-12:
+                        scale = orig_total / fused_total
+                        for pid in fused:
+                            fused[pid] *= scale
+                    if os.environ.get("DEBUG_HYBRID_SEARCH"):
+                        try:
+                            scaled_total = sum(fused.values())
+                            path_by_pid = {}
+                            for pid, rec in items:
+                                pt = rec.get("pt")
+                                md = (pt.payload or {}).get("metadata") if pt else {}
+                                path_by_pid[pid] = (md or {}).get("path") or ""
+
+                            def _summarize(scores: Dict[str, float]) -> str:
+                                top = sorted(scores.items(), key=lambda x: -x[1])[:5]
+                                return ", ".join(
+                                    f"{score:.4f}:{os.path.basename(path_by_pid.get(pid) or str(pid))}"
+                                    for pid, score in top
+                                )
+
+                            pre_scores = {
+                                pid: orig_pos_sums.get(pid, 0.0) + penalties.get(pid, 0.0)
+                                for pid in orig_pos_sums
+                            }
+                            post_scores = {
+                                pid: fused.get(pid, orig_pos_sums.get(pid, 0.0)) + penalties.get(pid, 0.0)
+                                for pid in orig_pos_sums
+                            }
+                            logger.debug(
+                                "fusion totals: orig=%.6f fused_pre=%.6f fused_post=%.6f boost_balance=%.2f rrf_k=%d",
+                                orig_total,
+                                fused_total,
+                                scaled_total,
+                                boost_balance,
+                                scaled_k,
+                            )
+                            logger.debug("fusion top5 pre: %s", _summarize(pre_scores))
+                            logger.debug("fusion top5 post: %s", _summarize(post_scores))
+                        except Exception as _e:
+                            logger.debug("fusion debug skipped: %s", _e)
+                    # Replace scores with scaled fused scores
+                    for pid, rec in items:
+                        rec["s"] = fused.get(pid, orig_pos_sums[pid]) + penalties.get(pid, 0.0)
+        except Exception as e:
+            if os.environ.get("DEBUG_HYBRID_SEARCH"):
+                logger.debug(f"Weighted RRF fusion skipped: {e}")
 
     # === Large codebase score normalization ===
     # Spread compressed score distributions for better discrimination
@@ -1702,7 +1890,29 @@ def _run_hybrid_search_impl(
         except Exception:
             _mmr_lambda = 0.7
         if (limit or 0) >= 10 or (not per_path) or (per_path <= 0):
-            ranked = _mmr_diversify(ranked, k=_mmr_k, lambda_=_mmr_lambda)
+            # mHC Birkhoff diversification (feature-flagged)
+            if HYBRID_SINKHORN_DIVERSIFY:
+                try:
+                    _birkhoff_weight = max(0.0, min(1.0, HYBRID_BIRKHOFF_COVERAGE))
+                    _birkhoff_iters = max(1, HYBRID_SINKHORN_ITERS)
+                    if ranked:
+                        head = ranked[:1]
+                        tail = ranked[1:]
+                        if tail:
+                            tail_k = max(1, _mmr_k - 1)
+                            tail = _birkhoff_diversify(
+                                tail,
+                                k=tail_k,
+                                coverage_weight=_birkhoff_weight,
+                                iters=_birkhoff_iters,
+                            )
+                        ranked = head + tail
+                except Exception as e:
+                    if os.environ.get("DEBUG_HYBRID_SEARCH"):
+                        logger.debug(f"Birkhoff diversify failed, falling back to MMR: {e}")
+                    ranked = _mmr_diversify(ranked, k=_mmr_k, lambda_=_mmr_lambda)
+            else:
+                ranked = _mmr_diversify(ranked, k=_mmr_k, lambda_=_mmr_lambda)
 
     # Client-side filters and per-path diversification
     import re as _re, fnmatch as _fnm

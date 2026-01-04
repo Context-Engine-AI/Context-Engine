@@ -20,6 +20,10 @@ __all__ = [
     "LARGE_COLLECTION_THRESHOLD", "MAX_RRF_K_SCALE", "SCORE_NORMALIZE_ENABLED",
     "MAX_EMBED_CACHE", "MAX_RESULTS_CACHE",
     "INCLUDE_WHY",
+    # mHC Sinkhorn fusion
+    "HYBRID_SINKHORN", "HYBRID_SINKHORN_FUSION", "HYBRID_SINKHORN_QUERY_NORM",
+    "HYBRID_SINKHORN_DIVERSIFY", "HYBRID_SINKHORN_ITERS", "HYBRID_SINKHORN_ALPHA",
+    "HYBRID_BIRKHOFF_COVERAGE",
 ]
 import os
 from pathlib import Path
@@ -215,3 +219,44 @@ MAX_RESULTS_CACHE = _safe_int(os.environ.get("HYBRID_RESULTS_CACHE"), 32)
 
 # Include "why" explanations in search results (disabled by default to reduce tokens)
 INCLUDE_WHY = os.environ.get("INCLUDE_WHY", "0").lower() in {"1", "true", "yes", "on"}
+
+
+# ---------------------------------------------------------------------------
+# mHC-inspired Sinkhorn fusion (feature-flagged, all off by default)
+# ---------------------------------------------------------------------------
+# Paper: mHC uses doubly stochastic matrices (Sinkhorn-Knopp) for stable multi-stream mixing.
+# Properties: row/col sums = 1, spectral norm ≤ 1, closed under composition.
+
+# Master toggle: enables all Sinkhorn features with sensible defaults.
+# Individual sub-toggles below can override specific features.
+HYBRID_SINKHORN = _env_truthy(os.environ.get("HYBRID_SINKHORN"), False)
+
+# Signal fusion: normalize positive signals (dense, lexical, symbol, recency, impl)
+# before final scoring. Keeps penalties separate.
+HYBRID_SINKHORN_FUSION = _env_truthy(
+    os.environ.get("HYBRID_SINKHORN_FUSION"),
+    HYBRID_SINKHORN  # inherits from master toggle
+)
+
+# Query-doc balancing: when query expansion (PRF) produces multiple queries,
+# normalize the query×doc affinity matrix so each query contributes equal mass.
+HYBRID_SINKHORN_QUERY_NORM = _env_truthy(
+    os.environ.get("HYBRID_SINKHORN_QUERY_NORM"),
+    HYBRID_SINKHORN  # inherits from master toggle
+)
+
+# Birkhoff diversification: use doubly stochastic mixing as alternative to MMR.
+# More principled coverage guarantees via convex combination of permutations.
+HYBRID_SINKHORN_DIVERSIFY = _env_truthy(
+    os.environ.get("HYBRID_SINKHORN_DIVERSIFY"),
+    HYBRID_SINKHORN  # inherits from master toggle
+)
+
+# Sinkhorn algorithm iterations (5 is typically sufficient for convergence)
+HYBRID_SINKHORN_ITERS = _safe_int(os.environ.get("HYBRID_SINKHORN_ITERS", "5"), 5)
+
+# Boost balance for RRF fusion: 0=raw boosts, 1=fully balanced boosts
+HYBRID_SINKHORN_ALPHA = float(os.environ.get("HYBRID_SINKHORN_ALPHA", "0.5") or 0.5)
+
+# Coverage weight for Birkhoff diversification: 0=relevance only, 1=coverage only
+HYBRID_BIRKHOFF_COVERAGE = float(os.environ.get("HYBRID_BIRKHOFF_COVERAGE", "0.5") or 0.5)

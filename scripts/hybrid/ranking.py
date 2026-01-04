@@ -8,6 +8,8 @@ from hybrid_search.py for reuse and testing.
 
 __all__ = [
     "rrf", "_scale_rrf_k", "_adaptive_per_query", "_normalize_scores",
+    "_sinkhorn_knopp", "_birkhoff_diversify", "_sinkhorn_query_doc_balance",
+    "_soft_rrf_fusion",
     "sparse_lex_score", "lexical_score",
     "_compute_query_stats", "_adaptive_weights", "_bm25_token_weights_from_results",
     "_mmr_diversify", "_merge_and_budget_spans",
@@ -20,7 +22,7 @@ import os
 import re
 import math
 import logging
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Optional
 
 logger = logging.getLogger("hybrid_ranking")
 
@@ -201,6 +203,45 @@ def _normalize_scores(score_map: Dict[str, Dict[str, Any]], collection_size: int
         z = (rec["s"] - mean_s) / std_s
         normalized = 1.0 / (1.0 + math.exp(-z * 0.5))
         rec["s"] = normalized
+
+
+# ---------------------------------------------------------------------------
+# Sinkhorn-Knopp normalization (prototype)
+# ---------------------------------------------------------------------------
+
+def _sinkhorn_knopp(
+    matrix: List[List[float]],
+    iters: int = 5,
+    min_sum: float = 1e-6,
+) -> List[List[float]]:
+    """Approximate Sinkhorn-Knopp balancing for non-negative matrices."""
+    if not matrix:
+        return []
+    rows = len(matrix)
+    cols = len(matrix[0]) if rows else 0
+    if cols == 0:
+        return [list(row) for row in matrix]
+
+    balanced = [[float(v) for v in row] for row in matrix]
+    iters = max(1, int(iters or 1))
+    for _ in range(iters):
+        for i in range(rows):
+            row = balanced[i]
+            s = sum(row)
+            if s > min_sum:
+                inv = 1.0 / s
+                for j in range(cols):
+                    row[j] *= inv
+        col_sums = [0.0] * cols
+        for j in range(cols):
+            col_sums[j] = sum(balanced[i][j] for i in range(rows))
+        for j in range(cols):
+            s = col_sums[j]
+            if s > min_sum:
+                inv = 1.0 / s
+                for i in range(rows):
+                    balanced[i][j] *= inv
+    return balanced
 
 
 # ---------------------------------------------------------------------------
@@ -481,6 +522,281 @@ def _mmr_diversify(ranked: List[Dict[str, Any]], k: int = 60, lambda_: float = 0
     diversified = [ranked[i] for i in selected_idx]
     diversified.extend([ranked[i] for i in range(len(ranked)) if i not in sel_set])
     return diversified
+
+
+def _birkhoff_diversify(
+    ranked: List[Dict[str, Any]],
+    k: int = 60,
+    coverage_weight: float = 0.5,
+    iters: int = 5,
+) -> List[Dict[str, Any]]:
+    """
+    Birkhoff polytope diversification via doubly stochastic mixing.
+
+    mHC-inspired alternative to MMR: uses Sinkhorn-Knopp to create a doubly
+    stochastic doc×path affinity matrix, ensuring coverage across paths/symbols.
+
+    The Birkhoff polytope view interprets the result as a convex combination
+    of permutations, giving stronger theoretical coverage guarantees.
+
+    Args:
+        ranked: List of scored result dicts with 'pt' payload and 's' score
+        k: Number of results to diversify (top-k)
+        coverage_weight: Balance between relevance (0) and coverage (1)
+        iters: Sinkhorn iterations for normalization
+
+    Returns:
+        Reordered list with diversified top-k, remainder appended
+    """
+    if not ranked or len(ranked) < 2:
+        return ranked
+    k = max(1, min(int(k or 1), len(ranked)))
+
+    # Extract path groups for coverage analysis
+    def _get_group(rec: Dict[str, Any]) -> str:
+        md = (rec.get("pt") and rec["pt"].payload or {}).get("metadata") or {}
+        path = str(md.get("path") or "")
+        # Use directory as group for better coverage
+        if "/" in path:
+            return "/".join(path.split("/")[:-1])
+        return path
+
+    groups: List[str] = []
+    group_set: Dict[str, int] = {}
+    for rec in ranked:
+        g = _get_group(rec)
+        if g not in group_set:
+            group_set[g] = len(groups)
+            groups.append(g)
+
+    n_docs = len(ranked)
+    n_groups = len(groups)
+
+    if n_groups < 2:
+        # No diversity possible, return by relevance
+        return ranked
+
+    # Build doc×group affinity matrix
+    # Each doc has affinity 1.0 to its group, 0 to others
+    # We add relevance scores to bias toward high-scoring docs
+    rel_scores = [float(m.get("s", 0.0)) for m in ranked]
+    max_rel = max(rel_scores) if rel_scores else 1.0
+    if max_rel <= 0:
+        max_rel = 1.0
+
+    affinity: List[List[float]] = []
+    for i, rec in enumerate(ranked):
+        g = _get_group(rec)
+        gidx = group_set.get(g, 0)
+        row = [0.0] * n_groups
+        # Base affinity to own group
+        row[gidx] = 1.0
+        # Add normalized relevance to bias selection
+        rel_norm = rel_scores[i] / max_rel
+        row[gidx] += (1.0 - coverage_weight) * rel_norm
+        affinity.append(row)
+
+    # Apply Sinkhorn to get doubly stochastic matrix
+    # This ensures each group gets "equal coverage mass"
+    balanced = _sinkhorn_knopp(affinity, iters=iters, min_sum=1e-8)
+
+    # Score each doc by its balanced row sum (coverage contribution)
+    # Higher means this doc contributes more to overall coverage
+    coverage_scores = [sum(row) for row in balanced]
+
+    # Combine relevance and coverage for final ranking
+    combined = []
+    for i in range(n_docs):
+        rel_norm = rel_scores[i] / max_rel
+        cov_norm = coverage_scores[i] / max(coverage_scores) if max(coverage_scores) > 0 else 0
+        score = (1.0 - coverage_weight) * rel_norm + coverage_weight * cov_norm
+        combined.append((score, i))
+
+    # Sort by combined score descending
+    combined.sort(key=lambda x: -x[0])
+
+    # Take top-k diversified, append rest in original order
+    selected_idx = [idx for _, idx in combined[:k]]
+    sel_set = set(selected_idx)
+    diversified = [ranked[i] for i in selected_idx]
+    diversified.extend([ranked[i] for i in range(n_docs) if i not in sel_set])
+    return diversified
+
+
+def _sinkhorn_query_doc_balance(
+    query_doc_scores: List[List[float]],
+    min_sum: float = 1e-6,
+) -> List[List[float]]:
+    """
+    Normalize query×doc affinity by equalizing per-query contribution.
+
+    For PRF/expansion with multiple queries, this ensures:
+    - Each query contributes equal total mass (row sums normalized)
+
+    Args:
+        query_doc_scores: Matrix where [q][d] = affinity of query q to doc d
+                          Rows are queries, columns are documents.
+        min_sum: Epsilon for numerical stability
+
+    Returns:
+        Balanced matrix with same shape
+    """
+    if not query_doc_scores:
+        return []
+    rows = len(query_doc_scores)
+    cols = len(query_doc_scores[0]) if rows else 0
+    if cols == 0:
+        return [list(row) for row in query_doc_scores]
+
+    balanced = [[float(v) for v in row] for row in query_doc_scores]
+    row_sums = [sum(row) for row in balanced]
+    total = sum(row_sums)
+    if total <= min_sum or rows <= 0:
+        return balanced
+
+    target_row_sum = total / rows
+    for i in range(rows):
+        s = row_sums[i]
+        if s > min_sum:
+            scale = target_row_sum / s
+            row = balanced[i]
+            for j in range(cols):
+                row[j] *= scale
+    return balanced
+
+
+def _soft_rrf_fusion(
+    score_components: Dict[str, Dict[str, float]],
+    signal_weights: Optional[Dict[str, float]] = None,
+    rrf_k: int = 60,
+    boost_balance: float = 0.3,
+) -> Dict[str, float]:
+    """
+    Weighted Rank-based Fusion with boost balancing.
+
+    Addresses key issues:
+    1. Preserves signal weights (dense/lexical dominate, boosts are secondary)
+    2. Uses rank-based RRF for scale invariance
+    3. Only balances boost signals among themselves, not against primaries
+    4. Ignores signals with no variance (all zeros)
+
+    Args:
+        score_components: {doc_id: {signal_name: score}}
+        signal_weights: {signal_name: weight}. Defaults to standard weights.
+        rrf_k: RRF constant (higher = smoother ranking)
+        boost_balance: How much to balance boost signals (0=none, 1=full equalization)
+
+    Returns:
+        {doc_id: fused_score}
+    """
+    if not score_components:
+        return {}
+
+    # Default weights: primary signals dominate
+    if signal_weights is None:
+        signal_weights = {
+            "d": 1.0,      # Dense - primary
+            "lx": 0.8,     # Lexical - primary
+            "sym_sub": 0.15,  # Symbol substring - boost
+            "sym_eq": 0.2,    # Symbol exact - boost
+            "core": 0.1,      # Core file - boost
+            "langb": 0.05,    # Language - boost
+            "rec": 0.1,       # Recency - boost
+            "impl": 0.1,      # Implementation - boost
+        }
+
+    doc_ids = list(score_components.keys())
+    n_docs = len(doc_ids)
+    if n_docs < 2:
+        return {d: sum(score_components[d].values()) for d in doc_ids}
+
+    # Collect signals present in data
+    all_signals: set = set()
+    for comps in score_components.values():
+        all_signals.update(comps.keys())
+
+    # Separate primary and boost signals
+    primary_signals = {"d", "lx"}
+    boost_signals = all_signals - primary_signals
+
+    # Step 1: Compute rank-based RRF scores per signal
+    signal_ranks: Dict[str, Dict[str, int]] = {}
+    for sig in all_signals:
+        # Get scores for this signal
+        sig_scores = [(doc_id, score_components[doc_id].get(sig, 0.0)) for doc_id in doc_ids]
+        # Check variance - skip if all same value
+        vals = [s for _, s in sig_scores]
+        if max(vals) - min(vals) < 1e-9:
+            continue  # No signal, skip
+        # Sort by score descending, assign ranks
+        sig_scores.sort(key=lambda x: -x[1])
+        signal_ranks[sig] = {doc_id: rank + 1 for rank, (doc_id, _) in enumerate(sig_scores)}
+
+    if not signal_ranks:
+        return {d: sum(score_components[d].values()) for d in doc_ids}
+
+    # Step 2: Compute weighted RRF for primary signals
+    primary_scores: Dict[str, float] = {d: 0.0 for d in doc_ids}
+    for sig in primary_signals & set(signal_ranks.keys()):
+        weight = signal_weights.get(sig, 0.5)
+        ranks = signal_ranks[sig]
+        for doc_id in doc_ids:
+            rank = ranks.get(doc_id, n_docs)
+            primary_scores[doc_id] += weight / (rrf_k + rank)
+
+    # Step 3: Compute balanced boost contribution
+    active_boosts = boost_signals & set(signal_ranks.keys())
+    boost_scores: Dict[str, float] = {d: 0.0 for d in doc_ids}
+
+    if active_boosts:
+        n_boosts = len(active_boosts)
+        for sig in active_boosts:
+            weight = signal_weights.get(sig, 0.1)
+            ranks = signal_ranks[sig]
+            for doc_id in doc_ids:
+                rank = ranks.get(doc_id, n_docs)
+                boost_scores[doc_id] += weight / (rrf_k + rank)
+
+        # Optional: balance boost contributions (equalize per-signal impact)
+        if boost_balance > 0 and n_boosts > 1:
+            # Compute per-signal contributions
+            per_signal_contrib: Dict[str, Dict[str, float]] = {}
+            for sig in active_boosts:
+                weight = signal_weights.get(sig, 0.1)
+                ranks = signal_ranks[sig]
+                per_signal_contrib[sig] = {
+                    doc_id: weight / (rrf_k + ranks.get(doc_id, n_docs))
+                    for doc_id in doc_ids
+                }
+
+            # Normalize each signal to sum to 1, then weight equally
+            balanced_boost: Dict[str, float] = {d: 0.0 for d in doc_ids}
+            total_weight = sum(signal_weights.get(s, 0.1) for s in active_boosts)
+            for sig in active_boosts:
+                sig_total = sum(per_signal_contrib[sig].values())
+                if sig_total > 1e-12:
+                    sig_weight = signal_weights.get(sig, 0.1) / max(total_weight, 1e-6)
+                    for doc_id in doc_ids:
+                        balanced_boost[doc_id] += (per_signal_contrib[sig][doc_id] / sig_total) * sig_weight
+
+            # Scale balanced back to original magnitude
+            orig_total = sum(boost_scores.values())
+            balanced_total = sum(balanced_boost.values())
+            if balanced_total > 1e-12:
+                scale = orig_total / balanced_total
+                for doc_id in doc_ids:
+                    balanced_boost[doc_id] *= scale
+
+            # Blend original and balanced
+            for doc_id in doc_ids:
+                boost_scores[doc_id] = (1.0 - boost_balance) * boost_scores[doc_id] + boost_balance * balanced_boost[doc_id]
+
+    # Step 4: Combine primary + boost
+    result = {}
+    for doc_id in doc_ids:
+        result[doc_id] = primary_scores[doc_id] + boost_scores[doc_id]
+
+    return result
 
 
 # ---------------------------------------------------------------------------
