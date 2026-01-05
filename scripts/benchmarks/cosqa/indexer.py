@@ -384,6 +384,13 @@ def index_corpus(
     # Create collection (recreate=True will drop existing)
     create_collection(client, collection, dim, recreate=recreate)
 
+    # Clear cached vector names so search uses fresh collection schema
+    try:
+        from scripts.hybrid.qdrant import clear_ensured_collections
+        clear_ensured_collections()
+    except ImportError:
+        pass
+
     allowed_vectors, allowed_sparse = get_collection_vector_names(client, collection)
     allow_lex = allowed_vectors is None or LEX_VECTOR_NAME in allowed_vectors
     allow_mini = allowed_vectors is None or MINI_VECTOR_NAME in allowed_vectors

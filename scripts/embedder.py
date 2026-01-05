@@ -19,8 +19,8 @@ import threading
 import time
 from typing import Any, Dict, List, Optional
 
-# Default model configuration
-DEFAULT_MODEL = "BAAI/bge-base-en-v1.5"
+# Default model configuration (can be overridden via EMBEDDING_MODEL env var)
+DEFAULT_MODEL = os.environ.get("EMBEDDING_MODEL", "BAAI/bge-base-en-v1.5")
 QWEN3_MODEL = "electroglyph/Qwen3-Embedding-0.6B-onnx-uint8"
 QWEN3_DIM = 1024
 

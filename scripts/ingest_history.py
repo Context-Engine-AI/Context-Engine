@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os
+import sys
 import argparse
 import subprocess
 import shlex
@@ -8,11 +9,15 @@ from typing import List, Dict, Any
 import re
 import time
 import json
-import sys
 from pathlib import Path
 
 from qdrant_client import QdrantClient, models
 
+ROOT_DIR = Path(__file__).resolve().parent.parent
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
+# Delayed import after sys.path fix
 from scripts.embedder import DEFAULT_MODEL
 
 COLLECTION = os.environ.get("COLLECTION_NAME", "codebase")
@@ -20,10 +25,6 @@ MODEL_NAME = os.environ.get("EMBEDDING_MODEL", DEFAULT_MODEL)
 QDRANT_URL = os.environ.get("QDRANT_URL", "http://localhost:6333")
 API_KEY = os.environ.get("QDRANT_API_KEY")
 REPO_NAME = os.environ.get("REPO_NAME", "workspace")
-
-ROOT_DIR = Path(__file__).resolve().parent.parent
-if str(ROOT_DIR) not in sys.path:
-    sys.path.insert(0, str(ROOT_DIR))
 
 # Import TextEmbedding for type hints and fallback
 from fastembed import TextEmbedding

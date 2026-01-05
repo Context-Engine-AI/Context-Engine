@@ -1,10 +1,17 @@
 #!/usr/bin/env python3
 import os
+import sys
 import argparse
+from pathlib import Path
 from qdrant_client import QdrantClient, models
 
 # Warm start: load embedding model and warm Qdrant HNSW search path with a small query
 # Useful to reduce first-query latency and set a higher runtime ef for quality
+
+# Ensure project root is on sys.path when run as a script (e.g., /app/scripts/warm_start.py)
+ROOT_DIR = Path(__file__).resolve().parent.parent
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
 
 
 def derive_vector_name(model_name: str) -> str:
