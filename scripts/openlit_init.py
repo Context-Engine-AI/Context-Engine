@@ -31,9 +31,10 @@ def init_openlit():
         _environment = os.environ.get("OPENLIT_ENVIRONMENT", "development")
         
         # Initialize OpenLit with modern params
+        # Note: use application_name (not service_name) per OpenLit API
         openlit.init(
             otlp_endpoint=_otel_endpoint,
-            service_name=_app_name,
+            application_name=_app_name,
             environment=_environment,
             disabled_instrumentors=None,
             capture_message_content=True,

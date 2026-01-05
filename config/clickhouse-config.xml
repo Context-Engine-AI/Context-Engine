@@ -1,5 +1,6 @@
 <?xml version="1.0"?>
 <clickhouse>
+    <listen_host>0.0.0.0</listen_host>
     <logger>
         <level>warning</level>
         <console>true</console>
@@ -41,4 +42,3 @@
         <table_ttl>604800</table_ttl>
     </part_log>
 </clickhouse>
-
