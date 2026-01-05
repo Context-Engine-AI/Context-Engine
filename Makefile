@@ -51,8 +51,13 @@ index: ## index code into Qdrant without dropping the collection
 reindex: ## recreate collection then index from scratch (will remove existing points!)
 	docker compose run --rm indexer --root /work --recreate
 
-reindex-hard: ## clear .codebase/cache.json then recreate collection and index from scratch
-	@rm -f .codebase/cache.json || true
+clear-cache: ## clear all indexer caches (local + container volumes) - use before reindex when changing embeddings
+	@rm -f .codebase/cache.json .codebase/cache.json.lock .codebase/state.json .codebase/state.json.lock 2>/dev/null || true
+	@docker compose exec -T indexer sh -c 'find /work/.codebase -name "cache.json*" -delete 2>/dev/null; rm -f /work/.codebase/state.json* 2>/dev/null' || true
+	@echo "Caches cleared (local + container)"
+
+reindex-hard: ## clear ALL caches then recreate collection and index from scratch
+	$(MAKE) clear-cache
 	docker compose run --rm indexer --root /work --recreate
 
 
