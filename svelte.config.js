@@ -14,10 +14,19 @@ const config = {
 			assets: 'build',
 			fallback: undefined,
 			precompress: false,
-			strict: true
+			strict: false
 		}),
 		paths: {
 			base: process.argv.includes('dev') ? '' : process.env.BASE_PATH || '/Context-Engine'
+		},
+		prerender: {
+			handleHttpError: ({ path, referrer, message }) => {
+				// Allow 404s for docs routes during prerender - they'll be handled by SPA fallback
+				if (path.startsWith('/docs/')) {
+					return;
+				}
+				throw new Error(message);
+			}
 		}
 	}
 };

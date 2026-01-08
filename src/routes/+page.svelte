@@ -1,6 +1,21 @@
 <script lang="ts">
-	import { Search, Layers, Brain, Plug, BotOff, Zap } from 'lucide-svelte';
+	import {
+		Search,
+		Layers,
+		Brain,
+		Plug,
+		BotOff,
+		Zap,
+		Rocket,
+		BookOpen,
+		Play,
+		Code,
+		Settings,
+		Wrench,
+		ExternalLink
+	} from 'lucide-svelte';
 	import { onMount } from 'svelte';
+	import { base } from '$app/paths';
 
 	let mounted = false;
 
@@ -123,6 +138,135 @@
 				<h3>MCP Compatible</h3>
 				<p>Works with Cursor, Windsurf, Roo, Cline, and more</p>
 			</div>
+		</div>
+	</div>
+</section>
+
+<section id="quick-start" class="quick-start-section">
+	<div class="container">
+		<h2 class="section-title"><Rocket size={24} /> Get Started in Minutes</h2>
+
+		<div class="quick-start-flow">
+			<div class="quick-start-card glass">
+				<div class="step-number">1</div>
+				<h3>Deploy</h3>
+				<div class="code-snippet">
+					<code>docker compose up -d</code>
+				</div>
+				<p>Start Context Engine with one command</p>
+			</div>
+
+			<div class="quick-start-card glass">
+				<div class="step-number">2</div>
+				<h3>Configure</h3>
+				<div class="code-snippet">
+					<code>cp ctx_config.example.json ctx_config.json</code>
+				</div>
+				<p>Set up your preferences</p>
+			</div>
+
+			<div class="quick-start-card glass">
+				<div class="step-number">3</div>
+				<h3>Index</h3>
+				<div class="code-snippet">
+					<code>curl -X POST localhost:8000/index</code>
+				</div>
+				<p>Start indexing your codebase</p>
+			</div>
+		</div>
+
+		<div class="quick-start-cta">
+			<a href="{base}/docs/getting-started" class="btn-primary"> Complete Setup Guide </a>
+			<a href="{base}/docs/configuration" class="btn-secondary"> Configuration Reference </a>
+		</div>
+	</div>
+</section>
+
+<section id="documentation" class="docs-section">
+	<div class="container">
+		<h2 class="section-title"><BookOpen size={24} /> Comprehensive Documentation</h2>
+		<p class="docs-intro">Everything you need to master Context Engine</p>
+
+		<div class="docs-grid">
+			<div class="docs-category glass">
+				<div class="docs-icon"><Play size={28} /></div>
+				<h3>Getting Started</h3>
+				<div class="docs-links">
+					<a href="{base}/docs/getting-started">Quick Start Guide</a>
+					<a href="{base}/docs/configuration">Configuration</a>
+					<a href="{base}/docs/development">Development Setup</a>
+				</div>
+			</div>
+
+			<div class="docs-category glass">
+				<div class="docs-icon"><Code size={28} /></div>
+				<h3>Core Features</h3>
+				<div class="docs-links">
+					<a href="{base}/docs/architecture">Architecture Overview</a>
+					<a href="{base}/docs/mcp-api">MCP API Reference</a>
+					<a
+						href="https://github.com/m1rl0k/Context-Engine/blob/test/docs/CTX_CLI.md"
+						target="_blank">CLI Tool <ExternalLink size={14} /></a
+					>
+					<a
+						href="https://github.com/m1rl0k/Context-Engine/blob/test/docs/IDE_CLIENTS.md"
+						target="_blank">IDE Clients <ExternalLink size={14} /></a
+					>
+				</div>
+			</div>
+
+			<div class="docs-category glass">
+				<div class="docs-icon"><Settings size={28} /></div>
+				<h3>Advanced Topics</h3>
+				<div class="docs-links">
+					<a
+						href="https://github.com/m1rl0k/Context-Engine/blob/test/docs/MULTI_REPO_COLLECTIONS.md"
+						target="_blank">Multi-Repo Setup <ExternalLink size={14} /></a
+					>
+					<a
+						href="https://github.com/m1rl0k/Context-Engine/blob/test/docs/commit-indexing/overview.md"
+						target="_blank">Commit Indexing <ExternalLink size={14} /></a
+					>
+					<a
+						href="https://github.com/m1rl0k/Context-Engine/blob/test/docs/MEMORY_GUIDE.md"
+						target="_blank">Memory Management <ExternalLink size={14} /></a
+					>
+					<a
+						href="https://github.com/m1rl0k/Context-Engine/blob/test/docs/vscode-extension.md"
+						target="_blank">VS Code Extension <ExternalLink size={14} /></a
+					>
+				</div>
+			</div>
+
+			<div class="docs-category glass">
+				<div class="docs-icon"><Wrench size={28} /></div>
+				<h3>Operations</h3>
+				<div class="docs-links">
+					<a href="{base}/docs/troubleshooting">Troubleshooting</a>
+					<a
+						href="https://github.com/m1rl0k/Context-Engine/blob/test/docs/BENCHMARKS.md"
+						target="_blank">Benchmarks <ExternalLink size={14} /></a
+					>
+					<a
+						href="https://github.com/m1rl0k/Context-Engine/blob/test/docs/OBSERVABILITY.md"
+						target="_blank">Observability <ExternalLink size={14} /></a
+					>
+					<a
+						href="https://github.com/m1rl0k/Context-Engine/blob/test/docs/CONFIG_DRIFT.md"
+						target="_blank">Config Drift <ExternalLink size={14} /></a
+					>
+				</div>
+			</div>
+		</div>
+
+		<div class="docs-footer">
+			<a
+				href="https://github.com/m1rl0k/Context-Engine/tree/test/docs"
+				class="btn-primary"
+				target="_blank"
+			>
+				<ExternalLink size={20} /> Browse All Documentation
+			</a>
 		</div>
 	</div>
 </section>
@@ -371,5 +515,156 @@
 			opacity: 0.7;
 			transform: scale(1.05);
 		}
+	}
+
+	// Quick Start Section
+	.quick-start-section {
+		padding: var(--spacing-xl) 0;
+		background: linear-gradient(135deg, rgba(139, 92, 246, 0.05) 0%, rgba(59, 130, 246, 0.05) 100%);
+	}
+
+	.quick-start-flow {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+		gap: var(--spacing-lg);
+		max-width: 1000px;
+		margin: 0 auto var(--spacing-lg);
+	}
+
+	.quick-start-card {
+		padding: var(--spacing-lg);
+		text-align: center;
+		transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+		position: relative;
+
+		&:hover {
+			transform: translateY(-8px);
+			background: rgba(255, 255, 255, 0.18);
+		}
+
+		h3 {
+			color: var(--text-primary);
+			margin: var(--spacing-sm) 0;
+			font-size: 1.3rem;
+		}
+
+		p {
+			color: var(--text-secondary);
+			margin: var(--spacing-sm) 0 0;
+			font-size: 0.95rem;
+		}
+	}
+
+	.step-number {
+		width: 40px;
+		height: 40px;
+		border-radius: 50%;
+		background: linear-gradient(135deg, #8b5cf6, #3b82f6);
+		color: white;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-weight: 600;
+		margin: 0 auto var(--spacing-sm);
+		font-size: 1.1rem;
+		box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+	}
+
+	.code-snippet {
+		background: rgba(0, 0, 0, 0.4);
+		border-radius: var(--radius-sm);
+		padding: var(--spacing-sm);
+		margin: var(--spacing-sm) 0;
+		border: 1px solid rgba(255, 255, 255, 0.1);
+
+		code {
+			font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+			font-size: 0.9rem;
+			color: #10b981;
+			font-weight: 500;
+		}
+	}
+
+	.quick-start-cta {
+		display: flex;
+		gap: var(--spacing-sm);
+		justify-content: center;
+		flex-wrap: wrap;
+		margin-top: var(--spacing-lg);
+	}
+
+	// Documentation Section
+	.docs-section {
+		padding: var(--spacing-xl) 0;
+		background: linear-gradient(135deg, rgba(59, 130, 246, 0.03) 0%, rgba(139, 92, 246, 0.03) 100%);
+	}
+
+	.docs-intro {
+		text-align: center;
+		color: var(--text-secondary);
+		font-size: 1.1rem;
+		margin-bottom: var(--spacing-xl);
+		max-width: 600px;
+		margin-left: auto;
+		margin-right: auto;
+	}
+
+	.docs-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+		gap: var(--spacing-lg);
+		max-width: 1200px;
+		margin: 0 auto var(--spacing-xl);
+	}
+
+	.docs-category {
+		padding: var(--spacing-lg);
+		transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+
+		&:hover {
+			transform: translateY(-5px);
+			background: rgba(255, 255, 255, 0.15);
+		}
+
+		h3 {
+			color: var(--text-primary);
+			margin: var(--spacing-sm) 0 var(--spacing-md);
+			font-size: 1.3rem;
+			display: flex;
+			align-items: center;
+			gap: var(--spacing-xs);
+		}
+	}
+
+	.docs-icon {
+		font-size: 1.8rem;
+		display: block;
+		margin-bottom: var(--spacing-sm);
+	}
+
+	.docs-links {
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-xs);
+
+		a {
+			color: var(--text-secondary);
+			text-decoration: none;
+			padding: var(--spacing-xs) 0;
+			border-radius: var(--radius-sm);
+			transition: all 0.2s ease;
+			font-size: 0.95rem;
+
+			&:hover {
+				color: var(--text-primary);
+				padding-left: var(--spacing-xs);
+				background: rgba(255, 255, 255, 0.05);
+			}
+		}
+	}
+
+	.docs-footer {
+		text-align: center;
+		margin-top: var(--spacing-lg);
 	}
 </style>
