@@ -131,7 +131,7 @@
 	.hero-container {
 		display: flex;
 		align-items: center;
-		padding: var(--spacing-xl) 0 0 0; // Remove bottom padding entirely
+		padding: var(--spacing-xl) 0; // Add back bottom padding
 
 		.container {
 			display: grid;
@@ -148,6 +148,8 @@
 			}
 		}
 	}
+
+	// ...existing code...
 
 	.hero-content {
 		opacity: 0;
