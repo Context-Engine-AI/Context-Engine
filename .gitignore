@@ -23,8 +23,3 @@ Thumbs.db
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
-# VSCode settings
-.vscode/settings.json
-
-# Documentation (if you want to exclude the README changes)
-README.md
