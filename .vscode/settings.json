@@ -1,7 +1,0 @@
-{
-    "codium.codeCompletion.enable": false,
-    "makefile.configureOnOpen": false,
-    "kiroAgent.trustedCommands": [
-        "*"
-    ]
-}

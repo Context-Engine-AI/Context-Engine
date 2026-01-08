@@ -1,44 +1,30 @@
+test-results
+node_modules
+
+# Output
+.output
+.vercel
+.netlify
+.wrangler
+/.svelte-kit
+/build
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
 .env
+.env.*
+!.env.example
+!.env.test
 
-# Model artifacts
-models/
+# Vite
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
 
-# Node
-node_modules/
-
-# Qdrant snapshots
-qdrant/snapshots/
-
-# Python cache
-__pycache__/
-*.pyc
-/.selftest_repo
+# VSCode settings
 .vscode/settings.json
-.kiro/settings/mcp.json
-.vscode/settings.json
-.context-engine
-paper.md
-/semantic-search
-/codebase-index-cli
-/.codebase/*
-!/.codebase/.gitkeep
-scripts/.codebase/cache.json
-scripts/.codebase/state.json
-tests/.codebase/cache.json
-tests/.codebase/state.json
-/scripts/.codebase
-/tests/.codebase
-.claude/settings.local.json
-.mcp.json
-CLAUDE.md
-.qodo/.cursor/rules
-/.augment
-/dev-workspace/*
-!/dev-workspace/.gitkeep
-docs/AUGMENT_COMPATIBILITY.md
-.serena/project.yml
-/.venv311
-/.venv311
-nueral.txt
-refrag.txt
-/test-repos
+
+# Documentation (if you want to exclude the README changes)
+README.md
