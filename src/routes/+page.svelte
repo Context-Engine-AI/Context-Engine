@@ -12,10 +12,16 @@
 		Code,
 		Settings,
 		Wrench,
-		ExternalLink
+		ExternalLink,
+		Star,
+		GitFork,
+		Activity
 	} from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import { base } from '$app/paths';
+	import type { PageData } from './$types';
+
+	export let data: PageData;
 
 	let mounted = false;
 
@@ -101,6 +107,71 @@
 		</div>
 	</div>
 </div>
+
+<!-- Metrics Section -->
+<section class="metrics-section">
+	<div class="container">
+		<div class="metrics-grid">
+			<div class="metric-card glass">
+				<div class="metric-icon">
+					<Star size={24} />
+				</div>
+				<div class="metric-content">
+					<div class="metric-value">{data.metrics.stars}</div>
+					<div class="metric-label">GitHub Stars</div>
+				</div>
+			</div>
+
+			<div class="metric-card glass">
+				<div class="metric-icon">
+					<GitFork size={24} />
+				</div>
+				<div class="metric-content">
+					<div class="metric-value">{data.metrics.forks}</div>
+					<div class="metric-label">Forks</div>
+				</div>
+			</div>
+
+			<div class="metric-card glass">
+				<div class="metric-icon">
+					<Code size={24} />
+				</div>
+				<div class="metric-content">
+					<div class="metric-value">{data.metrics.language}</div>
+					<div class="metric-label">Primary Language</div>
+				</div>
+			</div>
+
+			<div class="metric-card glass">
+				<div class="metric-icon">
+					<Activity size={24} />
+				</div>
+				<div class="metric-content">
+					<div class="metric-value">{data.metrics.status === 'live' ? 'Live' : 'Demo'}</div>
+					<div class="metric-label">Data Status</div>
+				</div>
+			</div>
+		</div>
+
+		{#if data.metrics.languages && data.metrics.languages.length > 0}
+			<div class="languages-section">
+				<h3 class="languages-title">Technology Stack</h3>
+				<div class="languages-list">
+					{#each data.metrics.languages.slice(0, 4) as language}
+						<div class="language-item">
+							<div
+								class="language-color"
+								style="background-color: {language.color || '#gray'}"
+							></div>
+							<span class="language-name">{language.name}</span>
+							<span class="language-percentage">{language.percentage}%</span>
+						</div>
+					{/each}
+				</div>
+			</div>
+		{/if}
+	</div>
+</section>
 
 <section id="features" class="features-section">
 	<div class="container">
@@ -666,5 +737,127 @@
 	.docs-footer {
 		text-align: center;
 		margin-top: var(--spacing-lg);
+	}
+
+	// Metrics Section
+	.metrics-section {
+		padding: var(--spacing-xl) 0;
+		background: linear-gradient(135deg, rgba(139, 92, 246, 0.03) 0%, rgba(59, 130, 246, 0.03) 100%);
+	}
+
+	.metrics-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+		gap: var(--spacing-lg);
+		margin-bottom: var(--spacing-xl);
+	}
+
+	.metric-card {
+		padding: var(--spacing-lg);
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-md);
+		transition: all 0.3s ease;
+
+		&:hover {
+			transform: translateY(-3px);
+			background: rgba(255, 255, 255, 0.15);
+		}
+	}
+
+	.metric-icon {
+		color: #8b5cf6;
+		background: rgba(139, 92, 246, 0.2);
+		padding: var(--spacing-sm);
+		border-radius: var(--radius-sm);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		min-width: 48px;
+		height: 48px;
+	}
+
+	.metric-content {
+		flex: 1;
+	}
+
+	.metric-value {
+		font-size: 1.5rem;
+		font-weight: 700;
+		color: var(--text-primary);
+		line-height: 1.2;
+	}
+
+	.metric-label {
+		font-size: 0.85rem;
+		color: var(--text-secondary);
+		margin-top: 2px;
+	}
+
+	.languages-section {
+		max-width: 600px;
+		margin: 0 auto;
+		text-align: center;
+	}
+
+	.languages-title {
+		color: var(--text-primary);
+		margin-bottom: var(--spacing-md);
+		font-size: 1.2rem;
+		font-weight: 600;
+	}
+
+	.languages-list {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--spacing-md);
+		justify-content: center;
+	}
+
+	.language-item {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-xs);
+		padding: var(--spacing-xs) var(--spacing-sm);
+		background: rgba(255, 255, 255, 0.05);
+		border-radius: var(--radius-sm);
+		border: 1px solid rgba(255, 255, 255, 0.1);
+	}
+
+	.language-color {
+		width: 12px;
+		height: 12px;
+		border-radius: 50%;
+	}
+
+	.language-name {
+		color: var(--text-primary);
+		font-size: 0.9rem;
+		font-weight: 500;
+	}
+
+	.language-percentage {
+		color: var(--text-muted);
+		font-size: 0.8rem;
+	}
+
+	@media (max-width: 768px) {
+		.metrics-grid {
+			grid-template-columns: repeat(2, 1fr);
+			gap: var(--spacing-md);
+		}
+
+		.metric-card {
+			padding: var(--spacing-md);
+			gap: var(--spacing-sm);
+		}
+
+		.metric-value {
+			font-size: 1.2rem;
+		}
+
+		.languages-list {
+			justify-content: center;
+		}
 	}
 </style>
