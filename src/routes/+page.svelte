@@ -766,7 +766,7 @@
 	}
 
 	.metric-icon {
-		color: #8b5cf6;
+		color: rgba(255, 255, 255, 0.9);
 		background: rgba(139, 92, 246, 0.2);
 		padding: var(--spacing-sm);
 		border-radius: var(--radius-sm);
