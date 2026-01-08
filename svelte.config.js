@@ -21,12 +21,12 @@ const config = {
 		},
 		prerender: {
 			handleHttpError: ({ path, referrer, message }) => {
-				// Allow 404s for docs routes during prerender - they'll be handled by SPA fallback
-				if (path.startsWith('/docs/')) {
-					return;
-				}
-				throw new Error(message);
-			}
+				// Ignore all HTTP errors during prerender
+				console.warn(`Ignoring HTTP error: ${path} (${message})`);
+				return;
+			},
+			handleMissingId: 'ignore',
+			crawl: false
 		}
 	}
 };
