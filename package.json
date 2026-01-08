@@ -40,6 +40,8 @@
 		"vite": "^7.2.6"
 	},
 	"dependencies": {
-		"lucide-svelte": "^0.562.0"
+		"highlight.js": "^11.11.1",
+		"lucide-svelte": "^0.562.0",
+		"marked": "^17.0.1"
 	}
 }

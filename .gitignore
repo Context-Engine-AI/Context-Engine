@@ -45,3 +45,4 @@ refrag.txt
 
 # SvelteKit
 .svelte-kit/
+build/
