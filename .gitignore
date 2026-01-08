@@ -42,3 +42,6 @@ docs/AUGMENT_COMPATIBILITY.md
 nueral.txt
 refrag.txt
 /test-repos
+
+# SvelteKit
+.svelte-kit/
