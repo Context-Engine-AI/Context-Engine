@@ -28,6 +28,17 @@
 
 	export let data: PageData;
 
+	function copyCommand(command: string) {
+		navigator.clipboard
+			.writeText(command)
+			.then(() => {
+				// Optional: Add toast notification or visual feedback
+			})
+			.catch((err) => {
+				console.error('Failed to copy command:', err);
+			});
+	}
+
 	let mounted = false;
 	let showAllDifferentiators = false;
 
@@ -363,16 +374,46 @@
 							<span class="terminal-prompt">$</span>
 							<span class="terminal-command">docker compose up -d</span>
 							<span class="terminal-comment"># Deploy Context Engine</span>
+							<button
+								class="copy-button"
+								aria-label="Copy command"
+								on:click={() => copyCommand('docker compose up -d')}
+							>
+								<svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+									<path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path>
+								</svg>
+							</button>
 						</div>
 						<div class="terminal-line">
 							<span class="terminal-prompt">$</span>
 							<span class="terminal-command">cp ctx_config.example.json ctx_config.json</span>
 							<span class="terminal-comment"># Configure</span>
+							<button
+								class="copy-button"
+								aria-label="Copy command"
+								on:click={() => copyCommand('cp ctx_config.example.json ctx_config.json')}
+							>
+								<svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+									<path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path>
+								</svg>
+							</button>
 						</div>
 						<div class="terminal-line">
 							<span class="terminal-prompt">$</span>
 							<span class="terminal-command">curl -X POST localhost:8000/index</span>
 							<span class="terminal-comment"># Start indexing</span>
+							<button
+								class="copy-button"
+								aria-label="Copy command"
+								on:click={() => copyCommand('curl -X POST localhost:8000/index')}
+							>
+								<svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+									<path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path>
+								</svg>
+							</button>
 						</div>
 					</div>
 				</div>
@@ -826,19 +867,13 @@
 
 	.terminal-line {
 		display: flex;
-		align-items: flex-start;
+		align-items: center;
 		margin-bottom: var(--spacing-xs);
 		line-height: 1.4;
 		min-width: max-content;
 
 		&:last-child {
 			margin-bottom: 0;
-		}
-
-		@media (max-width: 768px) {
-			flex-direction: column;
-			align-items: flex-start;
-			gap: 2px;
 		}
 	}
 
@@ -847,10 +882,7 @@
 		margin-right: var(--spacing-xs);
 		font-weight: 600;
 		flex-shrink: 0;
-
-		@media (max-width: 768px) {
-			margin-right: 0;
-		}
+		user-select: none;
 	}
 
 	.terminal-command {
@@ -859,13 +891,48 @@
 		white-space: nowrap;
 		margin-right: var(--spacing-sm);
 		flex-shrink: 0;
+		cursor: text;
+		user-select: all;
 
-		@media (max-width: 768px) {
-			white-space: normal;
-			word-break: break-all;
-			margin-right: 0;
-			margin-left: var(--spacing-sm);
+		&:hover {
+			background: rgba(16, 185, 129, 0.1);
+			border-radius: 2px;
 		}
+	}
+
+	.copy-button {
+		background: none;
+		border: none;
+		color: #6b7280;
+		cursor: pointer;
+		padding: 2px 4px;
+		border-radius: 3px;
+		opacity: 0;
+		transition: all 0.2s ease;
+		margin-left: var(--spacing-xs);
+		flex-shrink: 0;
+
+		&:hover {
+			color: #22d3ee;
+			background: rgba(34, 211, 238, 0.1);
+			transform: scale(1.05);
+		}
+
+		&:active {
+			transform: scale(0.95);
+		}
+
+		svg {
+			display: block;
+		}
+	}
+
+	.terminal-line:hover .copy-button {
+		opacity: 1;
+	}
+
+	.terminal-line:hover .copy-button {
+		opacity: 1;
 	}
 
 	.terminal-comment {
