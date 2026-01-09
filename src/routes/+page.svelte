@@ -15,7 +15,12 @@
 		ExternalLink,
 		Star,
 		GitFork,
-		Activity
+		Activity,
+		Shield,
+		Database,
+		Cpu,
+		Target,
+		Users
 	} from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import { base } from '$app/paths';
@@ -24,6 +29,7 @@
 	export let data: PageData;
 
 	let mounted = false;
+	let showAllDifferentiators = false;
 
 	onMount(() => {
 		mounted = true;
@@ -52,13 +58,17 @@
 			<h1 class="hero-title">Context Engine</h1>
 
 			<p class="hero-subtitle">
-				Hybrid code search with dense + lexical + reranker. ReFRAG micro-chunking, local LLM prompt
-				enhancement, and dual SSE/RMCP endpoints. One command deploys Qdrant-powered indexing for
-				Cursor, Windsurf, Roo, Cline, Codex, and any MCP client.
+				Self-hosted AI retrieval stack with hybrid search, micro-chunking, and pluggable models. One
+				command deploys enterprise-grade code indexing for any MCP client.
 			</p>
 
 			<div class="hero-actions">
-				<a href="https://github.com/m1rl0k/Context-Engine" class="btn-primary" target="_blank">
+				<a href="#quick-start" class="btn-primary cta-main">
+					<Zap size={20} />
+					Get Started
+				</a>
+
+				<a href="https://github.com/m1rl0k/Context-Engine" class="btn-secondary" target="_blank">
 					<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" class="github-icon">
 						<path
 							d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"
@@ -66,8 +76,6 @@
 					</svg>
 					View on GitHub
 				</a>
-
-				<a href="#features" class="btn-secondary"> Explore Features </a>
 			</div>
 		</div>
 
@@ -173,6 +181,123 @@
 	</div>
 </section>
 
+<!-- Key Differentiators Section -->
+<section class="differentiators-section">
+	<div class="container">
+		<div class="differentiators-header">
+			<h2 class="section-title">Context‑Engine — Key Differentiators</h2>
+			<p class="differentiators-tagline glass-subtle">
+				"Self‑hosted, code‑aware retrieval and context compression layer for AI agents - hybrid
+				search, deep AST indexing, and pluggable models built for private, enterprise‑grade
+				deployment."
+			</p>
+		</div>
+
+		<div class="differentiators-grid">
+			<div class="differentiator-card glass">
+				<div class="differentiator-icon security">
+					<Shield size={28} />
+				</div>
+				<h3>Fully Self‑Hosted</h3>
+				<p>
+					Run on your infra, your vector DB, your LLM, your rules. No vendor lock‑in, complete
+					control over your data and deployment.
+				</p>
+			</div>
+
+			<div class="differentiator-card glass">
+				<div class="differentiator-icon performance">
+					<Target size={28} />
+				</div>
+				<h3>Hybrid Retrieval by Design</h3>
+				<p>
+					Dense + lexical fusion, path priors, symbol boosts, recency weighting, and MMR for
+					diversity — precision engineered for code.
+				</p>
+			</div>
+
+			<div class="differentiator-card glass">
+				<div class="differentiator-icon technical">
+					<Code size={28} />
+				</div>
+				<h3>Deep Code‑Aware Indexing</h3>
+				<p>
+					AST symbols/imports/calls, semantic chunking, optional micro‑chunks (ReFRAG) for tighter
+					context windows and precise retrieval.
+				</p>
+			</div>
+
+			<div class="differentiator-card glass">
+				<div class="differentiator-icon innovation">
+					<Cpu size={28} />
+				</div>
+				<h3>Pluggable Models</h3>
+				<p>
+					Swap embeddings/rerankers per workload or hardware budget — scale from laptop to cluster
+					with the same architecture.
+				</p>
+			</div>
+		</div>
+
+		<div class="differentiators-toggle">
+			<button
+				class="btn-secondary expand-btn"
+				on:click={() => (showAllDifferentiators = !showAllDifferentiators)}
+			>
+				{showAllDifferentiators ? 'Show Less' : 'View All Differentiators'}
+			</button>
+		</div>
+
+		{#if showAllDifferentiators}
+			<div class="differentiators-grid additional-differentiators">
+				<div class="differentiator-card glass">
+					<div class="differentiator-icon innovation">
+						<Brain size={28} />
+					</div>
+					<h3>Incremental Learning Loop</h3>
+					<p>
+						Optional in‑process learning reranker with hot‑reloaded weights and convergence tracking
+						for continuous improvement.
+					</p>
+				</div>
+
+				<div class="differentiator-card glass">
+					<div class="differentiator-icon technical">
+						<Plug size={28} />
+					</div>
+					<h3>MCP‑Native Architecture</h3>
+					<p>
+						Acts as a retrieval backbone for tool‑using agents and private MCP deployments — built
+						for the agent ecosystem.
+					</p>
+				</div>
+
+				<div class="differentiator-card glass">
+					<div class="differentiator-icon performance">
+						<Database size={28} />
+					</div>
+					<h3>Reproducible Benchmarking</h3>
+					<p>
+						Built‑in benchmark suite for CoSQA/CoIR/SWE‑bench with full env snapshots — measure what
+						matters for your use case.
+					</p>
+				</div>
+
+				<div class="differentiator-card glass">
+					<div class="differentiator-icon security">
+						<Users size={28} />
+					</div>
+					<h3>Enterprise‑Grade Privacy</h3>
+					<p>
+						Zero telemetry, air‑gapped deployment support, and complete data sovereignty for
+						sensitive codebases and compliance requirements.
+					</p>
+				</div>
+			</div>
+		{/if}
+	</div>
+</section>
+
 <section id="features" class="features-section">
 	<div class="container">
 		<h2 class="section-title">Powerful Features</h2>
@@ -218,31 +343,39 @@
 		<h2 class="section-title"><Rocket size={24} /> Get Started in Minutes</h2>
 
 		<div class="quick-start-flow">
-			<div class="quick-start-card glass">
-				<div class="step-number">1</div>
-				<h3>Deploy</h3>
-				<div class="code-snippet">
-					<code>docker compose up -d</code>
+			<div class="quick-start-unified-card glass">
+				<div class="quick-start-header">
+					<h3>Deploy Context Engine</h3>
+					<p>Three simple commands to get running</p>
 				</div>
-				<p>Start Context Engine with one command</p>
-			</div>
 
-			<div class="quick-start-card glass">
-				<div class="step-number">2</div>
-				<h3>Configure</h3>
-				<div class="code-snippet">
-					<code>cp ctx_config.example.json ctx_config.json</code>
+				<div class="terminal-block">
+					<div class="terminal-header">
+						<div class="terminal-dots">
+							<span></span>
+							<span></span>
+							<span></span>
+						</div>
+						<span class="terminal-title">Quick Start</span>
+					</div>
+					<div class="terminal-content">
+						<div class="terminal-line">
+							<span class="terminal-prompt">$</span>
+							<span class="terminal-command">docker compose up -d</span>
+							<span class="terminal-comment"># Deploy Context Engine</span>
+						</div>
+						<div class="terminal-line">
+							<span class="terminal-prompt">$</span>
+							<span class="terminal-command">cp ctx_config.example.json ctx_config.json</span>
+							<span class="terminal-comment"># Configure</span>
+						</div>
+						<div class="terminal-line">
+							<span class="terminal-prompt">$</span>
+							<span class="terminal-command">curl -X POST localhost:8000/index</span>
+							<span class="terminal-comment"># Start indexing</span>
+						</div>
+					</div>
 				</div>
-				<p>Set up your preferences</p>
-			</div>
-
-			<div class="quick-start-card glass">
-				<div class="step-number">3</div>
-				<h3>Index</h3>
-				<div class="code-snippet">
-					<code>curl -X POST localhost:8000/index</code>
-				</div>
-				<p>Start indexing your codebase</p>
 			</div>
 		</div>
 
@@ -552,9 +685,18 @@
 	}
 
 	.feature-icon {
-		font-size: 2rem;
+		color: rgba(255, 255, 255, 1);
+		background: rgba(139, 92, 246, 0.25);
+		padding: var(--spacing-sm);
+		border-radius: var(--radius-sm);
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 56px;
+		height: 56px;
 		margin-bottom: var(--spacing-sm);
-		display: block;
+		font-size: 1.5rem;
+		transition: all 0.3s ease;
 	}
 
 	.feature-card h3 {
@@ -591,69 +733,124 @@
 	// Quick Start Section
 	.quick-start-section {
 		padding: var(--spacing-xl) 0;
-		background: linear-gradient(135deg, rgba(139, 92, 246, 0.05) 0%, rgba(59, 130, 246, 0.05) 100%);
 	}
 
 	.quick-start-flow {
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-		gap: var(--spacing-lg);
-		max-width: 1000px;
+		display: flex;
+		justify-content: center;
+		max-width: 800px;
 		margin: 0 auto var(--spacing-lg);
 	}
 
-	.quick-start-card {
-		padding: var(--spacing-lg);
-		text-align: center;
+	.quick-start-unified-card {
+		padding: var(--spacing-xl);
 		transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-		position: relative;
+		width: 100%;
+		max-width: 700px;
 
 		&:hover {
 			transform: translateY(-8px);
 			background: rgba(255, 255, 255, 0.18);
 		}
+	}
+
+	.quick-start-header {
+		text-align: center;
+		margin-bottom: var(--spacing-lg);
 
 		h3 {
 			color: var(--text-primary);
-			margin: var(--spacing-sm) 0;
-			font-size: 1.3rem;
+			margin: var(--spacing-sm) 0 var(--spacing-xs);
+			font-size: 1.4rem;
 		}
 
 		p {
 			color: var(--text-secondary);
-			margin: var(--spacing-sm) 0 0;
-			font-size: 0.95rem;
+			margin: 0;
+			font-size: 1rem;
 		}
 	}
 
-	.step-number {
-		width: 40px;
-		height: 40px;
-		border-radius: 50%;
-		background: linear-gradient(135deg, #8b5cf6, #3b82f6);
-		color: white;
+	.terminal-block {
+		margin-top: var(--spacing-md);
+	}
+
+	.terminal-header {
+		background: rgba(0, 0, 0, 0.3);
+		padding: var(--spacing-sm);
+		border-radius: var(--radius-sm) var(--radius-sm) 0 0;
 		display: flex;
 		align-items: center;
-		justify-content: center;
-		font-weight: 600;
-		margin: 0 auto var(--spacing-sm);
-		font-size: 1.1rem;
-		box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+		justify-content: space-between;
+		border: 1px solid rgba(255, 255, 255, 0.1);
+		border-bottom: none;
 	}
 
-	.code-snippet {
-		background: rgba(0, 0, 0, 0.4);
-		border-radius: var(--radius-sm);
-		padding: var(--spacing-sm);
-		margin: var(--spacing-sm) 0;
-		border: 1px solid rgba(255, 255, 255, 0.1);
+	.terminal-dots {
+		display: flex;
+		gap: var(--spacing-xs);
 
-		code {
-			font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-			font-size: 0.9rem;
-			color: #10b981;
-			font-weight: 500;
+		span {
+			width: 8px;
+			height: 8px;
+			border-radius: 50%;
+			background: rgba(255, 255, 255, 0.3);
+
+			&:nth-child(1) {
+				background: #ff5f56;
+			}
+			&:nth-child(2) {
+				background: #ffbd2e;
+			}
+			&:nth-child(3) {
+				background: #27ca3f;
+			}
 		}
+	}
+
+	.terminal-title {
+		font-size: 0.8rem;
+		color: var(--text-muted);
+		font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+	}
+
+	.terminal-content {
+		background: rgba(0, 0, 0, 0.5);
+		padding: var(--spacing-md);
+		border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+		border: 1px solid rgba(255, 255, 255, 0.1);
+		border-top: none;
+		font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+	}
+
+	.terminal-line {
+		display: flex;
+		align-items: center;
+		margin-bottom: var(--spacing-xs);
+		line-height: 1.4;
+
+		&:last-child {
+			margin-bottom: 0;
+		}
+	}
+
+	.terminal-prompt {
+		color: #22d3ee;
+		margin-right: var(--spacing-xs);
+		font-weight: 600;
+	}
+
+	.terminal-command {
+		color: #10b981;
+		font-weight: 500;
+		white-space: nowrap;
+		margin-right: var(--spacing-sm);
+	}
+
+	.terminal-comment {
+		color: #94a3b8;
+		font-style: italic;
+		font-size: 0.9rem;
 	}
 
 	.quick-start-cta {
@@ -667,7 +864,6 @@
 	// Documentation Section
 	.docs-section {
 		padding: var(--spacing-xl) 0;
-		background: linear-gradient(135deg, rgba(59, 130, 246, 0.03) 0%, rgba(139, 92, 246, 0.03) 100%);
 	}
 
 	.docs-intro {
@@ -708,9 +904,18 @@
 	}
 
 	.docs-icon {
-		font-size: 1.8rem;
-		display: block;
+		color: rgba(255, 255, 255, 1);
+		background: rgba(139, 92, 246, 0.25);
+		padding: var(--spacing-sm);
+		border-radius: var(--radius-sm);
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 56px;
+		height: 56px;
 		margin-bottom: var(--spacing-sm);
+		font-size: 1.5rem;
+		transition: all 0.3s ease;
 	}
 
 	.docs-links {
@@ -739,10 +944,170 @@
 		margin-top: var(--spacing-lg);
 	}
 
+	// Key Differentiators Section
+	.differentiators-section {
+		padding: var(--spacing-xl) 0;
+	}
+
+	.differentiators-header {
+		text-align: center;
+		margin-bottom: var(--spacing-xl);
+	}
+
+	.differentiators-tagline {
+		display: inline-block;
+		padding: var(--spacing-md) var(--spacing-lg);
+		margin-top: var(--spacing-md);
+		font-style: italic;
+		color: var(--text-secondary);
+		font-size: 1rem;
+		line-height: 1.5;
+		max-width: 800px;
+		border-left: 3px solid rgba(139, 92, 246, 0.5);
+	}
+
+	.differentiators-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+		gap: var(--spacing-lg);
+		max-width: 1400px;
+		margin: 0 auto;
+	}
+
+	.differentiator-card {
+		padding: var(--spacing-lg);
+		transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+		border-left: 3px solid transparent;
+		opacity: 0;
+		transform: translateY(20px);
+		animation: fadeInUp 0.6s ease forwards;
+
+		&:nth-child(1) {
+			animation-delay: 0.1s;
+		}
+		&:nth-child(2) {
+			animation-delay: 0.2s;
+		}
+		&:nth-child(3) {
+			animation-delay: 0.3s;
+		}
+		&:nth-child(4) {
+			animation-delay: 0.4s;
+		}
+
+		&:hover {
+			transform: translateY(-8px) scale(1.02);
+			background: rgba(255, 255, 255, 0.12);
+			border-left-color: rgba(139, 92, 246, 0.6);
+			box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+		}
+
+		h3 {
+			color: var(--text-primary);
+			margin: var(--spacing-sm) 0 var(--spacing-sm);
+			font-size: 1.2rem;
+			font-weight: 600;
+		}
+
+		p {
+			color: var(--text-secondary);
+			font-size: 0.95rem;
+			line-height: 1.6;
+			margin: 0;
+		}
+	}
+
+	@keyframes fadeInUp {
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+
+	.differentiator-icon {
+		color: rgba(255, 255, 255, 1);
+		background: rgba(139, 92, 246, 0.25);
+		padding: var(--spacing-sm);
+		border-radius: var(--radius-sm);
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 56px;
+		height: 56px;
+		margin-bottom: var(--spacing-sm);
+		transition: all 0.3s ease;
+
+		&.security {
+			color: rgba(34, 197, 94, 1);
+			background: rgba(34, 197, 94, 0.25);
+		}
+
+		&.performance {
+			color: rgba(96, 165, 250, 1);
+			background: rgba(59, 130, 246, 0.25);
+		}
+
+		&.technical {
+			color: rgba(196, 145, 251, 1);
+			background: rgba(168, 85, 247, 0.25);
+		}
+
+		&.innovation {
+			color: rgba(251, 146, 60, 1);
+			background: rgba(251, 146, 60, 0.25);
+		}
+	}
+
+	.differentiators-toggle {
+		text-align: center;
+		margin-top: var(--spacing-lg);
+	}
+
+	.expand-btn {
+		padding: var(--spacing-sm) var(--spacing-lg);
+		transition: all 0.3s ease;
+
+		&:hover {
+			transform: translateY(-2px);
+			box-shadow: 0 8px 25px rgba(139, 92, 246, 0.2);
+		}
+	}
+
+	.additional-differentiators {
+		margin-top: var(--spacing-lg);
+		animation: slideIn 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+	}
+
+	@keyframes slideIn {
+		from {
+			opacity: 0;
+			transform: translateY(20px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+
+	.cta-main {
+		background: linear-gradient(135deg, #8b5cf6, #3b82f6);
+		color: white;
+		box-shadow: 0 8px 25px rgba(139, 92, 246, 0.3);
+		font-weight: 600;
+		gap: var(--spacing-xs);
+		display: inline-flex;
+		align-items: center;
+
+		&:hover {
+			background: linear-gradient(135deg, #7c3aed, #2563eb);
+			box-shadow: 0 12px 30px rgba(139, 92, 246, 0.4);
+			transform: translateY(-3px);
+		}
+	}
+
 	// Metrics Section
 	.metrics-section {
-		padding: var(--spacing-xl) 0;
-		background: linear-gradient(135deg, rgba(139, 92, 246, 0.03) 0%, rgba(59, 130, 246, 0.03) 100%);
+		padding: var(--spacing-lg) 0;
 	}
 
 	.metrics-grid {
@@ -858,6 +1223,20 @@
 
 		.languages-list {
 			justify-content: center;
+		}
+
+		.differentiators-grid {
+			grid-template-columns: 1fr;
+			gap: var(--spacing-md);
+		}
+
+		.differentiator-card {
+			padding: var(--spacing-md);
+		}
+
+		.differentiators-tagline {
+			font-size: 0.9rem;
+			padding: var(--spacing-sm) var(--spacing-md);
 		}
 	}
 </style>
