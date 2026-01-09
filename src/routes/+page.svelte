@@ -821,16 +821,24 @@
 		border: 1px solid rgba(255, 255, 255, 0.1);
 		border-top: none;
 		font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+		overflow-x: auto;
 	}
 
 	.terminal-line {
 		display: flex;
-		align-items: center;
+		align-items: flex-start;
 		margin-bottom: var(--spacing-xs);
 		line-height: 1.4;
+		min-width: max-content;
 
 		&:last-child {
 			margin-bottom: 0;
+		}
+
+		@media (max-width: 768px) {
+			flex-direction: column;
+			align-items: flex-start;
+			gap: 2px;
 		}
 	}
 
@@ -838,6 +846,11 @@
 		color: #22d3ee;
 		margin-right: var(--spacing-xs);
 		font-weight: 600;
+		flex-shrink: 0;
+
+		@media (max-width: 768px) {
+			margin-right: 0;
+		}
 	}
 
 	.terminal-command {
@@ -845,12 +858,41 @@
 		font-weight: 500;
 		white-space: nowrap;
 		margin-right: var(--spacing-sm);
+		flex-shrink: 0;
+
+		@media (max-width: 768px) {
+			white-space: normal;
+			word-break: break-all;
+			margin-right: 0;
+			margin-left: var(--spacing-sm);
+		}
 	}
 
 	.terminal-comment {
 		color: #94a3b8;
 		font-style: italic;
 		font-size: 0.9rem;
+
+		@media (max-width: 768px) {
+			margin-left: var(--spacing-sm);
+			font-size: 0.8rem;
+		}
+	}
+
+	.quick-start-unified-card {
+		padding: var(--spacing-xl);
+		transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+		width: 100%;
+		max-width: 700px;
+
+		&:hover {
+			transform: translateY(-8px);
+			background: rgba(255, 255, 255, 0.18);
+		}
+
+		@media (max-width: 768px) {
+			padding: var(--spacing-lg);
+		}
 	}
 
 	.quick-start-cta {
@@ -1223,6 +1265,32 @@
 
 		.languages-list {
 			justify-content: center;
+		}
+	}
+
+	@media (max-width: 480px) {
+		.metrics-grid {
+			grid-template-columns: 1fr;
+			gap: var(--spacing-sm);
+		}
+
+		.metric-card {
+			padding: var(--spacing-sm);
+			gap: var(--spacing-xs);
+		}
+
+		.metric-icon {
+			min-width: 40px;
+			height: 40px;
+			padding: var(--spacing-xs);
+		}
+
+		.metric-value {
+			font-size: 1.1rem;
+		}
+
+		.languages-section {
+			margin-top: var(--spacing-lg);
 		}
 
 		.differentiators-grid {
