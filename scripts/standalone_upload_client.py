@@ -1515,12 +1515,19 @@ class RemoteUploadClient:
                 self.debounce_seconds = debounce_seconds
                 self._debounce_timer = None
                 self._pending_paths = set()
+                self._check_for_deletions = False
                 self._lock = threading.Lock()
                 
             def on_any_event(self, event):
                 """Handle any file system event."""
                 if event.is_directory:
                     return
+
+                # Check for deletion-related events (DELETE, MOVED_FROM, MOVED_TO)
+                # These require checking cached paths for deleted files
+                event_type = event.event_type if hasattr(event, 'event_type') else event.__class__.__name__
+                if event_type in {'Deleted', 'Moved', 'FileDeletedEvent', 'FileMovedEvent'}:
+                    self._check_for_deletions = True
 
                 # Collect paths to process (src_path and potentially dest_path for moves)
                 paths_to_process = []
@@ -1558,12 +1565,17 @@ class RemoteUploadClient:
                         return
                     pending = list(self._pending_paths)
                     self._pending_paths.clear()
-                    
+                    check_deletions = self._check_for_deletions
+                    self._check_for_deletions = False
+
                 try:
-                    # Add cached paths (for deletions)
-                    all_paths = list(set(pending + [
-                        Path(p) for p in get_all_cached_paths(self.client.repo_name)
-                    ]))
+                    # Only include cached paths when deletion-related events occurred
+                    if check_deletions:
+                        all_paths = list(set(pending + [
+                            Path(p) for p in get_all_cached_paths(self.client.repo_name)
+                        ]))
+                    else:
+                        all_paths = pending
                     
                     changes = self.client.detect_file_changes(all_paths)
                     meaningful_changes = (

@@ -40,7 +40,11 @@ function registerExtensionCommands(deps) {
     };
 
     const resolveEndpointOrThrow = () => {
-        const cfg = getEffectiveConfig();
+        const getEffectiveConfigFn = requireDep(getEffectiveConfig, 'getEffectiveConfig');
+        if (typeof getEffectiveConfigFn !== 'function') {
+            throw new Error('getEffectiveConfig is not available (not a function).');
+        }
+        const cfg = getEffectiveConfigFn();
         const endpoint = (cfg.get('endpoint') || '').trim();
         if (!endpoint) {
             throw new Error('backend endpoint is not configured (contextEngineUploader.endpoint).');
@@ -117,7 +121,11 @@ function registerExtensionCommands(deps) {
 
     disposables.push(vscode.commands.registerCommand('contextEngineUploader.writeMcpConfigSelect', async () => {
         try {
-            const cfg = getEffectiveConfig();
+            const getEffectiveConfigFn = requireDep(getEffectiveConfig, 'getEffectiveConfig');
+            if (typeof getEffectiveConfigFn !== 'function') {
+                throw new Error('getEffectiveConfig is not available (not a function).');
+            }
+            const cfg = getEffectiveConfigFn();
             const claudeEnabled = !!cfg.get('mcpClaudeEnabled', true);
             const windsurfEnabled = !!cfg.get('mcpWindsurfEnabled', false);
             const augmentEnabled = !!cfg.get('mcpAugmentEnabled', false);

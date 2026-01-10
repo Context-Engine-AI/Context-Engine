@@ -1350,6 +1350,7 @@ class RemoteUploadClient:
                 self.debounce_seconds = debounce_seconds
                 self._debounce_timer = None
                 self._pending_paths = set()
+                self._check_for_deletions = False
                 self._lock = threading.Lock()
                 self._processing = False
                 
@@ -1357,6 +1358,12 @@ class RemoteUploadClient:
                 """Handle any file system event."""
                 if event.is_directory:
                     return
+
+                # Check for deletion-related events (DELETE, MOVED_FROM, MOVED_TO)
+                # These require checking cached paths for deleted files
+                event_type = event.event_type if hasattr(event, 'event_type') else event.__class__.__name__
+                if event_type in {'Deleted', 'Moved', 'FileDeletedEvent', 'FileMovedEvent'}:
+                    self._check_for_deletions = True
 
                 # Collect paths to process (src_path and potentially dest_path for moves)
                 paths_to_process = []
@@ -1398,16 +1405,21 @@ class RemoteUploadClient:
                     self._processing = True
                     pending = list(self._pending_paths)
                     self._pending_paths.clear()
+                    check_deletions = self._check_for_deletions
+                    self._check_for_deletions = False
 
                 try:
-                    # Add cached paths (for deletions)
-                    cached_file_hashes = _load_local_cache_file_hashes(
-                        self.client.workspace_path,
-                        self.client.repo_name
-                    )
-                    all_paths = list(set(pending + [
-                        Path(p) for p in cached_file_hashes.keys()
-                    ]))
+                    # Only include cached paths when deletion-related events occurred
+                    if check_deletions:
+                        cached_file_hashes = _load_local_cache_file_hashes(
+                            self.client.workspace_path,
+                            self.client.repo_name
+                        )
+                        all_paths = list(set(pending + [
+                            Path(p) for p in cached_file_hashes.keys()
+                        ]))
+                    else:
+                        all_paths = pending
 
                     changes = self.client.detect_file_changes(all_paths)
                     meaningful_changes = (

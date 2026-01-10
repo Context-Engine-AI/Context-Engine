@@ -46,7 +46,7 @@ function createProcessManager(deps) {
                 env.DEV_REMOTE_MODE = '1';
             }
             const gitMaxCommits = settings.get('gitMaxCommits');
-            if (typeof gitMaxCommits === 'number' && !Number.isNaN(gitMaxCommits)) {
+            if (typeof gitMaxCommits === 'number' && Number.isFinite(gitMaxCommits) && gitMaxCommits >= 0) {
                 env.REMOTE_UPLOAD_GIT_MAX_COMMITS = String(gitMaxCommits);
             }
             const gitSinceRaw = settings.get('gitSince');
@@ -228,7 +228,8 @@ function createProcessManager(deps) {
 
             // Restrict listener to watched targetPath
             indexedWatchDisposables.push(vscode.workspace.onDidChangeTextDocument((event) => {
-                if (watchedTargetPath) {
+                // Only process file URIs to avoid acting on untitled/remote documents
+                if (watchedTargetPath && event.document.uri.scheme === 'file') {
                     const relativePath = path.relative(watchedTargetPath, event.document.uri.fsPath);
                     // A file is inside the watched directory if the relative path doesn't start with '..' and is not absolute
                     const isInsideWatchedDir = !relativePath.startsWith('..') && !path.isAbsolute(relativePath);
@@ -323,7 +324,8 @@ function createProcessManager(deps) {
             });
             vscode.window.showInformationMessage('Context Engine remote watch started.');
         } catch (error) {
-            log(`Failed to spawn watch process: ${error.message}`);
+            const errorMsg = error instanceof Error ? error.message : String(error);
+            log(`Failed to spawn watch process: ${errorMsg}`);
         }
     }
 
