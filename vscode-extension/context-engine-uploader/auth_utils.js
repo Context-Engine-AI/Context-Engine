@@ -75,11 +75,12 @@ async function checkAuthStatus(endpoint, deps) {
 
       // Include exitCode and stderr for debugging errors
       const result = { state, userId, exitCode: code };
-      if (state === 'error' && (stderr || code !== 0)) {
+      // Capture stderr for any non-zero exit or when stderr output exists
+      if (stderr || code !== 0) {
         result.stderr = stderr;
         // Log error details for diagnostics
         if (deps && typeof deps.log === 'function') {
-          deps.log(`checkAuthStatus failed: exit code ${code}${stderr ? `, stderr: ${stderr}` : ''}`);
+          deps.log(`checkAuthStatus: state=${state}, exit code ${code}${stderr ? `, stderr: ${stderr}` : ''}`);
         }
       }
 

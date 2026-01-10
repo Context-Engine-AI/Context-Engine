@@ -55,7 +55,7 @@ function createProcessManager(deps) {
                 env.REMOTE_UPLOAD_GIT_SINCE = gitSince;
             }
         } catch (error) {
-            log(`Failed to read devRemoteMode setting: ${error instanceof Error ? error.message : String(error)}`);
+            log(`Failed to read extension settings: ${error instanceof Error ? error.message : String(error)}`);
         }
         if (options.hostRoot) {
             env.HOST_ROOT = options.hostRoot;

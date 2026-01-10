@@ -10,6 +10,14 @@ function registerExtensionCommands(deps) {
     const vscode = deps.vscode;
     const log = deps.log;
 
+    // Verify critical dependencies immediately
+    if (!vscode) {
+        throw new Error('Context Engine Uploader: vscode dependency is missing (extension failed to initialize).');
+    }
+    if (!log) {
+        throw new Error('Context Engine Uploader: log dependency is missing (extension failed to initialize).');
+    }
+
     const getEffectiveConfig = deps.getEffectiveConfig;
     const getOutputChannel = deps.getOutputChannel;
     const runSequence = deps.runSequence;

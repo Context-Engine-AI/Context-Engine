@@ -250,10 +250,9 @@ function createConfigResolver(deps) {
         }
 
         const resolvedTarget = path.resolve(targetPath);
-        let derivedHostRoot = path.dirname(resolvedTarget);
-        if (!derivedHostRoot || derivedHostRoot === resolvedTarget) {
-            derivedHostRoot = resolvedTarget;
-        }
+        // Handle edge case: path.dirname returns '.' for bare filenames (no directory component)
+        const dir = path.dirname(resolvedTarget);
+        const derivedHostRoot = dir === '.' ? resolvedTarget : dir;
         const hostRoot = hostRootOverride || derivedHostRoot;
         // Only log script path and host mapping on first call to reduce noise
         if (!_hasLoggedResolveInfo) {

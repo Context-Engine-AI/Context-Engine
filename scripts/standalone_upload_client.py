@@ -1521,10 +1521,10 @@ class RemoteUploadClient:
                 if event.is_directory:
                     return
 
-                # Check for deletion-related events (DELETE, MOVED_FROM, MOVED_TO)
+                # Check for deletion-related events (deleted, moved)
                 # These require checking cached paths for deleted files
-                event_type = event.event_type if hasattr(event, 'event_type') else event.__class__.__name__
-                if event_type in {'Deleted', 'Moved', 'FileDeletedEvent', 'FileMovedEvent'}:
+                event_type = getattr(event, 'event_type', event.__class__.__name__).lower()
+                if any(k in event_type for k in ('deleted', 'moved')):
                     self._check_for_deletions = True
 
                 # Collect paths to process (src_path and potentially dest_path for moves)

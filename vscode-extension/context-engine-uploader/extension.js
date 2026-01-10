@@ -168,17 +168,22 @@ function activate(context) {
     log(`Onboarding manager init failed: ${error instanceof Error ? error.message : String(error)}`);
   }
 
-  configResolver = createConfigResolver({
-    vscode,
-    path,
-    fs,
-    log,
-    getEffectiveConfig,
-    getPythonOverridePath: () => pythonOverridePath,
-    getExtensionRoot: () => extensionRoot,
-    getStatusBarItem: () => statusBarItem,
-    DEFAULT_CONTAINER_ROOT
-  });
+  try {
+    configResolver = createConfigResolver({
+      vscode,
+      path,
+      fs,
+      log,
+      getEffectiveConfig,
+      getPythonOverridePath: () => pythonOverridePath,
+      getExtensionRoot: () => extensionRoot,
+      getStatusBarItem: () => statusBarItem,
+      DEFAULT_CONTAINER_ROOT
+    });
+  } catch (error) {
+    configResolver = undefined;
+    log(`Config resolver init failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
 
   try {
     pythonEnvManager = createPythonEnvManager({
