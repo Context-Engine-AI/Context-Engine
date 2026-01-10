@@ -1,6 +1,5 @@
----
 name: context-engine
-description: Codebase search and context retrieval for any programming language. Hybrid semantic/lexical search with neural reranking. Use for code lookup, finding implementations, understanding codebases, Q&A grounded in source code, and persistent memory across sessions.
+description: Performs hybrid semantic/lexical search with neural reranking for codebase retrieval. Use for finding implementations, Q&A grounded in source code, and cross-session persistent memory.
 ---
 
 # Context-Engine
