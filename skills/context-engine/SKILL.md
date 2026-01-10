@@ -238,10 +238,9 @@ The `query_signature` encodes control flow: `L` (loops), `B` (branches), `T` (tr
 ```json
 {"symbol": "qdrant_client", "query_type": "importers", "limit": 10}
 ```
-Notes:
-- Uses indexed metadata fields (`metadata.calls`, `metadata.imports`, `metadata.symbol`, `metadata.symbol_path`).
 - Supports `language`, `under`, and `output_format` like other tools.
 - If there are no graph hits, it falls back to semantic search.
+- **Note**: Results are "hydrated" with ~500-char source snippets for immediate context.
 
 **search_commits_for** - Search git history:
 ```json
