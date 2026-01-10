@@ -21,6 +21,7 @@ import logging
 import argparse
 import subprocess
 import re
+import shutil
 from pathlib import Path, PurePosixPath
 from typing import Dict, List, Any, Optional, Tuple
 from datetime import datetime
@@ -47,6 +48,9 @@ except ImportError:
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+DEFAULT_MAX_TEMP_CLEAN_ATTEMPTS = 3
+DEFAULT_TEMP_CLEAN_SLEEP = 1.0
 
 # =============================================================================
 # EMBEDDED DEPENDENCIES (Extracted from Context-Engine)
@@ -703,14 +707,8 @@ class RemoteUploadClient:
     def cleanup(self):
         """Clean up temporary directories."""
         if self.temp_dir and os.path.exists(self.temp_dir):
-            try:
-                import shutil
-                shutil.rmtree(self.temp_dir)
-                logger.debug(f"[remote_upload] Cleaned up temporary directory: {self.temp_dir}")
-            except Exception as e:
-                logger.warning(f"[remote_upload] Failed to cleanup temp directory {self.temp_dir}: {e}")
-            finally:
-                self.temp_dir = None
+            _cleanup_dir_with_retries(self.temp_dir)
+            self.temp_dir = None
 
     def get_mapping_summary(self) -> Dict[str, Any]:
         """Return derived collection mapping details."""
@@ -1888,6 +1886,30 @@ def get_remote_config(cli_path: Optional[str] = None) -> Dict[str, str]:
         "max_retries": int(os.environ.get("REMOTE_UPLOAD_MAX_RETRIES", "5")),
         "timeout": int(os.environ.get("REMOTE_UPLOAD_TIMEOUT", "1800")),
     }
+
+
+def _cleanup_dir_with_retries(path: Optional[str]) -> None:
+    """Best-effort directory cleanup with retries (needed on Windows due to file locks)."""
+    if not path:
+        return
+    try_path = Path(path)
+    if not try_path.exists():
+        return
+
+    last_error: Optional[Exception] = None
+    for attempt in range(DEFAULT_MAX_TEMP_CLEAN_ATTEMPTS):
+        try:
+            shutil.rmtree(try_path)
+            logger.debug(f"[standalone_upload] Cleaned up temporary directory: {path}")
+            return
+        except Exception as exc:
+            last_error = exc
+            if attempt < DEFAULT_MAX_TEMP_CLEAN_ATTEMPTS - 1:
+                time.sleep(DEFAULT_TEMP_CLEAN_SLEEP * (attempt + 1))
+            else:
+                logger.warning(f"[standalone_upload] Failed to cleanup temp directory {path}: {exc}")
+    if last_error:
+        logger.debug(f"[standalone_upload] Last cleanup error for {path}: {last_error}")
 
 
 def main():
