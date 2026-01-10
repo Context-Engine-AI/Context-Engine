@@ -9,10 +9,7 @@ function createPythonEnvManager(deps) {
     const fs = deps.fs;
     const log = deps.log;
 
-    // State for deduplication and caching
-    const _checkCache = new Map();
-    const _checkInFlight = new Map();
-    const CACHE_TTL_MS = 30_000;
+    
 
     // Helper to spawn processes asynchronously with Promise wrapper
     function execAsync(command, args, options = {}) {
@@ -88,6 +85,15 @@ function createPythonEnvManager(deps) {
     }
 
     function getExtensionRoot() {
+        try {
+            if (typeof deps.getExtensionRoot === 'function') {
+                const root = deps.getExtensionRoot();
+                if (root) {
+                    return root;
+                }
+            }
+        } catch (_) {
+        }
         if (deps.extensionRoot) return deps.extensionRoot;
         try {
             return vscode.extensions.getExtension('context-engine.context-engine-uploader').extensionPath;
@@ -107,6 +113,11 @@ function createPythonEnvManager(deps) {
     }
 
     const REQUIRED_PYTHON_MODULES = ['requests', 'urllib3', 'charset_normalizer', 'watchdog'];
+    const depCheckCache = new Map();
+
+    function cacheKey(pythonPath, workingDirectory) {
+        return `${pythonPath || ''}::${workingDirectory || ''}`;
+    }
 
     function venvRootDir() {
         // Prefer workspace storage; fallback to extension storage
@@ -136,8 +147,10 @@ function createPythonEnvManager(deps) {
         // Try configured pythonPath, then common names
         const candidates = [];
         try {
-            const cfg = vscode.workspace.getConfiguration('contextEngineUploader');
-            const configured = (cfg.get('pythonPath') || '').trim();
+            const cfg = (typeof getEffectiveConfig === 'function')
+                ? getEffectiveConfig()
+                : vscode.workspace.getConfiguration('contextEngineUploader');
+            const configured = (cfg && typeof cfg.get === 'function') ? (cfg.get('pythonPath') || '').trim() : '';
             if (configured) candidates.push(configured);
         } catch { }
         if (process.platform === 'win32') {
@@ -167,71 +180,54 @@ function createPythonEnvManager(deps) {
         return undefined;
     }
 
-    async function checkPythonDeps(pythonPath) {
-        // 1. Check Success Cache (deduplicate subsequent calls if recent success)
-        const cacheKey = (pythonPath || '').trim();
-        const now = Date.now();
-        const cached = _checkCache.get(cacheKey);
-        if (cached && (now - cached.timestamp < CACHE_TTL_MS)) {
-            // Return cached true result without logging
-            return true;
-        }
-
-        // 2. Request Coalescing (deduplicate concurrent in-flight calls)
-        if (_checkInFlight.has(cacheKey)) {
-            return _checkInFlight.get(cacheKey);
-        }
-
-        const checkPromise = (async () => {
-            const missing = [];
-            const env = { ...process.env };
-            let usedBundled = false;
-            try {
-                const extensionRoot = getExtensionRoot();
-                const libsPath = path.join(extensionRoot, 'python_libs');
-                if (fs.existsSync(libsPath)) {
+    async function checkPythonDeps(pythonPath, workingDirectory, options = {}) {
+        const showInterpreterError = options.showInterpreterError !== undefined ? options.showInterpreterError : true;
+        const missing = [];
+        let pythonError;
+        const env = { ...process.env };
+        try {
+            const candidates = [];
+            if (workingDirectory) {
+                candidates.push(path.join(workingDirectory, 'python_libs'));
+            }
+            candidates.push(path.join(getExtensionRoot(), 'python_libs'));
+            for (const libsPath of candidates) {
+                if (libsPath && fs.existsSync(libsPath)) {
                     const existing = env.PYTHONPATH || '';
                     env.PYTHONPATH = existing ? `${libsPath}${path.delimiter}${existing}` : libsPath;
-                    usedBundled = true;
-                }
-            } catch (error) {
-                log(`Failed to configure PYTHONPATH for dependency check: ${error instanceof Error ? error.message : String(error)}`);
-            }
-
-            // Only log about bundled libs if we haven't successfully cached it recently
-            // or if we are about to fail. We defer logging success until end.
-
-            for (const moduleName of REQUIRED_PYTHON_MODULES) {
-                try {
-                    const check = await execAsync(pythonPath, ['-c', `import ${moduleName}`], { env, timeout: 5000 });
-                    if (check.code !== 0) {
-                        missing.push(moduleName);
-                    }
-                } catch (error) {
-                    log(`Dependency check failed for ${moduleName} on ${pythonPath}: ${error instanceof Error ? error.message : String(error)}`);
-                    return false;
+                    break;
                 }
             }
-
-            if (missing.length) {
-                if (usedBundled) {
-                    log(`Using bundled python_libs for dependency check.`);
-                }
-                log(`Missing Python modules for ${pythonPath}: ${missing.join(', ')}`);
-                return false;
-            }
-
-            // Success! Cache it.
-            _checkCache.set(cacheKey, { timestamp: Date.now() });
-            return true;
-        })();
-
-        _checkInFlight.set(cacheKey, checkPromise);
-        try {
-            return await checkPromise;
-        } finally {
-            _checkInFlight.delete(cacheKey);
+        } catch (error) {
+            log(`Failed to configure PYTHONPATH for dependency check: ${error instanceof Error ? error.message : String(error)}`);
         }
+
+        const smoke = await execAsync(pythonPath, ['-c', 'import sys; print(sys.executable)'], { env, timeout: 5000 });
+        if (smoke.code !== 0) {
+            pythonError = String((smoke.stderr || smoke.stdout || '')).trim();
+        }
+
+        if (!pythonError) {
+            for (const moduleName of REQUIRED_PYTHON_MODULES) {
+                const check = await execAsync(pythonPath, ['-c', `import ${moduleName}`], { env, timeout: 5000 });
+                if (check.code !== 0) {
+                    missing.push(moduleName);
+                }
+            }
+        }
+
+        if (pythonError) {
+            if (showInterpreterError) {
+                vscode.window.showErrorMessage(`Context Engine Uploader: failed to run ${pythonPath}. Update contextEngineUploader.pythonPath.`);
+            }
+            log(`Dependency check failed: ${pythonError}`);
+            return false;
+        }
+        if (missing.length) {
+            log(`Missing Python modules for ${pythonPath}: ${missing.join(', ')}`);
+            return false;
+        }
+        return true;
     }
 
     async function ensurePrivateVenv() {
@@ -312,10 +308,16 @@ function createPythonEnvManager(deps) {
         });
     }
 
-    async function ensurePythonDependencies(pythonPath) {
+    async function ensurePythonDependencies(pythonPath, workingDirectory, pythonPathSource) {
         // Probe current interpreter with bundled python_libs first
-        let ok = await checkPythonDeps(pythonPath);
+        const primaryShowError = pythonPathSource === 'configured' || pythonPathSource === 'override';
+        const primaryKey = cacheKey(pythonPath, workingDirectory);
+        if (depCheckCache.get(primaryKey)) {
+            return true;
+        }
+        let ok = await checkPythonDeps(pythonPath, workingDirectory, { showInterpreterError: primaryShowError });
         if (ok) {
+            depCheckCache.set(primaryKey, true);
             return true;
         }
 
@@ -323,9 +325,15 @@ function createPythonEnvManager(deps) {
         const autoPython = await detectSystemPython();
         if (autoPython && autoPython !== pythonPath) {
             log(`Falling back to auto-detected Python interpreter: ${autoPython}`);
-            ok = await checkPythonDeps(autoPython);
+            const autoKey = cacheKey(autoPython, workingDirectory);
+            if (depCheckCache.get(autoKey)) {
+                setPythonOverridePath(autoPython);
+                return true;
+            }
+            ok = await checkPythonDeps(autoPython, workingDirectory, { showInterpreterError: true });
             if (ok) {
                 setPythonOverridePath(autoPython);
+                depCheckCache.set(autoKey, true);
                 return true;
             }
         }
@@ -350,7 +358,15 @@ function createPythonEnvManager(deps) {
         if (!installed) return false;
         setPythonOverridePath(venvPython);
         log(`Using private venv interpreter: ${getPythonOverridePath()}`);
-        return await checkPythonDeps(venvPython);
+        const venvKey = cacheKey(venvPython, workingDirectory);
+        if (depCheckCache.get(venvKey)) {
+            return true;
+        }
+        const finalOk = await checkPythonDeps(venvPython, workingDirectory, { showInterpreterError: true });
+        if (finalOk) {
+            depCheckCache.set(venvKey, true);
+        }
+        return finalOk;
     }
 
     return {

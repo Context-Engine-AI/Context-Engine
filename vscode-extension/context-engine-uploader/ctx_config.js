@@ -29,7 +29,11 @@ function createCtxConfigManager(deps) {
     if (!options) {
       return;
     }
-    const depsOk = await ensurePythonDependencies(options.pythonPath);
+    const depsOk = await ensurePythonDependencies(
+      options.pythonPath,
+      options.workingDirectory,
+      options.pythonPathSource
+    );
     if (!depsOk) {
       return;
     }

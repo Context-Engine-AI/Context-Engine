@@ -191,9 +191,12 @@ function createConfigResolver(deps) {
         const pythonOverridePath = getPythonOverridePath();
         const extensionRoot = getExtensionRoot();
 
-        let pythonPath = (config.get('pythonPath') || 'python3').trim();
+        const configuredPython = (config.get('pythonPath') || '').trim();
+        let pythonPath = configuredPython || 'python3';
+        let pythonPathSource = configuredPython ? 'configured' : 'default';
         if (pythonOverridePath && fs.existsSync(pythonOverridePath)) {
             pythonPath = pythonOverridePath;
+            pythonPathSource = 'override';
         }
         const endpoint = (config.get('endpoint') || '').trim();
         const targetPath = getTargetPath(config);
@@ -261,6 +264,7 @@ function createConfigResolver(deps) {
 
         return {
             pythonPath,
+            pythonPathSource,
             workingDirectory,
             scriptPath,
             targetPath,

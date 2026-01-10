@@ -244,7 +244,10 @@ function activate(context) {
       extensionRoot,
       getEffectiveConfig,
       resolveOptions: () => configResolver ? configResolver.resolveOptions() : undefined,
-      ensurePythonDependencies: (pythonPath) => pythonEnvManager ? pythonEnvManager.ensurePythonDependencies(pythonPath) : Promise.resolve(false),
+      ensurePythonDependencies: (pythonPath, workingDirectory, pythonPathSource) =>
+        pythonEnvManager
+          ? pythonEnvManager.ensurePythonDependencies(pythonPath, workingDirectory, pythonPathSource)
+          : Promise.resolve(false),
       buildChildEnv: (options) => processManager?.buildChildEnv?.(options) ?? {},
       resolveBridgeHttpUrl: () => bridgeManager ? bridgeManager.resolveBridgeHttpUrl() : undefined,
     });
@@ -503,7 +506,7 @@ async function runSequence(mode = 'auto') {
   }
 
   const depsSatisfied = pythonEnvManager
-    ? await pythonEnvManager.ensurePythonDependencies(options.pythonPath)
+    ? await pythonEnvManager.ensurePythonDependencies(options.pythonPath, options.workingDirectory, options.pythonPathSource)
     : false;
   if (!depsSatisfied) {
     setStatusBarState('idle');
