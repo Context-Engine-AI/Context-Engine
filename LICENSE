@@ -12,8 +12,8 @@ Licensor:             John Donalson and Context-Engine Contributors
 Licensed Work:        Context-Engine
                       The Licensed Work is (c) 2025 John Donalson and Context-Engine Contributors.
 
-Additional Use Grant: You may make use of the Licensed Work, provided that you may not use
-                      the Licensed Work for a Code Search or Code Intelligence Service.
+Additional Use Grant: You may use the Licensed Work in production for any purpose
+                      except providing a Code Search or Code Intelligence Service.
 
                       A "Code Search or Code Intelligence Service" is a commercial offering
                       that allows third parties to access the functionality of the Licensed
@@ -22,7 +22,7 @@ Additional Use Grant: You may make use of the Licensed Work, provided that you m
 
 Change Date:          January 10, 2030
 
-Change License:       Apache License, Version 2.0
+Change License:       GNU General Public License v2.0 or later (GPL-2.0-or-later)
 
 -----------------------------------------------------------------------------
 
