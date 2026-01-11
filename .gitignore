@@ -47,3 +47,7 @@ docs/FORMULAS.md
 # SvelteKit
 .svelte-kit/
 build/
+/ideas
+/events
+*.XxwubJkx
+.coverage
