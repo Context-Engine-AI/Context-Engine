@@ -4,7 +4,7 @@
 		Layers,
 		Brain,
 		Plug,
-		BotOff,
+		Sparkles,
 		Zap,
 		Rocket,
 		BookOpen,
@@ -61,7 +61,7 @@
 		<div class="hero-content" class:mounted>
 			<div class="hero-badge glass-subtle">
 				<span class="pulse">
-					<BotOff size={24} />
+					<Sparkles size={24} />
 				</span>
 				<span>MCP Retrieval Stack</span>
 			</div>
