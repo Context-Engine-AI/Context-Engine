@@ -11,7 +11,7 @@ function getConfigPath() {
   return path.join(dir, CONFIG_BASENAME);
 }
 
-function readConfig() {
+export function readConfig() {
   try {
     const cfgPath = getConfigPath();
     const raw = fs.readFileSync(cfgPath, "utf8");

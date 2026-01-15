@@ -419,9 +419,15 @@ function activate(context) {
       event.affectsConfiguration('contextEngineUploader.mcpClaudeEnabled') ||
       event.affectsConfiguration('contextEngineUploader.mcpWindsurfEnabled') ||
       event.affectsConfiguration('contextEngineUploader.mcpAugmentEnabled') ||
+      event.affectsConfiguration('contextEngineUploader.mcpAntigravityEnabled') ||
       event.affectsConfiguration('contextEngineUploader.mcpTransportMode') ||
+      event.affectsConfiguration('contextEngineUploader.mcpServerMode') ||
+      event.affectsConfiguration('contextEngineUploader.mcpBridgeBinPath') ||
+      event.affectsConfiguration('contextEngineUploader.mcpBridgePort') ||
+      event.affectsConfiguration('contextEngineUploader.mcpBridgeLocalOnly') ||
       event.affectsConfiguration('contextEngineUploader.windsurfMcpPath') ||
       event.affectsConfiguration('contextEngineUploader.augmentMcpPath') ||
+      event.affectsConfiguration('contextEngineUploader.antigravityMcpPath') ||
       event.affectsConfiguration('contextEngineUploader.claudeHookEnabled') ||
       event.affectsConfiguration('contextEngineUploader.surfaceQdrantCollectionHint')
     ) {

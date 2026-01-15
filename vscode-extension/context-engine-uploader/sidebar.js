@@ -240,6 +240,22 @@ async function getCachedAuthLoggedIn(endpoint, deps) {
 }
 
 
+async function probeBridgeAlive(port) {
+  if (!port) return false;
+  const fetchFn = (typeof fetch === 'function' ? fetch : undefined);
+  if (!fetchFn) return false;
+  try {
+    const res = await fetchFn(`http://127.0.0.1:${port}/mcp`, {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' }
+    });
+    // Bridge returns 405 for GET /mcp, which is fine, it means something is listening
+    return res.status === 405 || res.ok;
+  } catch (_) {
+    return false;
+  }
+}
+
 function register(context, deps) {
   const profiles = deps && deps.profiles;
   const getEffectiveConfig = deps && deps.getEffectiveConfig;
@@ -347,7 +363,14 @@ function register(context, deps) {
     const targetTooltip = resolvedTarget && resolvedTarget.source ? `Source: ${resolvedTarget.source}` : undefined;
 
     const mcpMode = resolveMcpMode(cfg);
-    const bridge = state && state.httpBridgeProcess ? `running:${state.httpBridgePort || ''}` : 'stopped';
+    let bridge = state && state.httpBridgeProcess ? `running:${state.httpBridgePort || ''}` : 'stopped';
+
+    if (bridge === 'stopped') {
+      const configPort = Number(cfg.get('mcpBridgePort') || 30810);
+      if (await probeBridgeAlive(configPort)) {
+        bridge = `running (external):${configPort}`;
+      }
+    }
 
     return [
       makeTreeItem('Run State', { description: state && state.statusMode ? state.statusMode : 'unknown', icon: new vscode.ThemeIcon('pulse') }),

@@ -9,7 +9,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
-import { loadAnyAuthEntry, loadAuthEntry, saveAuthEntry } from "./authConfig.js";
+import { loadAnyAuthEntry, loadAuthEntry, readConfig, saveAuthEntry } from "./authConfig.js";
 import { maybeRemapToolArgs, maybeRemapToolResult } from "./resultPathMapping.js";
 import * as oauthHandler from "./oauthHandler.js";
 
@@ -278,6 +278,15 @@ const ADMIN_SESSION_COOKIE_NAME = "ctxce_session";
 const SLUGGED_REPO_RE = /.+-[0-9a-f]{16}(?:_old)?$/i;
 const BRIDGE_STATE_TOKEN = (process.env.CTXCE_BRIDGE_STATE_TOKEN || "").trim();
 
+function getHostname(candidate) {
+  try {
+    const url = new URL(candidate);
+    return url.hostname;
+  } catch {
+    return "";
+  }
+}
+
 function normalizeBackendUrl(candidate) {
   const trimmed = (candidate || "").trim();
   if (!trimmed) {
@@ -294,11 +303,35 @@ function normalizeBackendUrl(candidate) {
   return trimmed.replace(/\/+$/, "");
 }
 
-function resolveAuthBackendContext() {
+function resolveAuthBackendContext(indexerUrl, memoryUrl) {
   const envBackend = normalizeBackendUrl(process.env.CTXCE_AUTH_BACKEND_URL || "");
   if (envBackend) {
     return { backendUrl: envBackend, source: "CTXCE_AUTH_BACKEND_URL" };
   }
+
+  // If no env override, try to find a saved session.
+  // We prefer one that matches the host of indexer or memory URL if they look like backend roots.
+  const targetHosts = new Set();
+  const ih = getHostname(indexerUrl);
+  if (ih) {
+    targetHosts.add(ih);
+  }
+  const mh = getHostname(memoryUrl);
+  if (mh) {
+    targetHosts.add(mh);
+  }
+
+  if (targetHosts.size > 0) {
+    const all = readConfig();
+    const backends = Object.keys(all);
+    for (const backendUrl of backends) {
+      const bh = getHostname(backendUrl);
+      if (bh && targetHosts.has(bh)) {
+        return { backendUrl, source: "auth_entry_host_match" };
+      }
+    }
+  }
+
   try {
     const any = loadAnyAuthEntry();
     const stored = normalizeBackendUrl(any?.backendUrl || "");
@@ -311,19 +344,6 @@ function resolveAuthBackendContext() {
   return { backendUrl: "", source: "" };
 }
 
-const {
-  backendUrl: AUTH_BACKEND_URL,
-  source: AUTH_BACKEND_SOURCE,
-} = resolveAuthBackendContext();
-const UPLOAD_SERVICE_URL = AUTH_BACKEND_URL;
-const UPLOAD_AUTH_BACKEND = AUTH_BACKEND_URL;
-
-if (UPLOAD_SERVICE_URL) {
-  debugLog(`[ctxce] Upload/auth backend resolved from ${AUTH_BACKEND_SOURCE}: ${UPLOAD_SERVICE_URL}`);
-} else {
-  debugLog("[ctxce] No auth backend detected; bridge/state overrides disabled.");
-}
-
 async function fetchBridgeCollectionState({
   workspace,
   collection,
@@ -331,13 +351,15 @@ async function fetchBridgeCollectionState({
   repoName,
   bridgeStateToken,
   backendHint,
+  uploadServiceUrl,
 }) {
   try {
-    if (!UPLOAD_SERVICE_URL) {
+    if (!uploadServiceUrl) {
       debugLog("[ctxce] Skipping bridge/state fetch: no upload endpoint configured.");
       return null;
     }
-    const url = new URL("/bridge/state", UPLOAD_SERVICE_URL);
+    const url = new URL("/bridge/state", uploadServiceUrl);
+    // ...
     if (collection && collection.trim()) {
       url.searchParams.set("collection", collection.trim());
     } else if (workspace && workspace.trim()) {
@@ -423,9 +445,23 @@ async function createBridgeServer(options) {
   // future this can be made user-aware (e.g. from auth), but for now we
   // keep it deterministic per workspace to help the indexer reuse
   // session-scoped defaults.
+  const {
+    backendUrl: authBackendUrl,
+    source: authBackendSource,
+  } = resolveAuthBackendContext(indexerUrl, memoryUrl);
+
+  const uploadServiceUrl = authBackendUrl;
+  const uploadAuthBackend = authBackendUrl;
+
+  if (uploadServiceUrl) {
+    debugLog(`[ctxce] Upload/auth backend resolved from ${authBackendSource}: ${uploadServiceUrl}`);
+  } else {
+    debugLog("[ctxce] No auth backend detected; bridge/state overrides disabled.");
+  }
+
   const explicitSession = process.env.CTXCE_SESSION_ID || "";
   const authBackendEnv = (process.env.CTXCE_AUTH_BACKEND_URL || "").trim();
-  let backendHint = authBackendEnv || UPLOAD_AUTH_BACKEND || "";
+  let backendHint = authBackendEnv || uploadAuthBackend || "";
   let sessionId = explicitSession;
 
   function sessionFromEntry(entry) {
@@ -480,7 +516,7 @@ async function createBridgeServer(options) {
     if (explicit) {
       return explicit;
     }
-    return findSavedSession([backendHint, UPLOAD_AUTH_BACKEND, authBackendEnv]);
+    return findSavedSession([backendHint, uploadAuthBackend, authBackendEnv]);
   }
 
   if (!sessionId) {
@@ -508,6 +544,7 @@ async function createBridgeServer(options) {
       repoName,
       bridgeStateToken: BRIDGE_STATE_TOKEN,
       backendHint,
+      uploadServiceUrl,
     });
     if (state) {
       const serving = state.serving_collection || state.active_collection;

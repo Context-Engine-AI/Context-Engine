@@ -310,12 +310,12 @@ function createPythonEnvManager(deps) {
 
     async function ensurePythonDependencies(pythonPath, workingDirectory, pythonPathSource) {
         // Probe current interpreter with bundled python_libs first
-        const primaryShowError = pythonPathSource === 'configured' || pythonPathSource === 'override';
+        const allowPrompt = pythonPathSource === 'configured' || pythonPathSource === 'override';
         const primaryKey = cacheKey(pythonPath, workingDirectory);
         if (depCheckCache.get(primaryKey)) {
             return true;
         }
-        let ok = await checkPythonDeps(pythonPath, workingDirectory, { showInterpreterError: primaryShowError });
+        let ok = await checkPythonDeps(pythonPath, workingDirectory, { showInterpreterError: allowPrompt });
         if (ok) {
             depCheckCache.set(primaryKey, true);
             return true;
@@ -330,7 +330,7 @@ function createPythonEnvManager(deps) {
                 setPythonOverridePath(autoPython);
                 return true;
             }
-            ok = await checkPythonDeps(autoPython, workingDirectory, { showInterpreterError: true });
+            ok = await checkPythonDeps(autoPython, workingDirectory, { showInterpreterError: allowPrompt });
             if (ok) {
                 setPythonOverridePath(autoPython);
                 depCheckCache.set(autoKey, true);
@@ -339,6 +339,10 @@ function createPythonEnvManager(deps) {
         }
 
         // As a last resort, offer to create a private venv and install deps via pip
+        if (!allowPrompt) {
+            log('Skipping auto-install prompt; interpreter was auto-detected and missing modules.');
+            return false;
+        }
         const choice = await vscode.window.showErrorMessage(
             'Context Engine Uploader: missing Python modules. Create isolated environment and auto-install?',
             'Auto-install to private venv',

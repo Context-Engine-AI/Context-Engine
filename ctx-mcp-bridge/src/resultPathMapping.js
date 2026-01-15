@@ -319,6 +319,8 @@ function remapHitPaths(hit, workspaceRoot) {
       out.path = relPath;
     }
   }
+  // Strip internal container_path before returning to client.
+  delete out.container_path;
   return out;
 }
 
