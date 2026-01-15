@@ -1,6 +1,5 @@
----
 name: context-engine
-description: Codebase search and context retrieval for any programming language. Hybrid semantic/lexical search with neural reranking. Use for code lookup, finding implementations, understanding codebases, Q&A grounded in source code, and persistent memory across sessions.
+description: Performs hybrid semantic/lexical search with neural reranking for codebase retrieval. Use for finding implementations, Q&A grounded in source code, and cross-session persistent memory.
 ---
 
 # Context-Engine
@@ -238,10 +237,9 @@ The `query_signature` encodes control flow: `L` (loops), `B` (branches), `T` (tr
 ```json
 {"symbol": "qdrant_client", "query_type": "importers", "limit": 10}
 ```
-Notes:
-- Uses indexed metadata fields (`metadata.calls`, `metadata.imports`, `metadata.symbol`, `metadata.symbol_path`).
 - Supports `language`, `under`, and `output_format` like other tools.
 - If there are no graph hits, it falls back to semantic search.
+- **Note**: Results are "hydrated" with ~500-char source snippets for immediate context.
 
 **search_commits_for** - Search git history:
 ```json

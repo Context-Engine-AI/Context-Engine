@@ -41,8 +41,10 @@ grep -rn "REDIS_HOST" .             # Exact environment variable
 
 | Question Type | Tool |
 |--------------|------|
-| "Where is X implemented?" | MCP repo_search |
-| "How does authentication work?" | MCP context_answer |
+| "Where is X implemented?" | MCP `repo_search` |
+| "Who calls this and show code?" | MCP `symbol_graph` (hydrated w/ snippets) |
+| "How does authentication work?" | MCP `context_answer` |
+| "High-level module overview?" | MCP `info_request` (with explanations) |
 | "Does REDIS_HOST exist?" | Literal grep |
 | "Why did behavior change?" | `search_commits_for` + `change_history_for_path` |
 
