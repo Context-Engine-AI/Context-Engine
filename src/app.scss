@@ -148,6 +148,22 @@ body {
   }
 }
 
+// VS Code button with custom theme
+.btn-vscode {
+  background: rgba(0, 122, 204, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--text-primary);
+  
+  &:hover {
+    background: rgba(0, 122, 204, 1);
+    border-color: rgba(255, 255, 255, 0.3);
+    box-shadow: 
+      0 8px 32px rgba(0, 122, 204, 0.4),
+      0 0 20px rgba(0, 122, 204, 0.2);
+    transform: translateY(-2px);
+  }
+}
+
 // Contact button with vibrant mail theme
 .btn-contact {
   background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
