@@ -21,7 +21,8 @@
 		Cpu,
 		Target,
 		Users,
-		Mail
+		Mail,
+		Puzzle
 	} from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import { base } from '$app/paths';
@@ -91,6 +92,15 @@
 						/>
 					</svg>
 					View on GitHub
+				</a>
+
+				<a
+					href="https://marketplace.visualstudio.com/items?itemName=context-engine.context-engine-uploader"
+					class="btn-secondary btn-vscode"
+					target="_blank"
+				>
+					<Puzzle size={20} />
+					VS Code Extension
 				</a>
 
 				<a href="{base}/contact" class="btn-secondary btn-contact">
