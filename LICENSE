@@ -27,6 +27,43 @@ Change License:       GNU General Public License v2.0 or later (GPL-2.0-or-later
 
 -----------------------------------------------------------------------------
 
+Plugin Licensing
+
+NEO4J KNOWLEDGE GRAPH PLUGIN (plugins/neo4j_graph):
+
+PERMITTED WITHOUT LICENSE:
+- Local development and testing on developer machines
+- Evaluation and proof-of-concept work
+- Non-commercial personal projects
+
+COMMERCIAL LICENSE REQUIRED FOR:
+- Production deployments
+- Commercial use (revenue-generating applications)
+- Redistribution or inclusion in commercial products
+- Use in hosted/managed services
+
+To obtain a commercial license, contact:
+   Email: mirlok89@gmail.com
+
+THIRD-PARTY DEPENDENCY - NEO4J DATABASE:
+The plugin requires Neo4j database software, which is licensed separately
+by Neo4j, Inc. You must independently comply with Neo4j's licensing terms:
+
+   - Neo4j Community Edition: GPL v3 License
+   - Neo4j Enterprise Edition: Commercial License (contact Neo4j, Inc.)
+   - Neo4j AuraDB (Cloud): Subscription agreement with Neo4j, Inc.
+
+   See https://neo4j.com/licensing/ for Neo4j licensing details.
+
+This License grants no rights to Neo4j software or any Neo4j trademarks.
+Neo4j® is a registered trademark of Neo4j, Inc.
+
+OPEN CORE COMPONENTS:
+The default Qdrant-based graph backend (scripts/graph_backends/) is included
+in the base Licensed Work and requires no additional plugin license.
+
+-----------------------------------------------------------------------------
+
 Terms
 
 The Licensor hereby grants you the right to copy, modify, create derivative
