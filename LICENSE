@@ -12,17 +12,55 @@ Licensor:             John Donalson and Context-Engine Contributors
 Licensed Work:        Context-Engine
                       The Licensed Work is (c) 2025 John Donalson and Context-Engine Contributors.
 
-Additional Use Grant: You may use the Licensed Work in production for any purpose
-                      except providing a Code Search or Code Intelligence Service.
+Additional Use Grant: This Additional Use Grant expands the rights above to allow
+                      production use of the Licensed Work for any purpose except
+                      providing a Code Search or Code Intelligence Service.
 
                       A "Code Search or Code Intelligence Service" is a commercial offering
                       that allows third parties to access the functionality of the Licensed
                       Work by performing code search, code navigation, code intelligence,
-                      or code analysis as a hosted or managed service.
+                      or code analysis as a hosted or managed service. 
 
 Change Date:          January 10, 2030
 
 Change License:       GNU General Public License v2.0 or later (GPL-2.0-or-later)
+
+-----------------------------------------------------------------------------
+
+Plugin Licensing
+
+NEO4J KNOWLEDGE GRAPH PLUGIN (plugins/neo4j_graph):
+
+PERMITTED WITHOUT LICENSE:
+- Local development and testing on developer machines
+- Evaluation and proof-of-concept work
+- Non-commercial personal projects
+
+COMMERCIAL LICENSE REQUIRED FOR:
+- Production deployments
+- Commercial use (revenue-generating applications)
+- Redistribution or inclusion in commercial products
+- Use in hosted/managed services
+
+To obtain a commercial license, contact:
+   Email: mirlok89@gmail.com
+
+THIRD-PARTY DEPENDENCY - NEO4J DATABASE:
+The plugin requires Neo4j database software, which is licensed separately
+by Neo4j, Inc. You must independently comply with Neo4j's licensing terms:
+
+   - Neo4j Community Edition: GPL v3 License
+   - Neo4j Enterprise Edition: Commercial License (contact Neo4j, Inc.)
+   - Neo4j AuraDB (Cloud): Subscription agreement with Neo4j, Inc.
+
+   See https://neo4j.com/licensing/ for Neo4j licensing details.
+
+This License grants no rights to Neo4j software or any Neo4j trademarks.
+Neo4j® is a registered trademark of Neo4j, Inc.
+
+OPEN CORE COMPONENTS:
+The default Qdrant-based graph backend (scripts/graph_backends/) is included
+in the base Licensed Work and requires no additional plugin license.
 
 -----------------------------------------------------------------------------
 

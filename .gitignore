@@ -12,6 +12,8 @@ qdrant/snapshots/
 # Python cache
 __pycache__/
 *.pyc
+*.egg-info/
+AGENTS.md
 /.selftest_repo
 .vscode/settings.json
 .kiro/settings/mcp.json
@@ -51,3 +53,4 @@ build/
 /events
 *.XxwubJkx
 .coverage
+
