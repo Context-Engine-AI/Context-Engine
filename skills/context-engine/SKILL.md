@@ -1,6 +1,5 @@
----
 name: context-engine
-description: Codebase search and context retrieval for any programming language. Hybrid semantic/lexical search with neural reranking. Use for code lookup, finding implementations, understanding codebases, Q&A grounded in source code, and persistent memory across sessions.
+description: Performs hybrid semantic/lexical search with neural reranking for codebase retrieval. Use for finding implementations, Q&A grounded in source code, and cross-session persistent memory.
 ---
 
 # Context-Engine
@@ -34,9 +33,13 @@ What do you need?
     |
     +-- Find relationships
     |       |
-    |       +-- Who calls this function --> search_callers_for
+    |       +-- Who calls this function --> search_callers_for OR symbol_graph
     |       +-- Who imports this module --> search_importers_for
     |       +-- Symbol graph navigation (callers/defs/importers) --> symbol_graph
+    |       +-- Multi-hop callers (callers of callers) --> neo4j_graph_query (transitive_callers)
+    |       +-- Impact analysis (what breaks if I change X) --> neo4j_graph_query (impact)
+    |       +-- Dependency graph --> neo4j_graph_query (dependencies)
+    |       +-- Circular dependency detection --> neo4j_graph_query (cycles)
     |
     +-- Git history --> search_commits_for
     |
@@ -238,10 +241,34 @@ The `query_signature` encodes control flow: `L` (loops), `B` (branches), `T` (tr
 ```json
 {"symbol": "qdrant_client", "query_type": "importers", "limit": 10}
 ```
-Notes:
-- Uses indexed metadata fields (`metadata.calls`, `metadata.imports`, `metadata.symbol`, `metadata.symbol_path`).
-- Supports `language`, `under`, and `output_format` like other tools.
+- Supports `language`, `under`, `depth`, and `output_format` like other tools.
+- Use `depth=2` or `depth=3` for multi-hop traversals (callers of callers).
 - If there are no graph hits, it falls back to semantic search.
+- **Note**: Results are "hydrated" with ~500-char source snippets for immediate context.
+
+**neo4j_graph_query** - Advanced graph traversals (requires NEO4J_GRAPH=1):
+```json
+{"symbol": "normalize_path", "query_type": "impact", "depth": 2}
+```
+```json
+{"symbol": "get_embedding_model", "query_type": "transitive_callers", "depth": 2}
+```
+```json
+{"symbol": "run_hybrid_search", "query_type": "dependencies", "limit": 15}
+```
+
+**Query types:**
+| Type | Description |
+|------|-------------|
+| `callers` | Who calls this symbol? (depth 1) |
+| `callees` | What does this symbol call? (depth 1) |
+| `transitive_callers` | Multi-hop callers (up to depth) |
+| `transitive_callees` | Multi-hop callees (up to depth) |
+| `impact` | What breaks if I change this? (reverse transitive) |
+| `dependencies` | What does this depend on? (calls + imports) |
+| `cycles` | Detect circular dependencies |
+
+
 
 **search_commits_for** - Search git history:
 ```json

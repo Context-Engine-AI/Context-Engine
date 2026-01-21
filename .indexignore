@@ -1,0 +1,4 @@
+cosqa*.json
+# dev-workspace contains uploaded client workspaces - they get indexed
+# separately via upload service, not as part of the main Context-Engine repo
+dev-workspace/

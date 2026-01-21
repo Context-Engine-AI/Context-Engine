@@ -98,6 +98,9 @@ body {
   text-decoration: none;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  white-space: nowrap;
+  min-width: 140px;
+  gap: var(--spacing-xs);
   
   &:hover {
     transform: translateY(-2px);
@@ -129,6 +132,55 @@ body {
   &:hover {
     background: rgba(255, 255, 255, 0.1);
     color: var(--text-primary);
+  }
+}
+
+// GitHub button with black theme
+.btn-github {
+  background: rgba(36, 41, 47, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--text-primary);
+  
+  &:hover {
+    background: rgba(36, 41, 47, 1);
+    border-color: rgba(255, 255, 255, 0.3);
+    box-shadow: 0 8px 32px rgba(36, 41, 47, 0.4);
+  }
+}
+
+// VS Code button with custom theme
+.btn-vscode {
+  background: rgba(0, 122, 204, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--text-primary);
+  
+  &:hover {
+    background: rgba(0, 122, 204, 1);
+    border-color: rgba(255, 255, 255, 0.3);
+    box-shadow: 
+      0 8px 32px rgba(0, 122, 204, 0.4),
+      0 0 20px rgba(0, 122, 204, 0.2);
+    transform: translateY(-2px);
+  }
+}
+
+// Contact button with vibrant mail theme
+.btn-contact {
+  background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  box-shadow: 
+    0 8px 32px rgba(59, 130, 246, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  
+  &:hover {
+    background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
+    border-color: rgba(255, 255, 255, 0.4);
+    box-shadow: 
+      0 12px 40px rgba(59, 130, 246, 0.5),
+      0 0 30px rgba(59, 130, 246, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.25);
+    transform: translateY(-3px);
   }
 }
 

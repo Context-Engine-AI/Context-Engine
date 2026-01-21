@@ -1,3 +1,6 @@
 # Ignore watcher cache/state artifacts
 /.codebase
 /.cache
+
+# Dev workspace contains uploaded client workspaces - indexed separately
+/dev-workspace
