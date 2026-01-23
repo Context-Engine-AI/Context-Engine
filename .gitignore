@@ -54,3 +54,8 @@ build/
 *.XxwubJkx
 .coverage
 
+/deploy/eks-cdk
+.env.pathful
+.env.coir-jina-code
+.env.example
+.env.local-dev
