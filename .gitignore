@@ -62,3 +62,4 @@ deploy/eks-cdk/
 .serena/
 .sisyphus/
 ctx_config.json
+/deploy/eks-cdk
