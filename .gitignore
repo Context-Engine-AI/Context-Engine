@@ -57,3 +57,8 @@ build/
 .env.coir-jina-code
 .env.pathful
 plan.md
+deploy/eks-cdk/
+.env.local-dev
+.serena/
+.sisyphus/
+ctx_config.json
