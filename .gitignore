@@ -63,3 +63,4 @@ deploy/eks-cdk/
 .sisyphus/
 ctx_config.json
 /deploy/eks-cdk
+/deploy/eks-cdk-PATHFUL
