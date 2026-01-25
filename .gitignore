@@ -65,3 +65,7 @@ ctx_config.json
 /deploy/eks-cdk
 /deploy/eks-cdk-PATHFUL
 .env
+.contextstream/config.json
+.contextstream/ignore
+.cursorrules
+GEMINI.md

@@ -4,3 +4,34 @@
 
 # Dev workspace contains uploaded client workspaces - indexed separately
 /dev-workspace
+
+# CDK build artifacts (large, auto-generated)
+/deploy/eks-cdk*/cdk.out/**
+/deploy/eks-cdk*/**/*.js
+/deploy/eks-cdk*/**/*.d.ts
+/deploy/eks-cdk*/node_modules/**
+
+# Node modules
+/node_modules
+**/node_modules
+
+# Python virtual environments
+/.venv*
+/venv
+
+# Model binaries
+/models
+*.onnx
+*.bin
+*.safetensors
+
+# Test fixtures
+/test-repos
+/.selftest_repo
+
+# IDE/Editor
+/.idea
+/.vscode
+
+# ContextStream local cache
+/.contextstream
