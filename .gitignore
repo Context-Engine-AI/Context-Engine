@@ -1,4 +1,3 @@
-.env
 
 # Model artifacts
 models/
@@ -54,3 +53,15 @@ build/
 *.XxwubJkx
 .coverage
 
+/deploy/eks-cdk
+.env.coir-jina-code
+.env.pathful
+plan.md
+deploy/eks-cdk/
+.env.local-dev
+.serena/
+.sisyphus/
+ctx_config.json
+/deploy/eks-cdk
+/deploy/eks-cdk-PATHFUL
+.env

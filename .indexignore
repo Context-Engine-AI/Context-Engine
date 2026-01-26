@@ -2,3 +2,18 @@ cosqa*.json
 # dev-workspace contains uploaded client workspaces - they get indexed
 # separately via upload service, not as part of the main Context-Engine repo
 dev-workspace/
+
+# CDK/deploy build artifacts - duplicates of source files
+deploy/eks-cdk-*/cdk.out/
+**/cdk.out/
+
+# Build/dist artifacts
+dist/
+build/
+*.egg-info/
+
+# IDE/editor artifacts
+.idea/
+.vscode/
+*.swp
+*.swo
