@@ -9,21 +9,20 @@ All rights reserved.
 
 Grant of License
 
-Permission is hereby granted, free of charge, to any individual person
+Permission is hereby granted, free of charge, to any person or Entity
 obtaining a copy of this software and associated documentation files (the
-"Software"), to use the Software for personal, non-commercial purposes only,
-subject to the following conditions:
+"Software"), to use, copy, and modify the Software, subject to the
+following conditions:
 
-1. PERSONAL USE ONLY. You may use the Software for private, personal,
-   non-commercial purposes. "Personal use" means use by an individual acting
-   on their own behalf and not on behalf of, or for the benefit of, any
-   corporation, company, partnership, organization, government entity, or
-   other legal entity (collectively, "Entity").
+1. USE. You may use the Software for any purpose — personal, internal
+   business, commercial, academic, or governmental — provided that such
+   use does not violate the Competition Restriction below.
 
-2. LIMITED MODIFICATION. You may modify the Software for personal,
-   non-commercial use only, subject to the following:
+2. LIMITED MODIFICATION. You may modify the Software, subject to the
+   following:
    (a) You may not distribute, publish, or make publicly available any
-       modified version of the Software.
+       modified version of the Software, except by contributing changes
+       back to the official project repository.
    (b) All modifications, derivative works, improvements, additions, and
        contributions based on or incorporating the Software (collectively,
        "Modifications") are and shall remain the sole and exclusive
@@ -39,14 +38,16 @@ subject to the following conditions:
    to any third party, except by directing them to the original source
    repository.
 
-4. NO COMMERCIAL USE. You may not use the Software, directly or indirectly,
-   for any commercial purpose, including but not limited to:
-   (a) use within or on behalf of any Entity;
-   (b) use in any revenue-generating activity;
-   (c) offering the Software, or any functionality derived from it, as a
-       hosted, managed, or cloud-based service;
-   (d) incorporating the Software into any product, service, or platform
-       that is sold, licensed, or otherwise made available to third parties.
+4. COMPETITION RESTRICTION. You may not use the Software, directly or
+   indirectly, to provide a Competing Service. A "Competing Service" means
+   any product or service that:
+   (a) provides code search, code intelligence, code navigation, code
+       indexing, or semantic code analysis functionality; AND
+   (b) is made available to third parties as a hosted, managed, cloud-based,
+       or on-premises service, whether paid or free.
+   For clarity, using the Software internally within your own organization
+   for your own code is permitted. Using it to build and sell a code search
+   or code intelligence product to others is not.
 
 5. NO REVERSE ENGINEERING. You may not decompile, disassemble, or reverse
    engineer any compiled or obfuscated portions of the Software, except to
@@ -57,9 +58,9 @@ subject to the following conditions:
 
 Commercial Licensing
 
-Any use not expressly permitted above — including all corporate, commercial,
-governmental, academic-institutional, and organizational use — requires a
-separate commercial license from the Licensor.
+Use that violates the Competition Restriction, or any use of Premium
+Features (see Plugin Licensing below), requires a separate commercial
+license from the Licensor.
 
 To obtain a commercial license, contact:
    Email: john@context-engine.ai
