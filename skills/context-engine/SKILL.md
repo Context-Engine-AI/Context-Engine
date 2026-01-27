@@ -409,4 +409,9 @@ Common issues:
 7. **Index before search** - Always run `qdrant_index_root` on first use or after cloning a repo
 8. **Use pattern_search for structural matching** - When looking for code with similar control flow (retry loops, error handling), use `pattern_search` instead of `repo_search` (if enabled)
 9. **Describe patterns in natural language** - `pattern_search` understands "retry with backoff" just as well as actual code examples (if enabled)
+10. **Fire independent searches in parallel** - Call multiple `repo_search`, `symbol_graph`, etc. in the same message block for 2-3x speedup
+11. **Use TOON format for discovery** - Set `output_format: "toon"` for 60-80% token reduction on exploratory queries
+12. **Bootstrap sessions with defaults** - Call `set_session_defaults(output_format="toon", compact=true)` early to avoid repeating params
+13. **Two-phase search** - Discovery first (`limit=3, compact=true`), then deep dive (`limit=5-8, include_snippet=true`) on targets
+14. **Use fallback chains** - If `context_answer` times out, fall back to `repo_search` + `info_request(include_explanation=true)`
 
