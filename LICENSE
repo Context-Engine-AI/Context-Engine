@@ -1,7 +1,14 @@
 Business Source License 1.1
 
+<<<<<<< Updated upstream
 License text copyright (c) 2017 MariaDB Corporation Ab, All Rights Reserved.
 "Business Source License" is a trademark of MariaDB Corporation Ab.
+=======
+Licensor:  Context Engine Inc. and John Donalson (john@context-engine.ai)
+
+Copyright (c) 2025 Context Engine Inc. and John Donalson.
+All rights reserved.
+>>>>>>> Stashed changes
 
 -----------------------------------------------------------------------------
 
@@ -12,9 +19,26 @@ Licensor:             John Donalson and Context-Engine Contributors
 Licensed Work:        Context-Engine
                       The Licensed Work is (c) 2025 John Donalson and Context-Engine Contributors.
 
+<<<<<<< Updated upstream
 Additional Use Grant: This Additional Use Grant expands the rights above to allow
                       production use of the Licensed Work for any purpose except
                       providing a Code Search or Code Intelligence Service.
+=======
+2. LIMITED MODIFICATION. You may modify the Software, subject to the
+   following:
+   (a) You may not distribute, publish, or make publicly available any
+       modified version of the Software, except by contributing changes
+       back to the official project repository.
+   (b) All modifications, derivative works, improvements, additions, and
+       contributions based on or incorporating the Software (collectively,
+       "Modifications") are and shall remain the sole and exclusive
+       intellectual property of the Licensor, Context Engine Inc.
+   (c) By creating any Modification, you hereby irrevocably assign to the
+       Licensor all right, title, and interest in and to such Modification,
+       including all intellectual property rights therein.
+   (d) You waive any moral rights in your Modifications to the fullest
+       extent permitted by applicable law.
+>>>>>>> Stashed changes
 
                       A "Code Search or Code Intelligence Service" is a commercial offering
                       that allows third parties to access the functionality of the Licensed
