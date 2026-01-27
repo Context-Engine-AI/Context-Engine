@@ -38,7 +38,7 @@ CLAUDE.md
 !/dev-workspace/.gitkeep
 docs/AUGMENT_COMPATIBILITY.md
 .serena/project.yml
-/.venv311
+/.venv
 /.venv311
 nueral.txt
 refrag.txt
