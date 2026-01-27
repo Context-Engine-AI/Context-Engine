@@ -2,7 +2,7 @@
 	"name": "context-engine",
 	"private": true,
 	"version": "0.0.1",
-	"license": "BUSL-1.1",
+	"license": "SEE LICENSE IN LICENSE",
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev",
