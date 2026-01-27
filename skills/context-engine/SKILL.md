@@ -33,13 +33,14 @@ What do you need?
     |
     +-- Find relationships
     |       |
-    |       +-- Who calls this function --> search_callers_for OR symbol_graph
-    |       +-- Who imports this module --> search_importers_for
-    |       +-- Symbol graph navigation (callers/defs/importers) --> symbol_graph
-    |       +-- Multi-hop callers (callers of callers) --> neo4j_graph_query (transitive_callers)
-    |       +-- Impact analysis (what breaks if I change X) --> neo4j_graph_query (impact)
-    |       +-- Dependency graph --> neo4j_graph_query (dependencies)
-    |       +-- Circular dependency detection --> neo4j_graph_query (cycles)
+    |       +-- Who calls this function --> symbol_graph (DEFAULT, always available)
+    |       +-- Who imports this module --> symbol_graph OR search_importers_for
+    |       +-- Where is this defined --> symbol_graph (query_type="definition")
+    |       +-- Symbol graph navigation (callers/defs/importers) --> symbol_graph (ALWAYS use this first)
+    |       +-- Multi-hop callers (callers of callers) --> symbol_graph (depth=2+) OR neo4j_graph_query (if NEO4J_GRAPH=1)
+    |       +-- Impact analysis (what breaks if I change X) --> neo4j_graph_query (ONLY if available)
+    |       +-- Dependency graph --> neo4j_graph_query (ONLY if available)
+    |       +-- Circular dependency detection --> neo4j_graph_query (ONLY if available)
     |
     +-- Git history --> search_commits_for
     |
@@ -246,7 +247,10 @@ The `query_signature` encodes control flow: `L` (loops), `B` (branches), `T` (tr
 - If there are no graph hits, it falls back to semantic search.
 - **Note**: Results are "hydrated" with ~500-char source snippets for immediate context.
 
-**neo4j_graph_query** - Advanced graph traversals (requires NEO4J_GRAPH=1):
+**neo4j_graph_query** - Advanced graph traversals (OPTIONAL — ONLY available when NEO4J_GRAPH=1):
+
+> **If `neo4j_graph_query` is not in your MCP tool list, it is NOT enabled. Use `symbol_graph` for all graph queries instead. Do NOT error or warn about missing Neo4j.**
+
 ```json
 {"symbol": "normalize_path", "query_type": "impact", "depth": 2}
 ```
@@ -257,7 +261,7 @@ The `query_signature` encodes control flow: `L` (loops), `B` (branches), `T` (tr
 {"symbol": "run_hybrid_search", "query_type": "dependencies", "limit": 15}
 ```
 
-**Query types:**
+**Query types (only when neo4j_graph_query is available):**
 | Type | Description |
 |------|-------------|
 | `callers` | Who calls this symbol? (depth 1) |
@@ -400,18 +404,20 @@ Common issues:
 
 ## Best Practices
 
-1. **Start broad, then filter** - Begin with a semantic query, add filters if too many results
-2. **Use multi-query** - Pass 2-3 query variations for better recall on complex searches
-3. **Include snippets** - Set `include_snippet: true` to see code context in results
-4. **Store decisions** - Use `memory_store` to save architectural decisions and context for later
-5. **Check index health** - Run `qdrant_status` if searches return unexpected results
-6. **Prune after refactors** - Run `qdrant_prune` after moving/deleting files
-7. **Index before search** - Always run `qdrant_index_root` on first use or after cloning a repo
-8. **Use pattern_search for structural matching** - When looking for code with similar control flow (retry loops, error handling), use `pattern_search` instead of `repo_search` (if enabled)
-9. **Describe patterns in natural language** - `pattern_search` understands "retry with backoff" just as well as actual code examples (if enabled)
-10. **Fire independent searches in parallel** - Call multiple `repo_search`, `symbol_graph`, etc. in the same message block for 2-3x speedup
-11. **Use TOON format for discovery** - Set `output_format: "toon"` for 60-80% token reduction on exploratory queries
-12. **Bootstrap sessions with defaults** - Call `set_session_defaults(output_format="toon", compact=true)` early to avoid repeating params
-13. **Two-phase search** - Discovery first (`limit=3, compact=true`), then deep dive (`limit=5-8, include_snippet=true`) on targets
-14. **Use fallback chains** - If `context_answer` times out, fall back to `repo_search` + `info_request(include_explanation=true)`
+1. **NEVER use Read File or grep for exploration** - Use MCP tools (`repo_search`, `symbol_graph`, `context_answer`) instead. The ONLY acceptable use of Read/grep is confirming exact literal strings.
+2. **Default to `symbol_graph` for all graph queries** - It is always available. Only use `neo4j_graph_query` if the tool appears in your MCP tool list.
+3. **Start broad, then filter** - Begin with a semantic query, add filters if too many results
+4. **Use multi-query** - Pass 2-3 query variations for better recall on complex searches
+5. **Include snippets** - Set `include_snippet: true` to see code context in results
+6. **Store decisions** - Use `memory_store` to save architectural decisions and context for later
+7. **Check index health** - Run `qdrant_status` if searches return unexpected results
+8. **Prune after refactors** - Run `qdrant_prune` after moving/deleting files
+9. **Index before search** - Always run `qdrant_index_root` on first use or after cloning a repo
+10. **Use pattern_search for structural matching** - When looking for code with similar control flow (retry loops, error handling), use `pattern_search` instead of `repo_search` (if enabled)
+11. **Describe patterns in natural language** - `pattern_search` understands "retry with backoff" just as well as actual code examples (if enabled)
+12. **Fire independent searches in parallel** - Call multiple `repo_search`, `symbol_graph`, etc. in the same message block for 2-3x speedup
+13. **Use TOON format for discovery** - Set `output_format: "toon"` for 60-80% token reduction on exploratory queries
+14. **Bootstrap sessions with defaults** - Call `set_session_defaults(output_format="toon", compact=true)` early to avoid repeating params
+15. **Two-phase search** - Discovery first (`limit=3, compact=true`), then deep dive (`limit=5-8, include_snippet=true`) on targets
+16. **Use fallback chains** - If `context_answer` times out, fall back to `repo_search` + `info_request(include_explanation=true)`
 

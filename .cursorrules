@@ -2,6 +2,17 @@
 
 > **These rules are NOT optional.** Favor MCP Qdrant-Indexer tooling at all costs over grep, file reading, and unrelated codebase search tools.
 
+## STOP — Read This First
+
+**DO NOT use `Read File`, `grep`, `ripgrep`, `cat`, `find`, or any filesystem search tool for code exploration.**
+These tools exist in your IDE but they are WRONG for this codebase. You have MCP tools that are faster, smarter, and return ranked, contextual results.
+
+**If you catch yourself about to `Read` a file to understand it** → use `repo_search` or `context_answer` instead.
+**If you catch yourself about to `grep` for a symbol** → use `symbol_graph` or `search_callers_for` instead.
+**If you catch yourself about to `grep -r` for a concept** → use `repo_search` with a natural language query instead.
+
+The ONLY acceptable use of `grep`/`Read` is confirming an exact literal string you already know exists (e.g., an env var name like `REDIS_HOST`).
+
 ## Introduction
 
 This document defines requirements for AI agents using Context-Engine's MCP tools. The system provides two MCP servers (Memory Server on port 8000/8002, Indexer Server on port 8001/8003) with 30+ specialized tools for semantic code search, memory storage, and codebase exploration.
@@ -71,9 +82,11 @@ This document defines requirements for AI agents using Context-Engine's MCP tool
 4. WHEN needing quick discovery with summaries, THE Agent SHALL use `info_request` with `include_explanation=true`
 5. WHEN finding structurally similar patterns across languages, THE Agent SHALL use `pattern_search`
 
-### Requirement 5: Symbol Graph Navigation
+### Requirement 5: Symbol Graph Navigation (DEFAULT for all graph queries)
 
 **User Story:** As an AI agent, I want to navigate code relationships efficiently, so that I understand call graphs and dependencies.
+
+> **IMPORTANT:** `symbol_graph` is the DEFAULT and ALWAYS-AVAILABLE tool for graph queries. It works with the Qdrant-backed symbol index — no Neo4j required. Use `symbol_graph` FIRST for any caller/definition/importer query. Do NOT attempt `neo4j_graph_query` unless you know Neo4j is enabled.
 
 #### Acceptance Criteria
 
@@ -83,19 +96,23 @@ This document defines requirements for AI agents using Context-Engine's MCP tool
 4. THE Agent SHALL prefer `symbol_graph` over `search_callers_for` for structured navigation with metadata
 5. THE Agent SHALL use `language` and `under` filters to narrow symbol graph results
 6. WHEN needing multi-hop traversals, THE Agent SHALL use `symbol_graph` with `depth=2` or `depth=3`
+7. **THE Agent SHALL default to `symbol_graph` for ALL graph/relationship queries.** It is always available regardless of Neo4j status.
+8. THE Agent SHALL NOT attempt `neo4j_graph_query` unless the tool is visible in the MCP tool list (it only registers when `NEO4J_GRAPH=1`)
 
-### Requirement 5b: Neo4j Advanced Graph Queries
+### Requirement 5b: Neo4j Advanced Graph Queries (OPTIONAL — only when NEO4J_GRAPH=1)
 
-**User Story:** As an AI agent, I want to perform advanced graph traversals that grep cannot do, so that I understand impact, dependencies, and circular references.
+**User Story:** As an AI agent, I want to perform advanced graph traversals when Neo4j is available, so that I understand impact, dependencies, and circular references.
+
+> **NOTE:** The `neo4j_graph_query` tool is ONLY available when `NEO4J_GRAPH=1` is set. If this tool is not in your MCP tool list, it is NOT enabled — use `symbol_graph` instead for all graph queries. Do NOT error or warn about missing Neo4j; just use `symbol_graph`.
 
 #### Acceptance Criteria
 
-1. WHEN needing multi-hop callers (callers of callers), THE Agent SHALL use `neo4j_graph_query(query_type="transitive_callers", symbol="name", depth=2)`
-2. WHEN analyzing "what would break if I change X?", THE Agent SHALL use `neo4j_graph_query(query_type="impact", symbol="name", depth=2)`
-3. WHEN finding all dependencies of a function, THE Agent SHALL use `neo4j_graph_query(query_type="dependencies", symbol="name")`
-4. WHEN detecting circular dependencies, THE Agent SHALL use `neo4j_graph_query(query_type="cycles", symbol="name")`
-5. THE Agent SHALL prefer `neo4j_graph_query` over repeated grep when structural traversal is needed
-6. THE Agent SHALL understand that `neo4j_graph_query` provides 10-40x speedup over grep for caller lookups and enables queries that are IMPOSSIBLE with grep
+1. WHEN `neo4j_graph_query` IS available AND needing multi-hop callers, THE Agent SHALL use `neo4j_graph_query(query_type="transitive_callers", symbol="name", depth=2)`
+2. WHEN `neo4j_graph_query` IS available AND analyzing "what would break if I change X?", THE Agent SHALL use `neo4j_graph_query(query_type="impact", symbol="name", depth=2)`
+3. WHEN `neo4j_graph_query` IS available AND finding all dependencies, THE Agent SHALL use `neo4j_graph_query(query_type="dependencies", symbol="name")`
+4. WHEN `neo4j_graph_query` IS available AND detecting circular dependencies, THE Agent SHALL use `neo4j_graph_query(query_type="cycles", symbol="name")`
+5. WHEN `neo4j_graph_query` IS NOT available, THE Agent SHALL fall back to `symbol_graph` for callers/definitions/importers queries
+6. THE Agent SHALL NEVER error or complain about Neo4j being unavailable — just use `symbol_graph`
 
 ### Requirement 6: Specialized Search Tools
 
@@ -241,9 +258,9 @@ This document defines requirements for AI agents using Context-Engine's MCP tool
 4. WHEN mapping collections to repos, THE Agent SHALL use `collection_map`
 5. THE Agent SHALL understand workspace state includes: indexing_status, indexing_config, active_repo_slug
 
-### Requirement 18: Grep Anti-Patterns
+### Requirement 18: Grep and File Read Anti-Patterns
 
-**User Story:** As an AI agent, I want to recognize when grep is inappropriate, so that I use semantic search instead.
+**User Story:** As an AI agent, I want to recognize when grep and file reading are inappropriate, so that I use semantic search instead.
 
 #### Acceptance Criteria
 
@@ -252,6 +269,11 @@ This document defines requirements for AI agents using Context-Engine's MCP tool
 3. THE Agent SHALL NOT use `grep -r "error"` (use MCP: "error handling patterns")
 4. THE Agent SHALL NOT use `grep -r "database"` (use MCP: "database operations")
 5. THE Agent SHALL use grep ONLY for exact literals: `grep -rn "UserAlreadyExists"`, `grep -rn "REDIS_HOST"`
+6. THE Agent SHALL NOT use `Read File` to understand what a file does — use `repo_search` or `context_answer` with the filename in the query
+7. THE Agent SHALL NOT use `Read File` to find callers/imports — use `symbol_graph` instead
+8. THE Agent SHALL NOT open files to "browse" the codebase — use `info_request` or `repo_search` for discovery
+9. THE Agent SHALL NOT use `find` or `ls` to discover project structure — use `workspace_info` or `qdrant_status`
+10. THE ONLY acceptable uses of `Read File` are: (a) editing a file you already located via MCP, (b) reading config files you know the exact path of
 
 ### Requirement 19: Advanced Reranking Features
 
@@ -292,14 +314,14 @@ This document defines requirements for AI agents using Context-Engine's MCP tool
 | `pattern_search` | Structural similarity | `query`, `query_mode`, `target_languages` |
 
 ### Navigation Tools
-| Tool | Use Case | Key Parameters |
-|------|----------|----------------|
-| `symbol_graph` | Call/import/definition graphs (hydrated w/ snippets) | `symbol`, `query_type`, `limit`, `depth` |
-| `neo4j_graph_query` | Advanced traversals (impact, transitive, cycles) | `symbol`, `query_type`, `depth`, `limit` |
-| `search_callers_for` | Symbol usages (heuristic) | `query`, `language` |
-| `search_importers_for` | Import references | `query`, `language` |
-| `search_tests_for` | Test files | `query`, `limit` |
-| `search_config_for` | Config files | `query`, `limit` |
+| Tool | Use Case | Key Parameters | Availability |
+|------|----------|----------------|--------------|
+| `symbol_graph` | Call/import/definition graphs (hydrated w/ snippets) — **DEFAULT for all graph queries** | `symbol`, `query_type`, `limit`, `depth` | **Always available** |
+| `neo4j_graph_query` | Advanced traversals (impact, transitive, cycles) | `symbol`, `query_type`, `depth`, `limit` | Only when `NEO4J_GRAPH=1` |
+| `search_callers_for` | Symbol usages (heuristic) | `query`, `language` | Always available |
+| `search_importers_for` | Import references | `query`, `language` | Always available |
+| `search_tests_for` | Test files | `query`, `limit` | Always available |
+| `search_config_for` | Config files | `query`, `limit` | Always available |
 
 ### History Tools
 | Tool | Use Case | Key Parameters |
@@ -408,8 +430,9 @@ When primary tools fail or timeout, use these fallback patterns:
 |---------|----------|------|
 | `context_answer` | `repo_search` + `info_request(include_explanation=true)` | Timeout or decoder unavailable |
 | `pattern_search` | `repo_search` with structural query terms | PATTERN_VECTORS not enabled |
-| `neo4j_graph_query` | `symbol_graph` (Qdrant-backed) | Neo4j empty or unavailable |
+| `neo4j_graph_query` | `symbol_graph` (Qdrant-backed, ALWAYS available) | Neo4j not enabled (`NEO4J_GRAPH!=1`) or unavailable — **this is the DEFAULT** |
 | `memory_find` | `context_search(include_memories=true)` | Memory server issues |
+| `grep` / `Read File` | `repo_search`, `symbol_graph`, `info_request` | **ALWAYS** — do not use grep/read for exploration |
 
 ```
 # Example: context_answer fallback
@@ -593,7 +616,9 @@ INTENT_LOG_ROTATE_MB=100         # Max file size before rotation
 - Tune confidence thresholds based on real usage
 - Debug misclassifications with full candidate scores
 
-### Neo4j Graph Query Types
+### Neo4j Graph Query Types (ONLY when NEO4J_GRAPH=1)
+
+> **If `neo4j_graph_query` is not in your MCP tool list, skip this section entirely. Use `symbol_graph` for all graph queries instead.**
 
 The `neo4j_graph_query` tool provides advanced graph traversals that are **impossible with grep**:
 
