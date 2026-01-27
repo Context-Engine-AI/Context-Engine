@@ -38,7 +38,7 @@ CLAUDE.md
 !/dev-workspace/.gitkeep
 docs/AUGMENT_COMPATIBILITY.md
 .serena/project.yml
-/.venv311
+/.venv
 /.venv311
 nueral.txt
 refrag.txt
@@ -69,3 +69,5 @@ ctx_config.json
 .contextstream/ignore
 .cursorrules
 GEMINI.md
+ctx-mcp-bridge/bin/ctxce.js
+/ctx-mcp-bridge/bin
