@@ -1,29 +1,68 @@
-Business Source License 1.1
+Context-Engine Source Available License 1.0
 
-License text copyright (c) 2017 MariaDB Corporation Ab, All Rights Reserved.
-"Business Source License" is a trademark of MariaDB Corporation Ab.
+Licensor:  John Donalson (john@context-engine.ai)
+
+Copyright (c) 2025 John Donalson.
+All rights reserved.
 
 -----------------------------------------------------------------------------
 
-Parameters
+Grant of License
 
-Licensor:             John Donalson and Context-Engine Contributors
+Permission is hereby granted, free of charge, to any individual person
+obtaining a copy of this software and associated documentation files (the
+"Software"), to use the Software for personal, non-commercial purposes only,
+subject to the following conditions:
 
-Licensed Work:        Context-Engine
-                      The Licensed Work is (c) 2025 John Donalson and Context-Engine Contributors.
+1. PERSONAL USE ONLY. You may use the Software for private, personal,
+   non-commercial purposes. "Personal use" means use by an individual acting
+   on their own behalf and not on behalf of, or for the benefit of, any
+   corporation, company, partnership, organization, government entity, or
+   other legal entity (collectively, "Entity").
 
-Additional Use Grant: This Additional Use Grant expands the rights above to allow
-                      production use of the Licensed Work for any purpose except
-                      providing a Code Search or Code Intelligence Service.
+2. LIMITED MODIFICATION. You may modify the Software for personal,
+   non-commercial use only, subject to the following:
+   (a) You may not distribute, publish, or make publicly available any
+       modified version of the Software.
+   (b) All modifications, derivative works, improvements, additions, and
+       contributions based on or incorporating the Software (collectively,
+       "Modifications") are and shall remain the sole and exclusive
+       intellectual property of the Licensor, John Donalson.
+   (c) By creating any Modification, you hereby irrevocably assign to the
+       Licensor all right, title, and interest in and to such Modification,
+       including all intellectual property rights therein.
+   (d) You waive any moral rights in your Modifications to the fullest
+       extent permitted by applicable law.
 
-                      A "Code Search or Code Intelligence Service" is a commercial offering
-                      that allows third parties to access the functionality of the Licensed
-                      Work by performing code search, code navigation, code intelligence,
-                      or code analysis as a hosted or managed service. 
+3. NO REDISTRIBUTION. You may not sublicense, sell, resell, lease, rent,
+   lend, distribute, or otherwise transfer the Software or any copy thereof
+   to any third party, except by directing them to the original source
+   repository.
 
-Change Date:          January 10, 2030
+4. NO COMMERCIAL USE. You may not use the Software, directly or indirectly,
+   for any commercial purpose, including but not limited to:
+   (a) use within or on behalf of any Entity;
+   (b) use in any revenue-generating activity;
+   (c) offering the Software, or any functionality derived from it, as a
+       hosted, managed, or cloud-based service;
+   (d) incorporating the Software into any product, service, or platform
+       that is sold, licensed, or otherwise made available to third parties.
 
-Change License:       GNU General Public License v2.0 or later (GPL-2.0-or-later)
+5. NO REVERSE ENGINEERING. You may not decompile, disassemble, or reverse
+   engineer any compiled or obfuscated portions of the Software, except to
+   the extent expressly permitted by applicable law.
+
+6. ATTRIBUTION. You must retain all copyright notices, this license text,
+   and any other proprietary notices in all copies of the Software.
+
+Commercial Licensing
+
+Any use not expressly permitted above — including all corporate, commercial,
+governmental, academic-institutional, and organizational use — requires a
+separate commercial license from the Licensor.
+
+To obtain a commercial license, contact:
+   Email: john@context-engine.ai
 
 -----------------------------------------------------------------------------
 
@@ -43,7 +82,7 @@ COMMERCIAL LICENSE REQUIRED FOR:
 - Use in hosted/managed services
 
 To obtain a commercial license, contact:
-   Email: mirlok89@gmail.com
+   Email: john@context-engine.ai
 
 THIRD-PARTY DEPENDENCY - NEO4J DATABASE:
 The plugin requires Neo4j database software, which is licensed separately
@@ -64,65 +103,25 @@ in the base Licensed Work and requires no additional plugin license.
 
 -----------------------------------------------------------------------------
 
-Terms
+Termination
 
-The Licensor hereby grants you the right to copy, modify, create derivative
-works, redistribute, and make non-production use of the Licensed Work. The
-Licensor may make an Additional Use Grant, above, permitting limited
-production use.
+Any use of the Software in violation of this License will automatically and
+immediately terminate your rights under this License. Upon termination, you
+must cease all use of the Software and destroy all copies in your possession.
 
-Effective on the Change Date, or the fourth anniversary of the first publicly
-available distribution of a specific version of the Licensed Work under this
-License, whichever comes first, the Licensor hereby grants you rights under
-the terms of the Change License, and the rights granted in the paragraph
-above terminate.
+-----------------------------------------------------------------------------
 
-If your use of the Licensed Work does not comply with the requirements
-currently in effect as described in this License, you must purchase a
-commercial license from the Licensor, its affiliated entities, or authorized
-resellers, or you must refrain from using the Licensed Work.
+Disclaimer of Warranty
 
-All copies of the original and modified Licensed Work, and derivative works
-of the Licensed Work, are subject to this License. This License applies
-separately for each version of the Licensed Work and the Change Date may vary
-for each version of the Licensed Work released by Licensor.
+TO THE EXTENT PERMITTED BY APPLICABLE LAW, THE SOFTWARE IS PROVIDED "AS IS",
+WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE,
+NON-INFRINGEMENT, AND TITLE. THE ENTIRE RISK AS TO THE QUALITY AND
+PERFORMANCE OF THE SOFTWARE IS WITH YOU.
 
-You must conspicuously display this License on each original or modified copy
-of the Licensed Work. If you receive the Licensed Work in original or
-modified form from a third party, the terms and conditions set forth in this
-License apply to your use of that work.
+Limitation of Liability
 
-Any use of the Licensed Work in violation of this License will automatically
-terminate your rights under this License for the current and all other
-versions of the Licensed Work.
-
-This License does not grant you any right in any trademark or logo of
-Licensor or its affiliates (provided that you may use a trademark or logo of
-Licensor as expressly required by this License).
-
-TO THE EXTENT PERMITTED BY APPLICABLE LAW, THE LICENSED WORK IS PROVIDED ON
-AN "AS IS" BASIS. LICENSOR HEREBY DISCLAIMS ALL WARRANTIES AND CONDITIONS,
-EXPRESS OR IMPLIED, INCLUDING (WITHOUT LIMITATION) WARRANTIES OF
-MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, NON-INFRINGEMENT, AND TITLE.
-
-MariaDB hereby grants you permission to use this License's text to license
-your works, and to refer to it using the trademark "Business Source License",
-as long as you comply with the Covenants of Licensor below.
-
-Covenants of Licensor
-
-In consideration of the right to use this License's text and the "Business
-Source License" name and trademark, Licensor covenants to MariaDB, and to
-all other recipients of the licensed work to be provided by Licensor:
-
-1. To specify as the Change License the GPL Version 2.0 or any later version,
-   or a license that is compatible with GPL Version 2.0 or a later version,
-   where "compatible" means that software provided under the Change License
-   can be included in a program with software provided under GPL Version 2.0
-   or a later version. Licensor may specify additional Change Licenses without
-   limitation.
-2. To either: (a) specify an additional grant of rights to use that does not
-   impose any additional restriction on the right granted in this License, as
-   the Additional Use Grant; or (b) insert the text "None".
-3. To specify a Change Date.
-4. Not to modify this License in any other way.
+IN NO EVENT SHALL THE LICENSOR BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING
+FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
