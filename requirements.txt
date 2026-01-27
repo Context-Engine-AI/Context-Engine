@@ -33,7 +33,7 @@ tree_sitter_kotlin>=1.1.0
 tree_sitter_swift>=0.0.1
 tree_sitter_scala>=0.24.0
 tree_sitter_php>=0.24.0
-mcp==1.25.0
+mcp==1.23.0
 fastmcp==2.12.4
 fastapi
 uvicorn[standard]
