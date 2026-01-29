@@ -1,11 +1,11 @@
 ---
 name: mcp-tool-selection
-description: Decision rules for when to use MCP Qdrant-Indexer semantic search vs grep/literal file tools. Use this skill when starting exploration, debugging, or answering "where/why" questions about code.
+description: Decision rules for when to use Context Engine MCP semantic search vs grep/literal file tools. Use this skill when starting exploration, debugging, or answering "where/why" questions about code.
 ---
 
 # MCP Tool Selection Rules
 
-**Core principle:** MCP Qdrant-Indexer tools are primary for exploring code and history. Start with MCP for exploration, debugging, or "where/why" questions; use literal search/file-open only for narrow exact-literal lookups.
+**Core principle:** Context Engine MCP tools are primary for exploring code and history. Start with MCP for exploration, debugging, or "where/why" questions; use literal search/file-open only for narrow exact-literal lookups.
 
 ## STOP — Do NOT Use Read File or Grep for Exploration
 
@@ -19,7 +19,7 @@ You have MCP tools that are faster, smarter, and return ranked, contextual resul
 
 The ONLY acceptable use of grep/Read: confirming exact literal strings (e.g., `REDIS_HOST`), or reading a file you already located via MCP for editing.
 
-## Use MCP Qdrant-Indexer When
+## Use Context Engine MCP Tools When
 
 - Exploring or don't know exact strings/symbols
 - Need semantic or cross-file understanding (relationships, patterns, architecture)

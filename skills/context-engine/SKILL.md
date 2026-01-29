@@ -1,5 +1,6 @@
+---
 name: context-engine
-description: Performs hybrid semantic/lexical search with neural reranking for codebase retrieval. Use for finding implementations, Q&A grounded in source code, and cross-session persistent memory.
+description: Hybrid semantic/lexical code search with neural reranking via MCP tools. Use when searching a codebase, finding implementations, understanding how code works, finding callers/definitions, searching git history, or storing/retrieving knowledge. IMPORTANT - Always prefer these MCP tools over grep/find/cat for code exploration.
 ---
 
 # Context-Engine
