@@ -1,6 +1,6 @@
-# AI Agent Rules for Context-Engine MCP Tools
+# AI Agent Rules for Context Engine MCP Tools
 
-> **These rules are NOT optional.** Favor MCP Qdrant-Indexer tooling at all costs over grep, file reading, and unrelated codebase search tools.
+> **These rules are NOT optional.** Favor Context Engine MCP tools at all costs over grep, file reading, and unrelated codebase search tools.
 
 ## STOP — Read This First
 
@@ -15,9 +15,9 @@ The ONLY acceptable use of `grep`/`Read` is confirming an exact literal string y
 
 ## Introduction
 
-This document defines requirements for AI agents using Context-Engine's MCP tools. The system provides two MCP servers (Memory Server on port 8000/8002, Indexer Server on port 8001/8003) with 30+ specialized tools for semantic code search, memory storage, and codebase exploration.
+This document defines requirements for AI agents using Context Engine's MCP tools. The system provides two MCP servers (Memory Server on port 8000/8002, Indexer Server on port 8001/8003) with 30+ specialized tools for semantic code search, memory storage, and codebase exploration.
 
-**Core Principle:** MCP Qdrant-Indexer tools are PRIMARY for exploring code and history. Start with MCP for exploration, debugging, or "where/why" questions; use literal search/file-open only for narrow exact-literal lookups.
+**Core Principle:** Context Engine MCP tools are PRIMARY for exploring code and history. Start with MCP for exploration, debugging, or "where/why" questions; use literal search/file-open only for narrow exact-literal lookups.
 
 ## Glossary
 

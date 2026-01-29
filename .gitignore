@@ -33,7 +33,7 @@ tests/.codebase/state.json
 .mcp.json
 CLAUDE.md
 .qodo/.cursor/rules
-/.augment
+
 /dev-workspace/*
 !/dev-workspace/.gitkeep
 docs/AUGMENT_COMPATIBILITY.md
