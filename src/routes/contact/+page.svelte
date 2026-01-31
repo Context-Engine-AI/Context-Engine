@@ -11,12 +11,18 @@
 	} from 'lucide-svelte';
 	// Import Discord icon from a custom SVG since it's not in lucide
 	import { base } from '$app/paths';
+	import { page } from '$app/stores';
+	import { onMount } from 'svelte';
 
 	let formState: 'idle' | 'submitting' | 'success' | 'error' = $state('idle');
+
+	// Reactive to URL changes, works with SSR and client-side navigation
+	let isDemo = $derived($page.url.searchParams.get('type') === 'demo');
+
 	let formData = $state({
 		name: '',
 		email: '',
-		subject: '',
+		subject: isDemo ? 'Request Demo' : '',
 		message: ''
 	});
 
@@ -56,7 +62,7 @@
 <div class="contact-container" in:fade={{ duration: 300 }}>
 	<div class="container">
 		<header class="contact-header">
-			<h1 class="hero-title">Get In Touch</h1>
+			<h1 class="hero-title">{isDemo ? 'Request Demo' : 'Get In Touch'}</h1>
 			<p class="hero-subtitle">
 				Let's discuss your MCP integration <span class="divider">//</span> Questions about Context Engine?
 			</p>
@@ -132,7 +138,10 @@
 
 			<form class="contact-form glass" onsubmit={handleSubmit}>
 				<div class="form-header">
-					<h2>Send a Message</h2>
+					<h2>{isDemo ? 'Request Demo' : 'Send a Message'}</h2>
+					{#if isDemo}
+						<p class="demo-subtitle">Let's schedule a personalized demo of Context Engine</p>
+					{/if}
 				</div>
 
 				<div class="form-group">
@@ -438,6 +447,13 @@
 
 	.contact-form {
 		/* Form styling without sticky positioning */
+	}
+
+	.demo-subtitle {
+		color: var(--text-secondary);
+		font-size: 1rem;
+		margin: var(--spacing-xs) 0 0;
+		font-weight: 400;
 	}
 
 	.discord-icon {
