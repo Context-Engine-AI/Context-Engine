@@ -15,19 +15,15 @@
 	import { onMount } from 'svelte';
 
 	let formState: 'idle' | 'submitting' | 'success' | 'error' = $state('idle');
-	let isDemo = $state(false);
+
+	// Reactive to URL changes, works with SSR and client-side navigation
+	let isDemo = $derived($page.url.searchParams.get('type') === 'demo');
+
 	let formData = $state({
 		name: '',
 		email: '',
-		subject: '',
+		subject: isDemo ? 'Request Demo' : '',
 		message: ''
-	});
-
-	onMount(() => {
-		isDemo = $page.url.searchParams.get('type') === 'demo';
-		if (isDemo) {
-			formData.subject = 'Request Demo';
-		}
 	});
 
 	async function handleSubmit(event: SubmitEvent) {

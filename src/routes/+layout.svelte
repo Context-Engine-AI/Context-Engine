@@ -2,6 +2,7 @@
 	import '../app.scss';
 	import { Megaphone } from 'lucide-svelte';
 	import { page } from '$app/stores';
+	import { base } from '$app/paths';
 
 	let { children } = $props();
 
@@ -22,7 +23,7 @@
 					<Megaphone size={18} />
 				</span>
 				<span class="banner-message">Context Engine is launching soon!</span>
-				<a href="/contact?type=demo" class="banner-cta">Request Demo</a>
+				<a href="{base}/contact?type=demo" class="banner-cta">Request Demo</a>
 			</div>
 		</div>
 	</div>
