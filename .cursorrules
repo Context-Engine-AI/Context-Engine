@@ -1,4 +1,4 @@
-# AI Agent Rules for Context Engine MCP Tools
+# AI Agent Rules for Context-Engine MCP Tools
 
 > **These rules are NOT optional.** Favor Context Engine MCP tools at all costs over grep, file reading, and unrelated codebase search tools.
 
@@ -15,7 +15,7 @@ The ONLY acceptable use of `grep`/`Read` is confirming an exact literal string y
 
 ## Introduction
 
-This document defines requirements for AI agents using Context Engine's MCP tools. The system provides two MCP servers (Memory Server on port 8000/8002, Indexer Server on port 8001/8003) with 30+ specialized tools for semantic code search, memory storage, and codebase exploration.
+This document defines requirements for AI agents using Context-Engine's MCP tools. The system provides two MCP servers (Memory Server on port 8000/8002, Indexer Server on port 8001/8003) with 30+ specialized tools for semantic code search, memory storage, and codebase exploration.
 
 **Core Principle:** Context Engine MCP tools are PRIMARY for exploring code and history. Start with MCP for exploration, debugging, or "where/why" questions; use literal search/file-open only for narrow exact-literal lookups.
 
@@ -29,6 +29,18 @@ This document defines requirements for AI agents using Context Engine's MCP tool
 - **TOON**: Token-Oriented Object Notation - compact output format (60-80% token reduction)
 - **Symbol Graph**: Indexed metadata for calls, imports, and definitions navigation
 - **Collection**: Qdrant vector database collection storing indexed code chunks
+
+## Tool Selection Decision Tree
+
+```
+Need to search code?
+├── Single repo, know collection → repo_search(collection="...")
+├── Single repo, need explanation → context_answer or info_request
+├── Multiple repos or unsure → cross_repo_search(discover="auto")
+├── Tracing frontend→backend flow → cross_repo_search(trace_boundary=true)
+├── Finding callers/definitions → symbol_graph
+└── Exact literal string only → grep (last resort)
+```
 
 ## Requirements
 
@@ -198,6 +210,57 @@ This document defines requirements for AI agents using Context Engine's MCP tool
 4. WHEN `repo` is omitted, THE Agent SHALL rely on auto-detection via CURRENT_REPO env (REPO_AUTO_FILTER=1)
 5. THE Agent SHALL specify `collection` parameter when multiple collections exist
 
+### Requirement 12b: Cross-Repo Search Tool (PRIMARY for Multi-Repo)
+
+**User Story:** As an AI agent, I want to search across repositories with automatic discovery and boundary tracing, so that I efficiently trace flows between frontend and backend.
+
+> **IMPORTANT:** `cross_repo_search` is the PRIMARY tool for multi-repo scenarios. It combines discovery, search, and boundary extraction in one call. Use it BEFORE manual `qdrant_list` + `collection_map` + `repo_search` chains.
+
+#### Acceptance Criteria
+
+1. WHEN searching across multiple repos or unsure which repo contains code, THE Agent SHALL use `cross_repo_search` with `discover="auto"` or `discover="always"`
+2. WHEN tracing frontend→backend flows, THE Agent SHALL use `trace_boundary=true` to extract API routes, event names, and type names
+3. WHEN following a boundary key to another repo, THE Agent SHALL use `cross_repo_search(boundary_key="extracted_key", collection="target")`
+4. WHEN targeting specific repos by name, THE Agent SHALL use `target_repos=["frontend", "backend"]`
+5. WHEN you know the exact collection, THE Agent SHALL use `cross_repo_search(collection="exact-id")` with `discover="never"` for speed
+6. THE Agent SHALL prefer `cross_repo_search` over manual `repo_search` + `collection_map` chains for multi-repo work
+7. THE Agent SHALL check `discovery.hint` and `trace_hint` fields for actionable next-step suggestions
+
+#### Discovery Modes
+
+| Mode | Behavior | When to Use |
+|------|----------|-------------|
+| `"auto"` (default) | Discovers only if results empty or no explicit targeting | Normal usage |
+| `"always"` | Always runs discovery before search | First search in session, exploring new codebase |
+| `"never"` | Skips discovery, uses explicit collection | When you know exact collection, speed-critical |
+
+#### Cross-Repo Tracing Workflow (Simplified)
+
+**Before (manual):**
+```
+1. repo_search(collection="frontend", query="...")
+2. Manually extract API route from results
+3. repo_search(collection="backend", query="that route")
+```
+
+**After (with cross_repo_search):**
+```
+# Step 1: Search frontend with boundary tracing
+cross_repo_search(
+  query="login form submit",
+  collection="frontend-col",
+  trace_boundary=true
+)
+# → Returns: boundary_keys: ["/api/auth/login"], trace_hint: "Found API route..."
+
+# Step 2: Follow boundary key to backend
+cross_repo_search(
+  boundary_key="/api/auth/login",
+  collection="backend-col"
+)
+# → Returns: exact backend handler for that route
+```
+
 ### Requirement 13: Session Management
 
 **User Story:** As an AI agent, I want to maintain session context, so that I don't repeat parameters unnecessarily.
@@ -258,6 +321,92 @@ This document defines requirements for AI agents using Context Engine's MCP tool
 4. WHEN mapping collections to repos, THE Agent SHALL use `collection_map`
 5. THE Agent SHALL understand workspace state includes: indexing_status, indexing_config, active_repo_slug
 
+### Requirement 17b: Multi-Repo Navigation Workflow (CRITICAL)
+
+**User Story:** As an AI agent working with multiple repositories, I want a clear workflow to discover, switch between, and trace flows across codebases, so that I navigate multi-repo environments effectively without cross-contamination.
+
+> **NOTE:** For most multi-repo scenarios, prefer `cross_repo_search` (Requirement 12b) which handles discovery and boundary tracing automatically. The manual patterns below are fallbacks for complex cases or when `cross_repo_search` is unavailable.
+
+> **IMPORTANT:** In multi-repo setups, the default collection may not be what you want. You MUST discover available collections and explicitly target them.
+
+#### Multi-Repo Discovery (Lazy — trigger on demand)
+
+Don't discover at every session start. Trigger when: search returns no/irrelevant results, user asks a cross-repo question, or you're unsure which collection to target.
+
+```
+qdrant_list_context-engine()
+collection_map_context-engine(include_samples: true)
+```
+
+#### Context Switching (Session Defaults = `cd`)
+
+Treat `set_session_defaults` like `cd` — it scopes ALL subsequent searches to one collection:
+```
+# "cd" into backend repo
+set_session_defaults_context-engine(collection: "backend-api-abc123")
+# All searches now target backend
+repo_search_context-engine(query: "auth middleware")
+
+# One-off peek at another repo (does NOT change session default)
+repo_search_context-engine(query: "login form", collection: "frontend-app-def456")
+```
+
+#### Cross-Repo Flow Tracing (Boundary-Driven)
+
+NEVER search both repos with the same vague query. Find the **interface boundary** in Repo A, extract the **hard key** (exact route, event name, type name), then search Repo B with that key.
+
+**Pattern 1 — Interface Handshake (API/RPC):**
+```
+# Find client call in frontend → extract exact route
+repo_search_context-engine(query: "login API call", collection: "frontend-col")
+# → Found: axios.post('/auth/v1/login', ...)
+# Search backend for that exact route
+repo_search_context-engine(query: "'/auth/v1/login'", collection: "backend-col")
+```
+
+**Pattern 2 — Shared Contract (Types/Schemas):**
+```
+# Find type usage in consumer → find definition in source
+symbol_graph_context-engine(symbol: "UserProfile", query_type: "importers", collection: "frontend-col")
+repo_search_context-engine(query: "interface UserProfile", collection: "shared-lib-col")
+```
+
+**Pattern 3 — Event Relay (Pub/Sub):**
+```
+# Find producer → extract event name → find consumer
+repo_search_context-engine(query: "publish event", collection: "service-a-col")
+# → Found: bus.publish("USER_CREATED", payload)
+repo_search_context-engine(query: "'USER_CREATED'", collection: "service-b-col")
+```
+
+#### Automated Cross-Repo Search
+
+For quick multi-collection searches, use `cross_repo_search` instead of manually switching collections:
+```
+# Search across all repos at once (auto-discovers collections)
+cross_repo_search_context-engine(query: "authentication flow")
+
+# Target specific repos by name
+cross_repo_search_context-engine(query: "login handler", target_repos: ["frontend", "backend"])
+
+# Boundary tracing — auto-extracts routes/events/types from results
+cross_repo_search_context-engine(query: "login submit", trace_boundary: true)
+# → Returns boundary_keys: ["'/auth/v1/login'"] + trace_hint for next search
+```
+Use `cross_repo_search` when you need breadth across repos. Use `repo_search` with explicit `collection=` when you need depth in one repo.
+
+#### Acceptance Criteria
+
+1. WHEN search returns no results or user asks a cross-repo question, THE Agent SHALL run `qdrant_list` + `collection_map` to discover available collections, OR use `cross_repo_search` with `discover: "auto"` for automatic discovery
+2. WHEN unsure which collection contains a repo, THE Agent SHALL use `collection_map(include_samples: true)`
+3. WHEN focusing on a specific repo, THE Agent SHALL call `set_session_defaults(collection: "target")` to scope subsequent searches
+4. WHEN cross-referencing another repo, THE Agent SHALL pass `collection` explicitly on that single call (not change session defaults)
+5. WHEN tracing cross-repo flows, THE Agent SHALL use boundary-driven tracing: find exact interface key in source repo, then search for that key in target repo — OR use `cross_repo_search` with `trace_boundary: true` for automated key extraction
+6. THE Agent SHALL NOT search multiple repos with the same vague semantic query (noisy, confusing results)
+7. THE Agent SHALL NOT assume the default collection is correct in multi-repo setups
+8. WHEN searching across repos in a unified collection, THE Agent SHALL use `repo: "*"` or `repo: ["name1", "name2"]`
+9. WHEN needing to search across repos in SEPARATE collections simultaneously, THE Agent SHALL use `cross_repo_search` with `target_repos`
+
 ### Requirement 18: Grep and File Read Anti-Patterns
 
 **User Story:** As an AI agent, I want to recognize when grep and file reading are inappropriate, so that I use semantic search instead.
@@ -308,6 +457,7 @@ This document defines requirements for AI agents using Context Engine's MCP tool
 |------|----------|----------------|
 | `repo_search` | General code search | `query`, `limit`, `compact`, `language`, `under`, `symbol` |
 | `code_search` | Alias for repo_search | Same as repo_search |
+| `cross_repo_search` | Search across multiple repos/collections | `query`, `target_repos`, `discover`, `trace_boundary`, `boundary_key` |
 | `context_search` | Code + memory blend | `include_memories`, `per_source_limits` |
 | `context_answer` | NL explanations with citations | `query`, `budget_tokens`, `temperature` |
 | `info_request` | Quick discovery (multi-granular) | `info_request`, `include_explanation` (use for broad architecture/overviews) |
@@ -397,6 +547,19 @@ repo_search(
 )
 ```
 
+### Cross-Repo Discovery Strategy
+
+| Phase | Tool | Parameters | Output |
+|-------|------|------------|--------|
+| **Discover** | `cross_repo_search` | `discover="always"`, `trace_boundary=true` | Available repos + boundary keys |
+| **Trace** | `cross_repo_search` | `boundary_key="..."`, `collection="target"` | Handler in other repo |
+
+**When to use which:**
+- **Know exact collection** → `repo_search(collection="...")` (fastest)
+- **Know repo name but not collection ID** → `cross_repo_search(target_repos=["name"])`
+- **Unsure which repo** → `cross_repo_search(discover="always")`
+- **Tracing flow across repos** → `cross_repo_search(trace_boundary=true)` → `cross_repo_search(boundary_key="...")`
+
 ### Session Bootstrap
 
 **At the start of any session, set defaults to optimize all subsequent operations:**
@@ -432,6 +595,7 @@ When primary tools fail or timeout, use these fallback patterns:
 | `pattern_search` | `repo_search` with structural query terms | PATTERN_VECTORS not enabled |
 | `neo4j_graph_query` | `symbol_graph` (Qdrant-backed, ALWAYS available) | Neo4j not enabled (`NEO4J_GRAPH!=1`) or unavailable — **this is the DEFAULT** |
 | `memory_find` | `context_search(include_memories=true)` | Memory server issues |
+| `cross_repo_search` | `qdrant_list` + `collection_map` + `repo_search` (manual chain) | When cross_repo_search unavailable |
 | `grep` / `Read File` | `repo_search`, `symbol_graph`, `info_request` | **ALWAYS** — do not use grep/read for exploration |
 
 ```

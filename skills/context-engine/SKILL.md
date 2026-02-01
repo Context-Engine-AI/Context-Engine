@@ -1,6 +1,5 @@
----
 name: context-engine
-description: Hybrid semantic/lexical code search with neural reranking via MCP tools. Use when searching a codebase, finding implementations, understanding how code works, finding callers/definitions, searching git history, or storing/retrieving knowledge. IMPORTANT - Always prefer these MCP tools over grep/find/cat for code exploration.
+description: Performs hybrid semantic/lexical search with neural reranking for codebase retrieval. Use for finding implementations, Q&A grounded in source code, and cross-session persistent memory.
 ---
 
 # Context-Engine
@@ -91,7 +90,7 @@ Returns:
 }
 ```
 
-**Search across repos**:
+**Search across repos** (same collection):
 ```json
 {
   "query": "shared types",
@@ -99,6 +98,14 @@ Returns:
 }
 ```
 Use `repo: "*"` to search all indexed repos.
+
+**Search across repos** (separate collections — use `cross_repo_search`):
+```json
+// cross_repo_search
+{"query": "shared types", "target_repos": ["frontend", "backend"]}
+// With boundary tracing for cross-repo flow discovery
+{"query": "login submit", "trace_boundary": true}
+```
 
 ### Available Filters
 
@@ -361,6 +368,112 @@ With recreate (drops existing data):
 ```json
 {"collection": "my-project", "language": "python"}
 ```
+
+## Multi-Repo Navigation (CRITICAL)
+
+When multiple repositories are indexed, you MUST discover and explicitly target collections.
+
+### Discovery (Lazy — only when needed)
+
+Don't discover at every session start. Trigger when: search returns no/irrelevant results, user asks a cross-repo question, or you're unsure which collection to target.
+
+```json
+// qdrant_list — discover available collections
+{}
+// collection_map — map repos to collections with sample files
+{"include_samples": true}
+```
+
+### Context Switching (Session Defaults = `cd`)
+
+Treat `set_session_defaults` like `cd` — it scopes ALL subsequent searches:
+```json
+// "cd" into backend repo — all searches now target this collection
+// set_session_defaults
+{"collection": "backend-api-abc123"}
+
+// One-off peek at another repo (does NOT change session default)
+// repo_search
+{"query": "login form", "collection": "frontend-app-def456"}
+```
+
+For unified collections: use `"repo": "*"` or `"repo": ["frontend", "backend"]`
+
+### Cross-Repo Flow Tracing (Boundary-Driven)
+
+NEVER search both repos with the same vague query. Find the **interface boundary** in Repo A, extract the **hard key**, then search Repo B with that specific key.
+
+**Pattern 1 — Interface Handshake (API/RPC):**
+```json
+// 1. Find client call in frontend
+// repo_search
+{"query": "login API call", "collection": "frontend-col"}
+// → Found: axios.post('/auth/v1/login', ...)
+
+// 2. Search backend for that exact route
+// repo_search
+{"query": "'/auth/v1/login'", "collection": "backend-col"}
+```
+
+**Pattern 2 — Shared Contract (Types/Schemas):**
+```json
+// 1. Find type usage in consumer
+// symbol_graph
+{"symbol": "UserProfile", "query_type": "importers", "collection": "frontend-col"}
+
+// 2. Find definition in source
+// repo_search
+{"query": "interface UserProfile", "collection": "shared-lib-col"}
+```
+
+**Pattern 3 — Event Relay (Pub/Sub):**
+```json
+// 1. Find producer → extract event name
+// repo_search
+{"query": "publish event", "collection": "service-a-col"}
+// → Found: bus.publish("USER_CREATED", payload)
+
+// 2. Find consumer with exact event name
+// repo_search
+{"query": "'USER_CREATED'", "collection": "service-b-col"}
+```
+
+### Automated Cross-Repo Search (PRIMARY for Multi-Repo)
+
+`cross_repo_search` is the PRIMARY tool for multi-repo scenarios. Use it BEFORE manual `qdrant_list` + `repo_search` chains.
+
+**Discovery Modes:**
+| Mode | Behavior | When to Use |
+|------|----------|-------------|
+| `"auto"` (default) | Discovers only if results empty or no targeting | Normal usage |
+| `"always"` | Always runs discovery before search | First search in session, exploring new codebase |
+| `"never"` | Skips discovery, uses explicit collection | When you know exact collection, speed-critical |
+
+```json
+// Search across all repos at once (auto-discovers collections)
+// cross_repo_search
+{"query": "authentication flow", "discover": "auto"}
+
+// Target specific repos by name
+// cross_repo_search
+{"query": "login handler", "target_repos": ["frontend", "backend"]}
+
+// Boundary tracing — auto-extracts routes/events/types from results
+// cross_repo_search
+{"query": "login submit", "trace_boundary": true}
+// → Returns boundary_keys: ["/api/auth/login"] + trace_hint for next search
+
+// Follow boundary key to another repo
+// cross_repo_search
+{"boundary_key": "/api/auth/login", "collection": "backend-col"}
+```
+Use `cross_repo_search` when you need breadth across repos. Use `repo_search` with explicit `collection` when you need depth in one repo.
+
+### Multi-Repo Anti-Patterns
+- **DON'T** search both repos with the same vague query (noisy, confusing)
+- **DON'T** assume the default collection is correct — verify with `collection_map`
+- **DON'T** forget to "cd back" after cross-referencing another repo
+- **DO** extract exact strings (route paths, event names, type names) as search anchors
 
 ## Query Expansion
 

@@ -13,6 +13,7 @@ Hybrid vector search (semantic + lexical) with neural reranking for codebase ret
 Need to find code?
 ├── Simple lookup → info_request
 ├── Need filters/control → repo_search
+├── Search across multiple repos → cross_repo_search
 ├── Want LLM explanation → context_answer
 ├── Find similar patterns → pattern_search (if enabled)
 ├── Find relationships → symbol_graph (DEFAULT, always available)
@@ -90,6 +91,69 @@ Use `depth=2` for multi-hop (callers of callers).
 - `path_glob` - Include patterns: `["**/*.ts"]`
 - `not_glob` - Exclude patterns: `["**/test_*"]`
 - `repo` - Repository filter: `["frontend", "backend"]` or `"*"` for all
+
+## Multi-Repo Navigation (CRITICAL)
+
+When multiple repositories are indexed, you MUST discover and explicitly target collections.
+
+### Discovery (Lazy — only when needed)
+Don't discover at every session start. Trigger when: search returns no/irrelevant results, user asks a cross-repo question, or you're unsure which collection to target.
+```json
+// qdrant_list — discover available collections
+{}
+// collection_map — map repos to collections with sample files
+{"include_samples": true}
+```
+
+### Context Switching (Session Defaults = `cd`)
+Treat `set_session_defaults` like `cd` — scopes ALL subsequent searches:
+```json
+// "cd" into backend repo
+{"collection": "backend-api-abc123"}
+// One-off peek at another repo (does NOT change session default)
+{"query": "login form", "collection": "frontend-app-def456"}
+```
+For unified collections: `"repo": "*"` or `"repo": ["frontend", "backend"]`
+
+### Cross-Repo Flow Tracing (Boundary-Driven)
+NEVER search both repos with the same vague query. Find the **interface boundary** in Repo A, extract the **hard key**, search Repo B with that key.
+
+**Pattern 1 — Interface Handshake (API/RPC):**
+1. Find client call: `repo_search(query="login API call", collection="frontend-col")`
+2. Extract route: `/auth/v1/login`
+3. Find handler: `repo_search(query="'/auth/v1/login'", collection="backend-col")`
+
+**Pattern 2 — Shared Contract (Types):**
+1. Find usage: `symbol_graph(symbol="UserProfile", query_type="importers", collection="frontend-col")`
+2. Find definition: `repo_search(query="interface UserProfile", collection="shared-lib-col")`
+
+**Pattern 3 — Event Relay (Pub/Sub):**
+1. Find producer: `repo_search(query="publish event", collection="service-a-col")`
+2. Extract event: `"USER_CREATED"`
+3. Find consumer: `repo_search(query="'USER_CREATED'", collection="service-b-col")`
+
+### Automated Cross-Repo Search (PRIMARY for Multi-Repo)
+`cross_repo_search` is the PRIMARY tool for multi-repo scenarios. Use BEFORE manual `qdrant_list` + `repo_search` chains.
+
+**Discovery Modes:**
+| Mode | Behavior | When to Use |
+|------|----------|-------------|
+| `"auto"` | Discovers only if results empty | Normal usage |
+| `"always"` | Always runs discovery | First search, new codebase |
+| `"never"` | Skip discovery | Speed-critical |
+
+**Examples:**
+1. Search all repos: `cross_repo_search(query="authentication flow", discover="auto")`
+2. Target repos: `cross_repo_search(query="login handler", target_repos=["frontend", "backend"])`
+3. Boundary tracing: `cross_repo_search(query="login submit", trace_boundary=true)` → returns `boundary_keys`
+4. Follow key: `cross_repo_search(boundary_key="/api/auth/login", collection="backend-col")`
+
+Use `cross_repo_search` when you need breadth across repos. Use `repo_search` with explicit `collection=` when you need depth in one repo.
+
+### Anti-Patterns
+- DON'T search both repos with the same vague query
+- DON'T assume the default collection is correct — verify with `collection_map`
+- DO extract exact strings (routes, event names, types) as search anchors
 
 ## References
 
