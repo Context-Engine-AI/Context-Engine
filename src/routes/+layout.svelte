@@ -1,154 +1,99 @@
 <script lang="ts">
 	import '../app.scss';
-	import { Megaphone } from 'lucide-svelte';
+	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import { base } from '$app/paths';
+	import { Sun, Moon, Mail, Github, Layers } from 'lucide-svelte';
 
 	let { children } = $props();
 
-	// Hide banner on contact page only when coming from demo request
-	let hideBanner = $derived(
-		$page.route.id === '/contact' && $page.url.searchParams.get('type') === 'demo'
-	);
+	let theme = $state('dark');
+
+	onMount(() => {
+		const saved = localStorage.getItem('theme');
+		if (saved) {
+			theme = saved;
+			document.documentElement.setAttribute('data-theme', saved);
+		}
+	});
+
+	function toggleTheme() {
+		theme = theme === 'dark' ? 'light' : 'dark';
+		document.documentElement.setAttribute('data-theme', theme);
+		localStorage.setItem('theme', theme);
+	}
+
+	// Check if we're on the contact page
+	let isContactPage = $derived($page.route.id === '/contact');
 </script>
 
-<div class="bg-gradient"></div>
-<div class="bg-overlay"></div>
-
-{#if !hideBanner}
-	<div class="launch-banner">
-		<div class="banner-content">
-			<div class="banner-text">
-				<span class="banner-icon">
-					<Megaphone size={18} />
-				</span>
-				<span class="banner-message">Context Engine is launching soon!</span>
-				<a href="{base}/contact?type=demo" class="banner-cta">Request Demo</a>
-			</div>
-		</div>
+<header class="header">
+	<div class="header-left">
+		<a href="{base}/" class="logo">
+			<span class="logo-icon">
+				<Layers size={18} />
+			</span>
+			Context Engine
+		</a>
+		<nav class="nav">
+			<a
+				href="https://www.npmjs.com/package/@context-engine-bridge/context-engine-mcp-bridge"
+				class="nav-link"
+				target="_blank"
+			>
+				<svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+					<path
+						d="M0 7.334v8h6.666v1.332H12v-1.332h12v-8H0zm6.666 6.664H5.334v-4H3.999v4H1.335V8.667h5.331v5.331zm4 0v1.336H8.001V8.667h5.334v5.332h-2.669v-.001zm12.001 0h-1.33v-4h-1.336v4h-1.335v-4h-1.33v4h-2.671V8.667h8.002v5.331zM10.665 10H12v2.667h-1.335V10z"
+					/>
+				</svg>
+				NPM Bridge
+			</a>
+			<a
+				href="https://github.com/Context-Engine-AI/Context-Engine"
+				class="nav-link"
+				target="_blank"
+			>
+				<Github size={16} />
+				GitHub
+			</a>
+			<a
+				href="https://marketplace.visualstudio.com/items?itemName=context-engine.context-engine-uploader"
+				class="nav-link"
+				target="_blank"
+			>
+				<svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+					<path
+						d="M17.583.063a1.5 1.5 0 00-1.032.392 1.5 1.5 0 00-.001 0L7.332 9.057 2.983 5.602a1 1 0 00-1.283.082L.313 7.012A1 1 0 000 7.748v8.504a1 1 0 00.313.736l1.387 1.328a1 1 0 001.283.082l4.349-3.455 9.218 8.602a1.5 1.5 0 001.033.392 1.5 1.5 0 00.417-.063l4.5-1.5a1.5 1.5 0 001-1.415V1.541a1.5 1.5 0 00-1-1.415l-4.5-1.5a1.5 1.5 0 00-.417-.063zM18 6.927v10.146L10.893 12z"
+					/>
+				</svg>
+				VS Code <span style="font-size:11px;opacity:0.7">(OSS)</span>
+			</a>
+		</nav>
 	</div>
-{/if}
+	<div class="header-right">
+		<a href="mailto:support@context-engine.ai" class="btn btn-ghost">
+			<Mail size={16} />
+			Support
+		</a>
+		<button class="icon-btn" onclick={toggleTheme} aria-label="Toggle theme">
+			{#if theme === 'dark'}
+				<span class="sun-icon"><Sun size={18} /></span>
+			{:else}
+				<span class="moon-icon"><Moon size={18} /></span>
+			{/if}
+		</button>
+		<a href="#demo" class="btn btn-primary">Request Demo</a>
+	</div>
+</header>
 
-<div class="app">
-	<main>
-		{@render children()}
-	</main>
-</div>
+<main>
+	{@render children()}
+</main>
 
-<style lang="scss">
-	.launch-banner {
-		position: sticky;
-		top: 0;
-		z-index: 1000;
-		background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-		color: white;
-		padding: 0.75rem 1rem;
-		box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-		animation: slideDown 0.3s ease-out;
-	}
-
-	.banner-content {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		max-width: 1200px;
-		margin: 0 auto;
-	}
-
-	.banner-text {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		flex: 1;
-	}
-
-	.banner-icon {
-		color: rgba(255, 255, 255, 0.9);
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-	}
-
-	@keyframes iconPulse {
-		0%,
-		100% {
-			opacity: 0.9;
-			transform: scale(1);
-		}
-		50% {
-			opacity: 1;
-			transform: scale(1.1);
-		}
-	}
-
-	.banner-message {
-		font-weight: 500;
-		font-size: 0.95rem;
-	}
-
-	.banner-cta {
-		background: rgba(255, 255, 255, 0.9);
-		color: #667eea;
-		text-decoration: none;
-		padding: 0.4rem 1rem;
-		border-radius: 1.25rem;
-		font-weight: 600;
-		font-size: 0.875rem;
-		margin-left: 1rem;
-		white-space: nowrap;
-		transition: all 0.2s ease;
-
-		&:hover {
-			background: white;
-			transform: translateY(-1px);
-			box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-		}
-
-		&:active {
-			transform: translateY(0);
-		}
-	}
-
-	@keyframes slideDown {
-		from {
-			transform: translateY(-100%);
-			opacity: 0;
-		}
-		to {
-			transform: translateY(0);
-			opacity: 1;
-		}
-	}
-
-	@media (max-width: 768px) {
-		.banner-message {
-			font-size: 0.875rem;
-		}
-
-		.banner-cta {
-			font-size: 0.8rem;
-			padding: 0.35rem 0.75rem;
-			margin-left: 0.75rem;
-		}
-
-		.banner-content {
-			padding: 0 0.5rem;
-		}
-
-		.banner-text {
-			gap: 0.25rem;
-		}
-	}
-
-	.app {
+<style>
+	main {
 		position: relative;
 		z-index: 1;
-		min-height: 100vh;
-	}
-
-	main {
-		min-height: 100vh;
-		width: 100%;
+		min-height: calc(100vh - 64px);
 	}
 </style>
