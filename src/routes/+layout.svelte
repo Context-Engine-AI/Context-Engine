@@ -104,7 +104,13 @@
 			{/if}
 		</button>
 		<a href="#demo" class="btn btn-primary desktop-only">Request Demo</a>
-		<button class="icon-btn mobile-menu-btn" onclick={toggleMobileMenu} aria-label="Toggle menu">
+		<button
+			class="icon-btn mobile-menu-btn"
+			onclick={toggleMobileMenu}
+			aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
+			aria-expanded={mobileMenuOpen}
+			aria-controls="mobile-menu"
+		>
 			{#if mobileMenuOpen}
 				<X size={24} />
 			{:else}
@@ -117,7 +123,7 @@
 <!-- Mobile Menu Overlay -->
 {#if mobileMenuOpen}
 	<div class="mobile-menu-overlay" onclick={closeMobileMenu} role="none"></div>
-	<nav class="mobile-menu">
+	<nav class="mobile-menu" id="mobile-menu">
 		<a
 			href="https://www.npmjs.com/package/@context-engine-bridge/context-engine-mcp-bridge"
 			class="mobile-nav-link"
