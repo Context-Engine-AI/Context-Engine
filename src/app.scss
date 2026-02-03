@@ -693,6 +693,24 @@ body::before {
   to { stroke-dashoffset: 0; }
 }
 
+/* Mobile Menu */
+.mobile-menu-btn {
+  display: none;
+}
+
+.mobile-menu-overlay {
+  display: none;
+}
+
+.mobile-menu {
+  display: none;
+}
+
+.desktop-only {
+  display: flex;
+}
+
+/* Tablet and below */
 @media (max-width: 1024px) {
   .hero {
     grid-template-columns: 1fr;
@@ -709,6 +727,275 @@ body::before {
   .graph-column { width: 140px; }
   .footer-content { flex-direction: column; gap: 24px; text-align: center; }
   .footer-links { flex-wrap: wrap; justify-content: center; }
+  .contact-content { grid-template-columns: 1fr; }
+  .contact-container { padding: 60px 24px; }
+}
+
+/* Mobile specific */
+@media (max-width: 768px) {
+  .mobile-menu-btn {
+    display: flex;
+  }
+  
+  .desktop-only {
+    display: none !important;
+  }
+  
+  .mobile-menu-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 200;
+    backdrop-filter: blur(4px);
+  }
+  
+  .mobile-menu {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 64px;
+    right: 0;
+    width: 280px;
+    max-width: 85vw;
+    height: calc(100vh - 64px);
+    background: var(--bg-primary);
+    border-left: 1px solid var(--border);
+    z-index: 201;
+    padding: 24px;
+    gap: 8px;
+    animation: slideIn 0.2s ease;
+  }
+  
+  @keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+  
+  .mobile-nav-link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    font-size: 15px;
+    color: var(--text-secondary);
+    text-decoration: none;
+    border-radius: var(--radius);
+    transition: all var(--transition);
+  }
+  
+  .mobile-nav-link:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+  
+  .mobile-menu-cta {
+    margin-top: auto;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+  }
+  
+  .mobile-menu-cta .btn {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  /* Hero adjustments */
+  .hero {
+    padding: 40px 16px;
+    gap: 32px;
+  }
+  
+  .hero-title {
+    font-size: 32px;
+    line-height: 1.2;
+  }
+  
+  .hero-subtitle {
+    font-size: 15px;
+  }
+  
+  .hero-form {
+    gap: 12px;
+  }
+  
+  .hero-form .input {
+    min-width: unset;
+    width: 100%;
+  }
+  
+  .hero-form .btn {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .hero-actions {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .hero-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .hero-stats {
+    flex-direction: column;
+    gap: 16px;
+  }
+  
+  .stat {
+    padding: 16px 0;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+  
+  .stat:last-child {
+    border-bottom: none;
+  }
+  
+  /* Code window */
+  .code-window {
+    font-size: 12px;
+  }
+  
+  .code-content {
+    padding: 16px;
+    overflow-x: auto;
+  }
+  
+  /* Graph section - vertical layout on mobile */
+  .graph-section {
+    padding: 40px 16px;
+  }
+  
+  .section-title {
+    font-size: 28px;
+  }
+  
+  .section-subtitle {
+    font-size: 14px;
+    margin-bottom: 32px;
+  }
+  
+  .graph-container {
+    padding: 20px;
+    min-height: auto;
+  }
+  
+  .graph-labels {
+    flex-direction: column;
+    gap: 0;
+    padding: 0;
+    margin-bottom: 16px;
+  }
+  
+  .graph-label {
+    display: none;
+  }
+  
+  .graph-content {
+    flex-direction: column;
+    gap: 24px;
+  }
+  
+  .graph-column {
+    width: 100%;
+  }
+  
+  .graph-column::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 12px;
+    padding-left: 4px;
+  }
+  
+  .graph-column.sources::before { content: 'Raw Sources'; }
+  .graph-column.processors::before { content: 'Processing'; }
+  .graph-column.tools::before { content: 'MCP Tools'; }
+  
+  .graph-node {
+    padding: 14px 16px;
+    font-size: 14px;
+  }
+  
+  .graph-canvas {
+    display: none;
+  }
+  
+  .graph-footer {
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 20px;
+    padding-top: 16px;
+  }
+  
+  .graph-progress {
+    width: 100%;
+  }
+  
+  /* Features */
+  .features-section {
+    padding: 40px 16px;
+  }
+  
+  .feature-card {
+    padding: 24px;
+  }
+  
+  .feature-title {
+    font-size: 16px;
+  }
+  
+  .feature-desc {
+    font-size: 13px;
+  }
+  
+  /* Demo section */
+  .demo-section {
+    padding: 40px 16px;
+  }
+  
+  .demo-form {
+    gap: 12px;
+  }
+  
+  .demo-form .input {
+    min-width: unset;
+  }
+  
+  .demo-form .btn {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  /* Footer */
+  .footer {
+    padding: 32px 16px;
+  }
+  
+  .footer-links {
+    gap: 16px;
+  }
+  
+  .footer-link {
+    font-size: 13px;
+  }
+  
+  /* Contact page */
+  .contact-container {
+    padding: 40px 16px;
+  }
+  
+  .contact-info,
+  .contact-form {
+    padding: 20px;
+  }
 }
 
 /* Glass morphism utility classes (kept for contact page compatibility) */
@@ -852,13 +1139,4 @@ body::before {
 .form-group textarea {
   min-height: 120px;
   resize: vertical;
-}
-
-@media (max-width: 1024px) {
-  .contact-content {
-    grid-template-columns: 1fr;
-  }
-  .contact-container {
-    padding: 60px 24px;
-  }
 }
