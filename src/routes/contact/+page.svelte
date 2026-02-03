@@ -22,8 +22,15 @@
 	let formData = $state({
 		name: '',
 		email: '',
-		subject: isDemo ? 'Request Demo' : '',
+		subject: '',
 		message: ''
+	});
+
+	// Set subject when isDemo changes
+	$effect(() => {
+		if (isDemo && !formData.subject) {
+			formData.subject = 'Request Demo';
+		}
 	});
 
 	async function handleSubmit(event: SubmitEvent) {
