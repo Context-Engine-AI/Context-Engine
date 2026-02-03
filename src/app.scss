@@ -744,7 +744,10 @@ body::before {
   .mobile-menu-overlay {
     display: block;
     position: fixed;
-    inset: 0;
+    top: 64px;
+    left: 0;
+    right: 0;
+    bottom: 0;
     background: rgba(0, 0, 0, 0.5);
     z-index: 200;
     backdrop-filter: blur(4px);
