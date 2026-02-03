@@ -25,8 +25,17 @@
 		};
 		document.addEventListener('keydown', handleEscape);
 
+		// Close mobile menu when resizing past breakpoint
+		const handleResize = () => {
+			if (window.innerWidth > 1024 && mobileMenuOpen) {
+				closeMobileMenu();
+			}
+		};
+		window.addEventListener('resize', handleResize);
+
 		return () => {
 			document.removeEventListener('keydown', handleEscape);
+			window.removeEventListener('resize', handleResize);
 		};
 	});
 
