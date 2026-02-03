@@ -731,8 +731,8 @@ body::before {
   .contact-container { padding: 60px 24px; }
 }
 
-/* Mobile specific */
-@media (max-width: 768px) {
+/* Tablet - show mobile menu button when nav is hidden */
+@media (max-width: 1024px) {
   .mobile-menu-btn {
     display: flex;
   }
@@ -799,7 +799,10 @@ body::before {
     width: 100%;
     justify-content: center;
   }
-  
+}
+
+/* Mobile specific - smaller screens */
+@media (max-width: 768px) {
   /* Hero adjustments */
   .hero {
     padding: 40px 16px;

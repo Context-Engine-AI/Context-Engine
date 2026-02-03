@@ -104,18 +104,21 @@
 
 <!-- Mobile Menu Overlay -->
 {#if mobileMenuOpen}
+	<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 	<div
 		class="mobile-menu-overlay"
 		onclick={closeMobileMenu}
-		role="button"
-		tabindex="-1"
-		aria-label="Close menu"
+		onkeydown={(e) => e.key === 'Escape' && closeMobileMenu()}
+		tabindex="0"
+		role="presentation"
+		aria-hidden="true"
 	></div>
 	<nav class="mobile-menu">
 		<a
 			href="https://www.npmjs.com/package/@context-engine-bridge/context-engine-mcp-bridge"
 			class="mobile-nav-link"
 			target="_blank"
+			rel="noopener noreferrer"
 			onclick={closeMobileMenu}
 		>
 			<svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
@@ -129,6 +132,7 @@
 			href="https://github.com/Context-Engine-AI/Context-Engine"
 			class="mobile-nav-link"
 			target="_blank"
+			rel="noopener noreferrer"
 			onclick={closeMobileMenu}
 		>
 			<Github size={20} />
@@ -138,6 +142,7 @@
 			href="https://marketplace.visualstudio.com/items?itemName=context-engine.context-engine-uploader"
 			class="mobile-nav-link"
 			target="_blank"
+			rel="noopener noreferrer"
 			onclick={closeMobileMenu}
 		>
 			<svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
