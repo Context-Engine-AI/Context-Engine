@@ -16,6 +16,18 @@
 			theme = saved;
 			document.documentElement.setAttribute('data-theme', saved);
 		}
+
+		// Global Escape key handler for mobile menu
+		const handleEscape = (e: KeyboardEvent) => {
+			if (e.key === 'Escape' && mobileMenuOpen) {
+				closeMobileMenu();
+			}
+		};
+		document.addEventListener('keydown', handleEscape);
+
+		return () => {
+			document.removeEventListener('keydown', handleEscape);
+		};
 	});
 
 	function toggleTheme() {
@@ -104,15 +116,7 @@
 
 <!-- Mobile Menu Overlay -->
 {#if mobileMenuOpen}
-	<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-	<div
-		class="mobile-menu-overlay"
-		onclick={closeMobileMenu}
-		onkeydown={(e) => e.key === 'Escape' && closeMobileMenu()}
-		tabindex="0"
-		role="presentation"
-		aria-hidden="true"
-	></div>
+	<div class="mobile-menu-overlay" onclick={closeMobileMenu} role="none"></div>
 	<nav class="mobile-menu">
 		<a
 			href="https://www.npmjs.com/package/@context-engine-bridge/context-engine-mcp-bridge"
