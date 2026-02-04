@@ -396,6 +396,58 @@ body::before {
 .c-str { color: #a5d6ff; }
 .c-num { color: #79c0ff; }
 
+/* Hero Visual Features */
+.hero-visual-features {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.visual-feature {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  backdrop-filter: blur(10px);
+}
+
+.visual-feature-icon {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(45, 103, 255, 0.15);
+  border-radius: var(--radius);
+  color: #79c0ff;
+}
+
+.visual-feature-icon.green {
+  background: rgba(0, 184, 148, 0.15);
+  color: var(--accent);
+}
+
+.visual-feature-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.visual-feature-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.visual-feature-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
 /* Graph Section */
 .graph-section {
   padding: 80px 48px;
@@ -868,6 +920,11 @@ body::before {
   .code-content {
     padding: 16px;
     overflow-x: auto;
+  }
+
+  /* Hero visual features */
+  .hero-visual-features {
+    grid-template-columns: 1fr;
   }
   
   /* Graph section - vertical layout on mobile */
