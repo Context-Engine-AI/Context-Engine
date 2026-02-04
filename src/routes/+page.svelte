@@ -13,7 +13,9 @@
 		BookOpen,
 		GitBranch,
 		Bug,
-		Github
+		Github,
+		Brain,
+		Leaf
 	} from 'lucide-svelte';
 
 	// Form state
@@ -290,6 +292,27 @@ result = <span class="c-fn">repo_search</span>(
     compact=<span class="c-key">True</span>
 )
 <span class="c-comment"># 4,456 sources -> 5 relevant in 47ms</span></pre>
+		</div>
+
+		<div class="hero-visual-features">
+			<div class="visual-feature">
+				<div class="visual-feature-icon">
+					<Brain size={20} />
+				</div>
+				<div class="visual-feature-text">
+					<span class="visual-feature-title">Self-Learning</span>
+					<span class="visual-feature-desc">Gets smarter as you search</span>
+				</div>
+			</div>
+			<div class="visual-feature">
+				<div class="visual-feature-icon green">
+					<Leaf size={20} />
+				</div>
+				<div class="visual-feature-text">
+					<span class="visual-feature-title">Green Energy</span>
+					<span class="visual-feature-desc">80% less compute per query</span>
+				</div>
+			</div>
 		</div>
 	</div>
 </section>
