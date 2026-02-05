@@ -285,6 +285,97 @@ body::before {
   font-weight: 500;
 }
 
+/* BYOK Pill (next to logo) */
+.byok-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  background: rgba(0, 184, 148, 0.12);
+  border: 1px solid rgba(0, 184, 148, 0.3);
+  border-radius: 100px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--accent);
+  white-space: nowrap;
+  animation: byokGlow 2.5s ease-in-out infinite alternate;
+}
+
+.byok-pill :global(svg) {
+  width: 12px;
+  height: 12px;
+}
+
+@keyframes byokGlow {
+  0% {
+    box-shadow: 0 0 8px rgba(0, 184, 148, 0.15);
+    border-color: rgba(0, 184, 148, 0.25);
+  }
+  100% {
+    box-shadow: 0 0 14px rgba(0, 184, 148, 0.35);
+    border-color: rgba(0, 184, 148, 0.5);
+  }
+}
+
+[data-theme="light"] .byok-pill {
+  background: rgba(0, 184, 148, 0.08);
+  box-shadow: 0 0 10px rgba(0, 184, 148, 0.12);
+}
+
+/* BYOK Tooltip */
+.byok-pill[data-tooltip] {
+  position: relative;
+  cursor: default;
+}
+
+.byok-pill[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 12px;
+  background: var(--bg-card-solid);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+  box-shadow: var(--shadow-md);
+  z-index: 200;
+}
+
+.byok-pill[data-tooltip]::before {
+  content: '';
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-bottom-color: var(--border);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+  z-index: 201;
+}
+
+.byok-pill[data-tooltip]:hover::after,
+.byok-pill[data-tooltip]:hover::before {
+  opacity: 1;
+  visibility: visible;
+}
+
+@media (max-width: 768px) {
+  .byok-pill {
+    display: none;
+  }
+}
+
 .hero-title {
   font-size: 56px;
   font-weight: 700;
