@@ -372,6 +372,10 @@ body::before {
 
 @media (max-width: 768px) {
   .byok-pill {
+    padding: 4px 6px;
+    gap: 0;
+  }
+  .byok-pill span:not(:first-child) {
     display: none;
   }
 }
