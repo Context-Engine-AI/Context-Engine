@@ -3,7 +3,7 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import { base } from '$app/paths';
-	import { Sun, Moon, Mail, Github, Layers, Menu, X } from 'lucide-svelte';
+	import { Sun, Moon, Mail, Github, Layers, Menu, X, Key } from 'lucide-svelte';
 
 	let { children } = $props();
 
@@ -65,6 +65,10 @@
 			</span>
 			Context Engine
 		</a>
+		<span class="byok-pill" data-tooltip="Bring Your Own LLM Key">
+			<Key size={12} />
+			<span>BYOK</span>
+		</span>
 		<nav class="nav">
 			<a
 				href="https://www.npmjs.com/package/@context-engine-bridge/context-engine-mcp-bridge"
