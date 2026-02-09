@@ -24,6 +24,21 @@ __all__ = [
     "_compute_called_by",
 ]
 
+
+def _parse_int_or_default(value: Any, default: int = 0) -> int:
+    """Defensive integer parser that returns default on failure."""
+    if value is None:
+        return default
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str):
+        try:
+            return int(value)
+        except (ValueError, TypeError):
+            return default
+    return default
+
+
 # Environment - use same patterns as rest of engine
 QDRANT_URL = os.environ.get("QDRANT_URL", "http://qdrant:6333")
 
@@ -531,8 +546,8 @@ def _format_point(pt: Any) -> Dict[str, Any]:
 
     result = {
         "path": str(md.get("path") or md.get("file_path") or ""),
-        "start_line": int(md.get("start_line") or md.get("start") or 0),
-        "end_line": int(md.get("end_line") or md.get("end") or 0),
+        "start_line": _parse_int_or_default(md.get("start_line") or md.get("start"), default=0),
+        "end_line": _parse_int_or_default(md.get("end_line") or md.get("end"), default=0),
         "symbol": str(md.get("symbol") or ""),
         "symbol_path": str(md.get("symbol_path") or ""),
         "language": str(md.get("language") or ""),
@@ -739,8 +754,8 @@ async def _compute_called_by(
                     "path": str(md.get("path") or ""),
                     "symbol": chunk_symbol,
                     "symbol_path": str(md.get("symbol_path") or ""),
-                    "start_line": int(md.get("start_line") or md.get("start") or 0),
-                    "end_line": int(md.get("end_line") or md.get("end") or 0),
+                    "start_line": _parse_int_or_default(md.get("start_line") or md.get("start"), default=0),
+                    "end_line": _parse_int_or_default(md.get("end_line") or md.get("end"), default=0),
                     "language": str(md.get("language") or ""),
                 }
                 callers.append(caller_info)
