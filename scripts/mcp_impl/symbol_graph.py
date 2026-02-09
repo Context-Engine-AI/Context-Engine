@@ -7,6 +7,12 @@ Provides Qdrant-native queries for:
 - "where is X defined" (definition)
 - "what imports Y" (importers)
 - "who is called by X" (called_by - post-index computed)
+
+Note:
+This MIT-branch implementation does NOT include the larger "graph edges collection" /
+GraphRAG / Neo4j-backed graph traversal stack that existed on other branches.
+If you want to revisit that approach later, see related commits (by SHA) in repo history:
+4da7e55, 21359d7, 795406b, 64be33e.
 """
 from __future__ import annotations
 
