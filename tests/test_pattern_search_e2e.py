@@ -101,9 +101,9 @@ def test_code_vs_nl_detection():
     assert _detect_query_mode("resource cleanup code", None) == "description"
     assert _detect_query_mode("decorator pattern wrapping function", None) == "description"
 
-    # Language hint is advisory only; without code markers it stays description
-    assert _detect_query_mode("some text", "python") == "description"
-    assert _detect_query_mode("some text", "go") == "description"
+    # Ambiguous two-word input is treated as code when a language hint is present
+    assert _detect_query_mode("some text", "python") == "code"
+    assert _detect_query_mode("some text", "go") == "code"
 
 
 # ============================================================================

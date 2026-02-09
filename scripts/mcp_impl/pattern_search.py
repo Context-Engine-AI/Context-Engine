@@ -93,9 +93,12 @@ def _detect_query_mode(text: str, language: str | None) -> str:
     if _CODE_SYNTAX.search(text):
         return "code"
 
-    # 4. Language hint is advisory only; do NOT force code for NL text
+    # 4. Language hint is advisory only, but allow a narrow "bare identifiers" case.
+    # Some clients send extremely minimal snippets (e.g. "some text") with a language hint.
+    # Treat exactly-two identifier tokens as code when a supported language hint is present.
     if language and language.lower() in _SUPPORTED_LANGUAGES:
-        # If language is provided but we found no code markers, still treat as description
+        if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*\s+[A-Za-z_][A-Za-z0-9_]*", text):
+            return "code"
         return "description"
 
     # 5. Default to natural language
