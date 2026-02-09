@@ -128,11 +128,12 @@ def _select_dense_text(
     - pseudo/tags = semantic enrichment from LLM
     Dense captures the "what" (intent), lexical handles the "how" (code body).
     """
-    mode = (
-        (str(mode) if mode is not None else str(os.environ.get("INDEX_DENSE_MODE", "info+pseudo+tags") or ""))
-        .strip()
-        .lower()
-    )
+    if mode is None:
+        # Treat blank/whitespace env var as "unset" (important when users export INDEX_DENSE_MODE="").
+        env_mode = str(os.environ.get("INDEX_DENSE_MODE", "") or "").strip().lower()
+        mode = env_mode or "info+pseudo+tags"
+    else:
+        mode = str(mode).strip().lower()
     # Default dense cap depends on embedding model context window.
     # bge-m3 supports ~8k tokens, so we allow a larger character budget to preserve code context.
     max_chars_env = os.environ.get("INDEX_DENSE_MAX_CHARS")
