@@ -1,0 +1,68 @@
+name: Claude Code
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  issues:
+    types: [opened]
+  pull_request_review:
+    types: [submitted]
+  pull_request_target:
+    types: [opened, synchronize]
+
+jobs:
+  claude:
+    # This simplified condition is more robust and correctly checks permissions.
+    if: >
+      (contains(github.event.comment.body, '@claude') ||
+      contains(github.event.review.body, '@claude') ||
+      contains(github.event.issue.body, '@claude') ||
+      contains(github.event.pull_request.body, '@claude')) &&
+      (github.event.sender.type == 'User' && (
+        github.event.comment.author_association == 'OWNER' ||
+        github.event.comment.author_association == 'MEMBER' ||
+        github.event.comment.author_association == 'COLLABORATOR'
+      ))
+    runs-on: ubuntu-latest
+    permissions:
+      # CRITICAL: Write permissions are required for the action to push branches and update issues/PRs.
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write # Required for OIDC token exchange
+      actions: read  # Required for Claude to read CI results on PRs
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # This correctly checks out the PR's head commit for pull_request_target events.
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Create Claude settings file
+        run: |
+          mkdir -p /home/runner/.claude
+          cat > /home/runner/.claude/settings.json << 'EOF'
+          {
+            "env": {
+              "ANTHROPIC_BASE_URL": "https://api.z.ai/api/anthropic",
+              "ANTHROPIC_AUTH_TOKEN": "${{ secrets.CUSTOM_ENDPOINT_API_KEY }}"
+            }
+          }
+          EOF
+
+      - name: Run Claude Code
+        id: claude
+        uses: anthropics/claude-code-action@v1
+        with:
+          # Still need this to satisfy the action's validation
+          anthropic_api_key: ${{ secrets.CUSTOM_ENDPOINT_API_KEY }}
+          
+          # Use the same variable names as your local setup
+          settings: '{"env": {"ANTHROPIC_BASE_URL": "https://api.z.ai/api/anthropic", "ANTHROPIC_AUTH_TOKEN": "${{ secrets.CUSTOM_ENDPOINT_API_KEY }}"}}'
+          
+          track_progress: true
+          claude_args: |
+            --allowedTools "Bash,Edit,Read,Write,Glob,Grep"
