@@ -300,7 +300,17 @@ The `query_signature` encodes control flow: `L` (loops), `B` (branches), `T` (tr
 {"query": "utils/helpers", "limit": 10}
 ```
 
-**symbol_graph** - Symbol graph navigation (callers / definition / importers):
+**symbol_graph** - Symbol graph navigation (callers / callees / definition / importers):
+
+**Query types:**
+| Type | Description |
+|------|-------------|
+| `callers` | Who calls this symbol? |
+| `callees` | What does this symbol call? |
+| `definition` | Where is this symbol defined? |
+| `importers` | Who imports this module/symbol? |
+
+**Examples:**
 ```json
 {"symbol": "ASTAnalyzer", "query_type": "definition", "limit": 10}
 ```
@@ -310,6 +320,9 @@ The `query_signature` encodes control flow: `L` (loops), `B` (branches), `T` (tr
 ```json
 {"symbol": "qdrant_client", "query_type": "importers", "limit": 10}
 ```
+```json
+{"symbol": "authenticate", "query_type": "callees", "limit": 10}
+```
 - Supports `language`, `under`, `depth`, and `output_format` like other tools.
 - Use `depth=2` or `depth=3` for multi-hop traversals (callers of callers).
 - If there are no graph hits, it falls back to semantic search.
@@ -317,7 +330,7 @@ The `query_signature` encodes control flow: `L` (loops), `B` (branches), `T` (tr
 
 **graph_query** - Advanced graph traversals (OPTIONAL — ONLY available when NEO4J_GRAPH=1 or MEMGRAPH_GRAPH=1):
 
-> **If `graph_query` is not in your MCP tool list, it is NOT enabled. Use `symbol_graph` for all graph queries instead. Do NOT error or warn about missing Neo4j.**
+> **If `graph_query` is not in your MCP tool list, it is NOT enabled. Use `symbol_graph` for all graph queries instead. Do NOT error or warn about missing Neo4j/Memgraph.**
 
 ```json
 {"symbol": "normalize_path", "query_type": "impact", "depth": 2}
@@ -334,11 +347,19 @@ The `query_signature` encodes control flow: `L` (loops), `B` (branches), `T` (tr
 |------|-------------|
 | `callers` | Who calls this symbol? (depth 1) |
 | `callees` | What does this symbol call? (depth 1) |
+| `definition` | Where is this symbol defined? |
 | `transitive_callers` | Multi-hop callers (up to depth) |
 | `transitive_callees` | Multi-hop callees (up to depth) |
 | `impact` | What breaks if I change this? (reverse transitive) |
 | `dependencies` | What does this depend on? (calls + imports) |
 | `cycles` | Detect circular dependencies |
+
+**Parameters:**
+- `symbol` - Symbol name to query
+- `query_type` - One of the types above
+- `depth` - Maximum traversal depth (default 1)
+- `limit` - Max results (default 10)
+- `include_paths` - Include file paths in results (bool, optional)
 
 
 
@@ -382,26 +403,7 @@ Use `context_search` to blend code results with stored memories:
 }
 ```
 
-## Index Management
-
-**qdrant_index_root** - First-time setup or full reindex:
-```json
-{}
-```
-With recreate (drops existing data):
-```json
-{"recreate": true}
-```
-
-**qdrant_index** - Index only a subdirectory:
-```json
-{"subdir": "src/"}
-```
-
-**qdrant_prune** - Remove deleted files from index:
-```json
-{}
-```
+## Admin and Diagnostics
 
 **qdrant_status** - Check index health:
 ```json
@@ -413,21 +415,9 @@ With recreate (drops existing data):
 {}
 ```
 
-## Workspace Tools
-
-**workspace_info** - Get current workspace and collection:
+**embedding_pipeline_stats** - Get cache efficiency, bloom filter stats, pipeline performance:
 ```json
 {}
-```
-
-**list_workspaces** - List all indexed workspaces:
-```json
-{}
-```
-
-**collection_map** - View collection-to-repo mappings:
-```json
-{"include_samples": true}
 ```
 
 **set_session_defaults** - Set defaults for session:
@@ -446,8 +436,6 @@ Don't discover at every session start. Trigger when: search returns no/irrelevan
 ```json
 // qdrant_list — discover available collections
 {}
-// collection_map — map repos to collections with sample files
-{"include_samples": true}
 ```
 
 ### Context Switching (Session Defaults = `cd`)
@@ -459,7 +447,7 @@ Treat `set_session_defaults` like `cd` — it scopes ALL subsequent searches:
 {"collection": "backend-api-abc123"}
 
 // One-off peek at another repo (does NOT change session default)
-// repo_search
+// search (or repo_search)
 {"query": "login form", "collection": "frontend-app-def456"}
 ```
 
@@ -472,12 +460,12 @@ NEVER search both repos with the same vague query. Find the **interface boundary
 **Pattern 1 — Interface Handshake (API/RPC):**
 ```json
 // 1. Find client call in frontend
-// repo_search
+// search
 {"query": "login API call", "collection": "frontend-col"}
 // → Found: axios.post('/auth/v1/login', ...)
 
 // 2. Search backend for that exact route
-// repo_search
+// search
 {"query": "'/auth/v1/login'", "collection": "backend-col"}
 ```
 
@@ -488,19 +476,19 @@ NEVER search both repos with the same vague query. Find the **interface boundary
 {"symbol": "UserProfile", "query_type": "importers", "collection": "frontend-col"}
 
 // 2. Find definition in source
-// repo_search
+// search
 {"query": "interface UserProfile", "collection": "shared-lib-col"}
 ```
 
 **Pattern 3 — Event Relay (Pub/Sub):**
 ```json
 // 1. Find producer → extract event name
-// repo_search
+// search
 {"query": "publish event", "collection": "service-a-col"}
 // → Found: bus.publish("USER_CREATED", payload)
 
 // 2. Find consumer with exact event name
-// repo_search
+// search
 {"query": "'USER_CREATED'", "collection": "service-b-col"}
 ```
 
@@ -533,11 +521,11 @@ NEVER search both repos with the same vague query. Find the **interface boundary
 // cross_repo_search
 {"boundary_key": "/api/auth/login", "collection": "backend-col"}
 ```
-Use `cross_repo_search` when you need breadth across repos. Use `repo_search` with explicit `collection` when you need depth in one repo.
+Use `cross_repo_search` when you need breadth across repos. Use `search` (or `repo_search`) with explicit `collection` when you need depth in one repo.
 
 ### Multi-Repo Anti-Patterns
 - **DON'T** search both repos with the same vague query (noisy, confusing)
-- **DON'T** assume the default collection is correct — verify with `collection_map`
+- **DON'T** assume the default collection is correct — verify with `qdrant_list`
 - **DON'T** forget to "cd back" after cross-referencing another repo
 - **DO** extract exact strings (route paths, event names, type names) as search anchors
 
@@ -578,7 +566,7 @@ Tools return structured errors, typically via `error` field and sometimes `ok: f
 ```
 
 Common issues:
-- **Collection not found** - Run `qdrant_index_root` to create the index
+- **Collection not found** - Verify collection with `qdrant_list` or check that the codebase has been indexed
 - **Empty results** - Broaden query, check filters, verify index exists
 - **Timeout on rerank** - Set `rerank_enabled: false` or reduce `limit`
 
@@ -592,8 +580,6 @@ Common issues:
 6. **Include snippets** - Set `include_snippet: true` to see code context in results
 7. **Store decisions** - Use `memory_store` to save architectural decisions and context for later
 8. **Check index health** - Run `qdrant_status` if searches return unexpected results
-9. **Prune after refactors** - Run `qdrant_prune` after moving/deleting files
-10. **Index before search** - Always run `qdrant_index_root` on first use or after cloning a repo
 11. **Use pattern_search for structural matching** - When looking for code with similar control flow (retry loops, error handling), use `pattern_search` instead of `repo_search` (if enabled)
 12. **Describe patterns in natural language** - `pattern_search` understands "retry with backoff" just as well as actual code examples (if enabled)
 13. **Fire independent searches in parallel** - Call multiple `search`, `repo_search`, `symbol_graph`, etc. in the same message block for 2-3x speedup

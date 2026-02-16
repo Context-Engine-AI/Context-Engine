@@ -7,35 +7,46 @@ description: Hybrid semantic/lexical code search with neural reranking via MCP t
 
 Hybrid vector search (semantic + lexical) with neural reranking for codebase retrieval.
 
+> **IMPORTANT: Always use `search` as your FIRST tool for ANY code exploration, lookup, or question.** It auto-detects intent and routes to the best specialized tool. Only use `repo_search`, `symbol_graph`, or other tools directly when you need specific parameters or features that `search` does not expose (cross-repo, memory, admin). When in doubt, use `search`.
+
 ## Core Decision Tree
 
 ```
 Need to find code?
 ├── UNSURE / GENERAL QUERY → search (RECOMMENDED DEFAULT)
-│   └── Auto-routes to the best tool based on query intent
+│   └── Auto-routes to best tool based on query intent
+│   └── Handles: code search, Q&A, tests, config, symbols, imports
 ├── Simple lookup → search OR info_request
 ├── Need filters/control → search OR repo_search
 ├── Search across multiple repos → cross_repo_search
 ├── Want LLM explanation → search OR context_answer
 ├── Find similar patterns → pattern_search (if enabled)
-├── Find relationships → search OR symbol_graph (DEFAULT, always available)
+├── Find relationships
+│   ├── Who calls / who imports / where defined → symbol_graph (DEFAULT, always available)
+│   ├── What does this call → symbol_graph (query_type="callees")
+│   ├── Multi-hop (callers of callers) → symbol_graph (depth=2+)
+│   └── Impact analysis / cycles → graph_query (ONLY if NEO4J/MEMGRAPH enabled)
+├── Git history
+│   ├── Find commits → search_commits_for
+│   └── Predict co-changing files → search_commits_for (predict_related=true)
+├── Blend code + notes → context_search (include_memories=true)
 └── Store/recall knowledge → memory_store, memory_find
 ```
 
 ## Primary Tools
 
-**search** - Unified entry point (RECOMMENDED DEFAULT):
+**search** - ALWAYS USE FIRST (unified entry point, auto-routes):
 ```json
 {"query": "authentication middleware"}
+{"query": "how does caching work?"}          // → routes to context_answer
+{"query": "who calls authenticate()"}        // → routes to symbol_graph
+{"query": "tests for payment processing"}    // → routes to search_tests_for
 ```
-Auto-detects intent and routes to the best tool. Returns:
-```json
-{
-  "ok": true, "intent": "search", "confidence": 0.92,
-  "tool": "repo_search", "result": {...}, "execution_time_ms": 245
-}
-```
-Handles: code search, Q&A, tests, config, symbols, imports. Use specialized tools only for cross-repo, memory, or admin operations.
+Auto-detects intent and routes to the best tool. Returns `{ok, intent, confidence, tool, result, execution_time_ms}`.
+
+Optional params: `query`, `collection`, `limit`, `language`, `under`, `include_snippet`, `compact`, `context_lines`, `ext`, `not_glob`, `path_glob`, `output_format`, `rerank_enabled`.
+
+Use specialized tools directly only for: cross-repo search, memory, admin, or when you need params `search` doesn't expose.
 
 **repo_search** - Direct code search (full control):
 ```json
@@ -43,13 +54,17 @@ Handles: code search, Q&A, tests, config, symbols, imports. Use specialized tool
 ```
 Multi-query: `{"query": ["auth handler", "login validation"]}`
 
-**symbol_graph** - Find callers, definitions, importers (ALWAYS available):
+**symbol_graph** - Find callers, callees, definitions, importers (ALWAYS available):
 ```json
 {"symbol": "authenticate", "query_type": "callers", "limit": 10}
+{"symbol": "authenticate", "query_type": "callees", "limit": 10}
 {"symbol": "UserService", "query_type": "definition"}
 {"symbol": "utils", "query_type": "importers"}
 ```
-Use `depth=2` for multi-hop (callers of callers).
+Query types: `callers`, `callees`, `definition`, `importers`. Use `depth=2` for multi-hop. Falls back to semantic search if no graph hits. Results include ~500-char source snippets.
+
+**graph_query** (OPTIONAL -- only if NEO4J_GRAPH=1 or MEMGRAPH_GRAPH=1):
+Extra query types: `transitive_callers`, `transitive_callees`, `impact`, `dependencies`, `cycles`. If not in your tool list, use `symbol_graph` instead.
 
 **context_answer** - LLM-generated explanation with citations:
 ```json
@@ -82,7 +97,10 @@ Use `depth=2` for multi-hop (callers of callers).
 | `search_config_for` | Find config | `{"query": "database connection"}` |
 | `search_callers_for` | Quick caller search | `{"query": "processPayment"}` |
 | `search_commits_for` | Git history | `{"query": "fixed auth bug"}` |
-| `pattern_search` | Similar code patterns | `{"query": "retry with backoff"}` |
+| `search_commits_for` | Predict co-changing files | `{"path": "src/auth.py", "predict_related": true}` |
+| `change_history_for_path` | File change summary | `{"path": "src/auth.py", "include_commits": true}` |
+| `pattern_search` | Similar code patterns (if enabled) | `{"query": "retry with backoff"}` |
+| `search_importers_for` | Find importers | `{"query": "utils/helpers"}` |
 
 ## Index Management
 
@@ -92,13 +110,23 @@ Use `depth=2` for multi-hop (callers of callers).
 
 ## Best Practices
 
-1. **Use `search` as your default tool** - Auto-routes to the best specialized tool
-2. **NEVER use grep/cat/find for code exploration** - Use MCP tools instead
-3. **Start with `symbol_graph`** for all relationship queries
-4. **Use multi-query** for complex searches: pass 2-3 variations
+1. **ALWAYS start with `search`** - It is your PRIMARY tool. Auto-routes to the best specialized tool. Only fall back to specific tools when you need params `search` doesn't expose.
+2. **NEVER use grep/cat/find for code exploration** - Use MCP tools instead. Only acceptable use: confirming exact literal strings.
+3. **Start with `symbol_graph`** for all relationship queries - always available, no Neo4j needed
+4. **Use multi-query** for complex searches: pass 2-3 variations as a list
 5. **Two-phase search**: Discovery (`limit=3, compact=true`) → Deep dive (`limit=8, include_snippet=true`)
 6. **Fire parallel calls** - Multiple independent `search`, `repo_search`, `symbol_graph` in one message
 7. **Set session defaults early**: `set_session_defaults(output_format="toon", compact=true)`
+8. **Use TOON format** - `output_format: "toon"` for 60-80% token reduction on exploratory queries
+9. **Use `cross_repo_search`** for multi-repo scenarios instead of manual collection switching
+10. **Predict co-changing files** - `search_commits_for(path=..., predict_related=true)` finds historically coupled files
+
+## Error Fallbacks
+
+- `context_answer` timeout → `search` + `info_request(include_explanation=true)`
+- `pattern_search` unavailable → `search` with structural query terms
+- `graph_query` unavailable → `symbol_graph` (always available)
+- grep/Read File → use `search`, `symbol_graph`, `info_request` instead
 
 ## Filters (for repo_search)
 
