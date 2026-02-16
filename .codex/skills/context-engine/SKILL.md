@@ -11,18 +11,33 @@ Hybrid vector search (semantic + lexical) with neural reranking for codebase ret
 
 ```
 Need to find code?
-├── Simple lookup → info_request
-├── Need filters/control → repo_search
+├── UNSURE / GENERAL QUERY → search (RECOMMENDED DEFAULT)
+│   └── Auto-routes to the best tool based on query intent
+├── Simple lookup → search OR info_request
+├── Need filters/control → search OR repo_search
 ├── Search across multiple repos → cross_repo_search
-├── Want LLM explanation → context_answer
+├── Want LLM explanation → search OR context_answer
 ├── Find similar patterns → pattern_search (if enabled)
-├── Find relationships → symbol_graph (DEFAULT, always available)
+├── Find relationships → search OR symbol_graph (DEFAULT, always available)
 └── Store/recall knowledge → memory_store, memory_find
 ```
 
 ## Primary Tools
 
-**repo_search** - Main code search tool:
+**search** - Unified entry point (RECOMMENDED DEFAULT):
+```json
+{"query": "authentication middleware"}
+```
+Auto-detects intent and routes to the best tool. Returns:
+```json
+{
+  "ok": true, "intent": "search", "confidence": 0.92,
+  "tool": "repo_search", "result": {...}, "execution_time_ms": 245
+}
+```
+Handles: code search, Q&A, tests, config, symbols, imports. Use specialized tools only for cross-repo, memory, or admin operations.
+
+**repo_search** - Direct code search (full control):
 ```json
 {"query": "authentication middleware", "limit": 10, "include_snippet": true}
 ```
@@ -77,12 +92,13 @@ Use `depth=2` for multi-hop (callers of callers).
 
 ## Best Practices
 
-1. **NEVER use grep/cat/find for code exploration** - Use MCP tools instead
-2. **Start with `symbol_graph`** for all relationship queries
-3. **Use multi-query** for complex searches: pass 2-3 variations
-4. **Two-phase search**: Discovery (`limit=3, compact=true`) → Deep dive (`limit=8, include_snippet=true`)
-5. **Fire parallel calls** - Multiple independent searches in one message
-6. **Set session defaults early**: `set_session_defaults(output_format="toon", compact=true)`
+1. **Use `search` as your default tool** - Auto-routes to the best specialized tool
+2. **NEVER use grep/cat/find for code exploration** - Use MCP tools instead
+3. **Start with `symbol_graph`** for all relationship queries
+4. **Use multi-query** for complex searches: pass 2-3 variations
+5. **Two-phase search**: Discovery (`limit=3, compact=true`) → Deep dive (`limit=8, include_snippet=true`)
+6. **Fire parallel calls** - Multiple independent `search`, `repo_search`, `symbol_graph` in one message
+7. **Set session defaults early**: `set_session_defaults(output_format="toon", compact=true)`
 
 ## Filters (for repo_search)
 

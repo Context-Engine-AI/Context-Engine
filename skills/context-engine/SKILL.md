@@ -11,15 +11,21 @@ Search and retrieve code context from any codebase using hybrid vector search (s
 ```
 What do you need?
     |
+    +-- UNSURE or GENERAL QUERY --> search (RECOMMENDED DEFAULT)
+    |       |
+    |       +-- Auto-detects intent and routes to the best tool
+    |       +-- Handles: code search, Q&A, tests, config, symbols, imports
+    |       +-- Use this when you don't know which specialized tool to pick
+    |
     +-- Find code locations/implementations
     |       |
-    |       +-- Simple query --> info_request
-    |       +-- Need filters/control --> repo_search
+    |       +-- Simple query --> search OR info_request
+    |       +-- Need filters/control --> search OR repo_search
     |
     +-- Understand how something works
     |       |
-    |       +-- Want LLM explanation --> context_answer
-    |       +-- Just code snippets --> repo_search with include_snippet=true
+    |       +-- Want LLM explanation --> search OR context_answer
+    |       +-- Just code snippets --> search OR repo_search with include_snippet=true
     |
     +-- Find similar code patterns (retry loops, error handling, etc.)
     |       |
@@ -28,30 +34,84 @@ What do you need?
     |
     +-- Find specific file types
     |       |
-    |       +-- Test files --> search_tests_for
-    |       +-- Config files --> search_config_for
+    |       +-- Test files --> search OR search_tests_for
+    |       +-- Config files --> search OR search_config_for
     |
     +-- Find relationships
     |       |
-    |       +-- Who calls this function --> symbol_graph (DEFAULT, always available)
-    |       +-- Who imports this module --> symbol_graph OR search_importers_for
+    |       +-- Who calls this function --> search OR symbol_graph (DEFAULT, always available)
+    |       +-- Who imports this module --> search OR symbol_graph OR search_importers_for
     |       +-- Where is this defined --> symbol_graph (query_type="definition")
     |       +-- Symbol graph navigation (callers/defs/importers) --> symbol_graph (ALWAYS use this first)
-    |       +-- Multi-hop callers (callers of callers) --> symbol_graph (depth=2+) OR neo4j_graph_query (if NEO4J_GRAPH=1)
-    |       +-- Impact analysis (what breaks if I change X) --> neo4j_graph_query (ONLY if available)
-    |       +-- Dependency graph --> neo4j_graph_query (ONLY if available)
-    |       +-- Circular dependency detection --> neo4j_graph_query (ONLY if available)
+    |       +-- Multi-hop callers (callers of callers) --> symbol_graph (depth=2+) OR graph_query (if NEO4J_GRAPH=1 or MEMGRAPH_GRAPH=1)
+    |       +-- Impact analysis (what breaks if I change X) --> graph_query (ONLY if available)
+    |       +-- Dependency graph --> graph_query (ONLY if available)
+    |       +-- Circular dependency detection --> graph_query (ONLY if available)
     |
-    +-- Git history --> search_commits_for
+    +-- Git history
+    |       |
+    |       +-- Find commits --> search_commits_for
+    |       +-- Predict co-changing files --> search_commits_for with predict_related=true
     |
     +-- Store/recall knowledge --> memory_store, memory_find
     |
     +-- Blend code + notes --> context_search with include_memories=true
 ```
 
+## Unified Search: search (RECOMMENDED DEFAULT)
+
+**Use `search` as your PRIMARY tool.** It auto-detects query intent and routes to the best specialized tool. No need to choose between 15+ tools.
+
+```json
+{
+  "query": "authentication middleware"
+}
+```
+
+Returns:
+```json
+{
+  "ok": true,
+  "intent": "search",
+  "confidence": 0.92,
+  "tool": "repo_search",
+  "result": {
+    "results": [...],
+    "total": 8
+  },
+  "plan": ["detect_intent", "dispatch_repo_search"],
+  "execution_time_ms": 245
+}
+```
+
+**What it handles automatically:**
+- Code search ("find auth middleware") -> routes to `repo_search`
+- Q&A ("how does caching work?") -> routes to `context_answer`
+- Test discovery ("tests for payment") -> routes to `search_tests_for`
+- Config lookup ("database settings") -> routes to `search_config_for`
+- Symbol queries ("who calls authenticate") -> routes to `symbol_graph`
+- Import tracing ("what imports CacheManager") -> routes to `search_importers_for`
+
+**Override parameters** (all optional):
+```json
+{
+  "query": "error handling patterns",
+  "limit": 5,
+  "language": "python",
+  "under": "src/api/",
+  "include_snippet": true
+}
+```
+
+**When to use specialized tools instead:**
+- Cross-repo search -> `cross_repo_search`
+- Memory storage/retrieval -> `memory_store`, `memory_find`
+- Admin/diagnostics -> `qdrant_status`, `qdrant_list`
+- Pattern matching (structural) -> `pattern_search`
+
 ## Primary Search: repo_search
 
-Use `repo_search` (or its alias `code_search`) for most code lookups. Reranking is ON by default.
+Use `repo_search` (or its alias `code_search`) for direct code lookups when you need full control. Reranking is ON by default.
 
 ```json
 {
@@ -255,9 +315,9 @@ The `query_signature` encodes control flow: `L` (loops), `B` (branches), `T` (tr
 - If there are no graph hits, it falls back to semantic search.
 - **Note**: Results are "hydrated" with ~500-char source snippets for immediate context.
 
-**neo4j_graph_query** - Advanced graph traversals (OPTIONAL — ONLY available when NEO4J_GRAPH=1):
+**graph_query** - Advanced graph traversals (OPTIONAL — ONLY available when NEO4J_GRAPH=1 or MEMGRAPH_GRAPH=1):
 
-> **If `neo4j_graph_query` is not in your MCP tool list, it is NOT enabled. Use `symbol_graph` for all graph queries instead. Do NOT error or warn about missing Neo4j.**
+> **If `graph_query` is not in your MCP tool list, it is NOT enabled. Use `symbol_graph` for all graph queries instead. Do NOT error or warn about missing Neo4j.**
 
 ```json
 {"symbol": "normalize_path", "query_type": "impact", "depth": 2}
@@ -269,7 +329,7 @@ The `query_signature` encodes control flow: `L` (loops), `B` (branches), `T` (tr
 {"symbol": "run_hybrid_search", "query_type": "dependencies", "limit": 15}
 ```
 
-**Query types (only when neo4j_graph_query is available):**
+**Query types (only when graph_query is available):**
 | Type | Description |
 |------|-------------|
 | `callers` | Who calls this symbol? (depth 1) |
@@ -286,6 +346,12 @@ The `query_signature` encodes control flow: `L` (loops), `B` (branches), `T` (tr
 ```json
 {"query": "fixed authentication bug", "limit": 10}
 ```
+
+**Predict co-changing files** (predict_related mode):
+```json
+{"path": "src/api/auth.py", "predict_related": true, "limit": 10}
+```
+Returns ranked files that historically co-change with the given path, along with the most relevant commit message explaining why.
 
 **change_history_for_path** - File change summary:
 ```json
@@ -518,20 +584,21 @@ Common issues:
 
 ## Best Practices
 
-1. **NEVER use Read File or grep for exploration** - Use MCP tools (`repo_search`, `symbol_graph`, `context_answer`) instead. The ONLY acceptable use of Read/grep is confirming exact literal strings.
-2. **Default to `symbol_graph` for all graph queries** - It is always available. Only use `neo4j_graph_query` if the tool appears in your MCP tool list.
-3. **Start broad, then filter** - Begin with a semantic query, add filters if too many results
-4. **Use multi-query** - Pass 2-3 query variations for better recall on complex searches
-5. **Include snippets** - Set `include_snippet: true` to see code context in results
-6. **Store decisions** - Use `memory_store` to save architectural decisions and context for later
-7. **Check index health** - Run `qdrant_status` if searches return unexpected results
-8. **Prune after refactors** - Run `qdrant_prune` after moving/deleting files
-9. **Index before search** - Always run `qdrant_index_root` on first use or after cloning a repo
-10. **Use pattern_search for structural matching** - When looking for code with similar control flow (retry loops, error handling), use `pattern_search` instead of `repo_search` (if enabled)
-11. **Describe patterns in natural language** - `pattern_search` understands "retry with backoff" just as well as actual code examples (if enabled)
-12. **Fire independent searches in parallel** - Call multiple `repo_search`, `symbol_graph`, etc. in the same message block for 2-3x speedup
-13. **Use TOON format for discovery** - Set `output_format: "toon"` for 60-80% token reduction on exploratory queries
-14. **Bootstrap sessions with defaults** - Call `set_session_defaults(output_format="toon", compact=true)` early to avoid repeating params
-15. **Two-phase search** - Discovery first (`limit=3, compact=true`), then deep dive (`limit=5-8, include_snippet=true`) on targets
-16. **Use fallback chains** - If `context_answer` times out, fall back to `repo_search` + `info_request(include_explanation=true)`
+1. **Use `search` as your default tool** - It auto-routes to the best specialized tool. Only use specific tools when you need precise control or features `search` doesn't handle (cross-repo, memory, admin).
+2. **NEVER use Read File or grep for exploration** - Use MCP tools (`search`, `repo_search`, `symbol_graph`, `context_answer`) instead. The ONLY acceptable use of Read/grep is confirming exact literal strings.
+3. **Default to `symbol_graph` for all graph queries** - It is always available. Only use `graph_query` if the tool appears in your MCP tool list.
+4. **Start broad, then filter** - Begin with `search` or a semantic query, add filters if too many results
+5. **Use multi-query** - Pass 2-3 query variations for better recall on complex searches
+6. **Include snippets** - Set `include_snippet: true` to see code context in results
+7. **Store decisions** - Use `memory_store` to save architectural decisions and context for later
+8. **Check index health** - Run `qdrant_status` if searches return unexpected results
+9. **Prune after refactors** - Run `qdrant_prune` after moving/deleting files
+10. **Index before search** - Always run `qdrant_index_root` on first use or after cloning a repo
+11. **Use pattern_search for structural matching** - When looking for code with similar control flow (retry loops, error handling), use `pattern_search` instead of `repo_search` (if enabled)
+12. **Describe patterns in natural language** - `pattern_search` understands "retry with backoff" just as well as actual code examples (if enabled)
+13. **Fire independent searches in parallel** - Call multiple `search`, `repo_search`, `symbol_graph`, etc. in the same message block for 2-3x speedup
+14. **Use TOON format for discovery** - Set `output_format: "toon"` for 60-80% token reduction on exploratory queries
+15. **Bootstrap sessions with defaults** - Call `set_session_defaults(output_format="toon", compact=true)` early to avoid repeating params
+16. **Two-phase search** - Discovery first (`limit=3, compact=true`), then deep dive (`limit=5-8, include_snippet=true`) on targets
+17. **Use fallback chains** - If `context_answer` times out, fall back to `search` or `repo_search` + `info_request(include_explanation=true)`
 

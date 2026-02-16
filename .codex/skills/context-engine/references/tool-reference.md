@@ -2,6 +2,24 @@
 
 Complete parameter reference for all MCP tools.
 
+## search (UNIFIED - DEFAULT)
+
+**Use this by DEFAULT for any code search, exploration, or question.** Automatically detects query intent and routes to the optimal specialized tool.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `query` | string | Natural language query describing what you need |
+| `collection` | string | Target a specific collection |
+| `limit` | int | Max results (default varies by detected intent) |
+| `language` | string | Filter by programming language |
+| `under` | string | Filter by directory path prefix |
+| `include_snippet` | bool | Include code snippets in results |
+| `compact` | bool | Compact output format |
+
+**Returns:** `{ok, intent, confidence, tool, result, plan, execution_time_ms}`
+
+**Dispatchable tools:** `repo_search`, `context_answer`, `search_tests_for`, `search_config_for`, `symbol_graph`, `search_callers_for`, `search_importers_for`, `info_request`, `context_search`
+
 ## repo_search / code_search
 
 Primary hybrid search tool. Reranking enabled by default.
