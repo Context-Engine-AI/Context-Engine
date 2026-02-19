@@ -999,6 +999,17 @@ body::before {
     color: #fff !important;
   }
 
+  [data-theme="light"] .mobile-login-link {
+    color: #00896b !important;
+    border-color: rgba(0, 137, 107, 0.35);
+    background: rgba(0, 137, 107, 0.06);
+  }
+
+  [data-theme="light"] .mobile-login-link:hover {
+    background: rgba(0, 137, 107, 0.12) !important;
+    color: #005d49 !important;
+  }
+
   .mobile-menu-cta {
     margin-top: auto;
     padding-top: 24px;
