@@ -273,6 +273,15 @@ body::before {
   color: #005d49;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .btn-login {
+    animation: none;
+  }
+  .btn-login:hover {
+    transform: none;
+  }
+}
+
 .icon-btn {
   display: flex;
   align-items: center;
