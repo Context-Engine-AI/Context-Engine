@@ -234,6 +234,45 @@ body::before {
   font-size: 15px;
 }
 
+/* Login / Sign Up - attention-grabbing */
+.btn-login {
+  background: transparent;
+  color: #00ffcc;
+  border: 2px solid #00ffcc;
+  padding: 8px 20px;
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 0.02em;
+  box-shadow: 0 0 12px rgba(0, 255, 204, 0.3), inset 0 0 12px rgba(0, 255, 204, 0.06);
+  animation: loginGlow 2s ease-in-out infinite alternate;
+  position: relative;
+}
+
+.btn-login:hover {
+  background: rgba(0, 255, 204, 0.12);
+  box-shadow: 0 0 24px rgba(0, 255, 204, 0.5), inset 0 0 16px rgba(0, 255, 204, 0.1);
+  transform: translateY(-1px);
+  color: #fff;
+  border-color: #00ffcc;
+}
+
+@keyframes loginGlow {
+  0% { box-shadow: 0 0 10px rgba(0, 255, 204, 0.25), inset 0 0 10px rgba(0, 255, 204, 0.04); }
+  100% { box-shadow: 0 0 20px rgba(0, 255, 204, 0.45), inset 0 0 14px rgba(0, 255, 204, 0.08); }
+}
+
+[data-theme="light"] .btn-login {
+  color: #00896b;
+  border-color: #00896b;
+  box-shadow: 0 0 12px rgba(0, 137, 107, 0.25), inset 0 0 10px rgba(0, 137, 107, 0.05);
+}
+
+[data-theme="light"] .btn-login:hover {
+  background: rgba(0, 137, 107, 0.1);
+  box-shadow: 0 0 22px rgba(0, 137, 107, 0.4), inset 0 0 14px rgba(0, 137, 107, 0.08);
+  color: #005d49;
+}
+
 .icon-btn {
   display: flex;
   align-items: center;
@@ -939,6 +978,18 @@ body::before {
     color: var(--text-primary);
   }
   
+  .mobile-login-link {
+    color: #00ffcc !important;
+    font-weight: 600;
+    border: 1px solid rgba(0, 255, 204, 0.3);
+    background: rgba(0, 255, 204, 0.06);
+  }
+
+  .mobile-login-link:hover {
+    background: rgba(0, 255, 204, 0.12) !important;
+    color: #fff !important;
+  }
+
   .mobile-menu-cta {
     margin-top: auto;
     padding-top: 24px;
