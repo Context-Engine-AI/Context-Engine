@@ -5,6 +5,8 @@
 	import { base } from '$app/paths';
 	import { Sun, Moon, Mail, Github, Layers, Menu, X, Key, LogIn } from 'lucide-svelte';
 
+	const loginUrl = import.meta.env.VITE_CTX_LOGIN_URL || 'https://dev.context-engine.ai/login';
+
 	let { children } = $props();
 
 	let theme = $state('dark');
@@ -117,7 +119,7 @@
 			{/if}
 		</button>
 		<a href="#demo" class="btn btn-primary desktop-only">Request Demo</a>
-		<a href="https://dev.context-engine.ai/login" class="btn btn-login desktop-only">
+		<a href={loginUrl} class="btn btn-login desktop-only">
 			<LogIn size={16} />
 			Login / Sign Up
 		</a>
@@ -183,11 +185,7 @@
 			<Mail size={20} />
 			Support
 		</a>
-		<a
-			href="https://dev.context-engine.ai/login"
-			class="mobile-nav-link mobile-login-link"
-			onclick={closeMobileMenu}
-		>
+		<a href={loginUrl} class="mobile-nav-link mobile-login-link" onclick={closeMobileMenu}>
 			<LogIn size={20} />
 			Login / Sign Up
 		</a>
