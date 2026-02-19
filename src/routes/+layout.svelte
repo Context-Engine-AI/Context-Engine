@@ -3,7 +3,9 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import { base } from '$app/paths';
-	import { Sun, Moon, Mail, Github, Layers, Menu, X, Key } from 'lucide-svelte';
+	import { Sun, Moon, Mail, Github, Layers, Menu, X, Key, LogIn } from 'lucide-svelte';
+
+	const loginUrl = import.meta.env.VITE_CTX_LOGIN_URL || `${base}/login`;
 
 	let { children } = $props();
 
@@ -117,6 +119,10 @@
 			{/if}
 		</button>
 		<a href="#demo" class="btn btn-primary desktop-only">Request Demo</a>
+		<a href={loginUrl} class="btn btn-login desktop-only">
+			<LogIn size={16} />
+			Login / Sign Up
+		</a>
 		<button
 			class="icon-btn mobile-menu-btn"
 			onclick={toggleMobileMenu}
@@ -178,6 +184,10 @@
 		<a href="mailto:support@context-engine.ai" class="mobile-nav-link" onclick={closeMobileMenu}>
 			<Mail size={20} />
 			Support
+		</a>
+		<a href={loginUrl} class="mobile-nav-link mobile-login-link" onclick={closeMobileMenu}>
+			<LogIn size={20} />
+			Login / Sign Up
 		</a>
 		<div class="mobile-menu-cta">
 			<a href="#demo" class="btn btn-primary btn-lg" onclick={closeMobileMenu}>Request Demo</a>
