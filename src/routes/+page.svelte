@@ -241,7 +241,7 @@
 			codebase to AI. Start coding.
 		</p>
 
-	{#if heroSubmitted}
+		{#if heroSubmitted}
 			<div class="hero-form" style="color: var(--accent); font-size: 16px;">
 				Beta key sent! Check your email at {heroEmail}
 			</div>
@@ -432,28 +432,28 @@ result = <span class="c-fn">repo_search</span>(
 	<h2 class="section-title">Get <span class="gradient-text">Early Access</span></h2>
 	<p class="section-subtitle">Join the beta and give your AI the context it deserves.</p>
 
-	{#if demoSubmitted}
-		<div class="demo-form" style="color: var(--accent); font-size: 16px; justify-content: center;">
-			Beta key sent! Check your email at {demoEmail}
-		</div>
-	{:else}
-		<form class="demo-form" onsubmit={handleDemoSubmit}>
-			<input
-				type="email"
-				class="input"
-				placeholder="you@company.com"
-				required
-				bind:value={demoEmail}
-				disabled={demoLoading}
-			/>
-			<button type="submit" class="btn btn-primary btn-lg" disabled={demoLoading}>
-				{demoLoading ? 'Sending…' : 'Request Invite'}
-			</button>
-		</form>
-		{#if demoError}
-			<div style="color: #ef4444; font-size: 14px; margin-top: 8px; text-align: center;">{demoError}</div>
+		{#if demoSubmitted}
+			<div class="demo-form" style="color: var(--accent); font-size: 16px; justify-content: center;">
+				Beta key sent! Check your email at {demoEmail}
+			</div>
+		{:else}
+			<form class="demo-form" onsubmit={handleDemoSubmit}>
+				<input
+					type="email"
+					class="input"
+					placeholder="you@company.com"
+					required
+					bind:value={demoEmail}
+					disabled={demoLoading}
+				/>
+				<button type="submit" class="btn btn-primary btn-lg" disabled={demoLoading}>
+					{demoLoading ? 'Sending…' : 'Request Invite'}
+				</button>
+			</form>
+			{#if demoError}
+				<div style="color: #ef4444; font-size: 14px; margin-top: 8px; text-align: center;">{demoError}</div>
+			{/if}
 		{/if}
-	{/if}
 </section>
 
 <!-- Footer -->
