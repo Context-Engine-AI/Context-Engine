@@ -23,6 +23,12 @@
 	let demoEmail = $state('');
 	let heroSubmitted = $state(false);
 	let demoSubmitted = $state(false);
+	let heroError = $state('');
+	let demoError = $state('');
+	let heroLoading = $state(false);
+	let demoLoading = $state(false);
+
+	const BETA_SIGNUP_URL = 'https://dev.context-engine.ai/auth/beta-signup';
 
 	// Features data
 	const features = [
@@ -170,33 +176,47 @@
 
 	async function handleHeroSubmit(e: SubmitEvent) {
 		e.preventDefault();
+		heroError = '';
+		heroLoading = true;
 		try {
-			const response = await fetch('https://formspree.io/f/xojjvnkd', {
+			const response = await fetch(BETA_SIGNUP_URL, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ email: heroEmail, subject: 'Early Access Request' })
+				body: JSON.stringify({ email: heroEmail })
 			});
+			const data = await response.json();
 			if (response.ok) {
 				heroSubmitted = true;
+			} else {
+				heroError = data.detail || 'Something went wrong. Please try again.';
 			}
 		} catch (error) {
-			console.error('Form submission error:', error);
+			heroError = 'Network error. Please try again.';
+		} finally {
+			heroLoading = false;
 		}
 	}
 
 	async function handleDemoSubmit(e: SubmitEvent) {
 		e.preventDefault();
+		demoError = '';
+		demoLoading = true;
 		try {
-			const response = await fetch('https://formspree.io/f/xojjvnkd', {
+			const response = await fetch(BETA_SIGNUP_URL, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ email: demoEmail, subject: 'Request Invite' })
+				body: JSON.stringify({ email: demoEmail })
 			});
+			const data = await response.json();
 			if (response.ok) {
 				demoSubmitted = true;
+			} else {
+				demoError = data.detail || 'Something went wrong. Please try again.';
 			}
 		} catch (error) {
-			console.error('Form submission error:', error);
+			demoError = 'Network error. Please try again.';
+		} finally {
+			demoLoading = false;
 		}
 	}
 </script>
@@ -221,9 +241,9 @@
 			codebase to AI. Start coding.
 		</p>
 
-		{#if heroSubmitted}
+	{#if heroSubmitted}
 			<div class="hero-form" style="color: var(--accent); font-size: 16px;">
-				Thanks! We'll be in touch at {heroEmail}
+				Beta key sent! Check your email at {heroEmail}
 			</div>
 		{:else}
 			<form class="hero-form" onsubmit={handleHeroSubmit}>
@@ -233,9 +253,15 @@
 					placeholder="you@company.com"
 					required
 					bind:value={heroEmail}
+					disabled={heroLoading}
 				/>
-				<button type="submit" class="btn btn-primary btn-lg">Request Early Access</button>
+				<button type="submit" class="btn btn-primary btn-lg" disabled={heroLoading}>
+					{heroLoading ? 'Sending…' : 'Request Early Access'}
+				</button>
 			</form>
+			{#if heroError}
+				<div style="color: #ef4444; font-size: 14px; margin-top: 8px;">{heroError}</div>
+			{/if}
 		{/if}
 
 		<div class="hero-actions">
@@ -408,7 +434,7 @@ result = <span class="c-fn">repo_search</span>(
 
 	{#if demoSubmitted}
 		<div class="demo-form" style="color: var(--accent); font-size: 16px; justify-content: center;">
-			Thanks! We'll be in touch at {demoEmail}
+			Beta key sent! Check your email at {demoEmail}
 		</div>
 	{:else}
 		<form class="demo-form" onsubmit={handleDemoSubmit}>
@@ -418,9 +444,15 @@ result = <span class="c-fn">repo_search</span>(
 				placeholder="you@company.com"
 				required
 				bind:value={demoEmail}
+				disabled={demoLoading}
 			/>
-			<button type="submit" class="btn btn-primary btn-lg">Request Invite</button>
+			<button type="submit" class="btn btn-primary btn-lg" disabled={demoLoading}>
+				{demoLoading ? 'Sending…' : 'Request Invite'}
+			</button>
 		</form>
+		{#if demoError}
+			<div style="color: #ef4444; font-size: 14px; margin-top: 8px; text-align: center;">{demoError}</div>
+		{/if}
 	{/if}
 </section>
 
