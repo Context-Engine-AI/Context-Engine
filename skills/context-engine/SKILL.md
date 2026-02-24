@@ -42,11 +42,10 @@ What do you need?
     |       +-- Who calls this function --> search OR symbol_graph (DEFAULT, always available)
     |       +-- Who imports this module --> search OR symbol_graph OR search_importers_for
     |       +-- Where is this defined --> symbol_graph (query_type="definition")
-    |       +-- Symbol graph navigation (callers/defs/importers) --> symbol_graph (ALWAYS use this first)
-    |       +-- Multi-hop callers (callers of callers) --> symbol_graph (depth=2+) OR graph_query (if NEO4J_GRAPH=1 or MEMGRAPH_GRAPH=1)
-    |       +-- Impact analysis (what breaks if I change X) --> graph_query (ONLY if available)
-    |       +-- Dependency graph --> graph_query (ONLY if available)
-    |       +-- Circular dependency detection --> graph_query (ONLY if available)
+    |       +-- Find subclasses --> symbol_graph (query_type="subclasses")
+    |       +-- Find base classes --> symbol_graph (query_type="base_classes")
+    |       +-- Symbol graph navigation (callers/defs/importers/subclasses) --> symbol_graph (ALWAYS use this first)
+    |       +-- Multi-hop callers (callers of callers) --> symbol_graph (depth=2+)
     |
     +-- Git history
     |       |
@@ -56,6 +55,12 @@ What do you need?
     +-- Store/recall knowledge --> memory_store, memory_find
     |
     +-- Blend code + notes --> context_search with include_memories=true
+    |
+    +-- Multiple independent queries at once
+            |
+            +-- batch_search (runs N repo_search calls in one invocation, ~75% token savings)
+            +-- batch_symbol_graph (runs N symbol_graph queries in one invocation)
+            +-- batch_graph_query (runs N graph_query queries in one invocation)
 ```
 
 ## Unified Search: search (RECOMMENDED DEFAULT)
@@ -105,6 +110,10 @@ Returns:
 
 **When to use specialized tools instead:**
 - Cross-repo search -> `cross_repo_search`
+- Multiple independent searches -> `batch_search` (N searches in one call, ~75% token savings)
+- Multiple independent symbol queries -> `batch_symbol_graph` (N symbol_graph queries in one call)
+- Multiple independent graph queries -> `batch_graph_query` (N graph_query queries in one call)
+- Advanced graph traversal / impact analysis -> `graph_query`
 - Memory storage/retrieval -> `memory_store`, `memory_find`
 - Admin/diagnostics -> `qdrant_status`, `qdrant_list`
 - Pattern matching (structural) -> `pattern_search`
@@ -178,6 +187,117 @@ Use `repo: "*"` to search all indexed repos.
 - `ext` - File extension
 - `repo` - Repository filter for multi-repo setups
 - `case` - Case-sensitive matching
+
+## Batch Search: batch_search
+
+Run N independent `repo_search` calls in a single MCP tool invocation. Reduces token overhead by ~75-85% compared to sequential calls.
+
+```json
+{
+  "searches": [
+    {"query": "authentication middleware", "limit": 5},
+    {"query": "rate limiting implementation", "limit": 5},
+    {"query": "error handling patterns"}
+  ],
+  "compact": true,
+  "output_format": "toon"
+}
+```
+
+Returns:
+```json
+{
+  "ok": true,
+  "batch_results": [result_set_0, result_set_1, result_set_2],
+  "count": 3,
+  "elapsed_ms": 245
+}
+```
+
+Each `result_set` has the same schema as `repo_search` output.
+
+**Shared parameters** (applied to all searches unless overridden per-search):
+- `collection`, `output_format`, `compact`, `limit`, `language`, `under`, `repo`, `include_snippet`, `rerank_enabled`
+
+**Per-search overrides**: Each entry in `searches` can include any `repo_search` parameter to override the shared defaults.
+
+**Limits**: Maximum 10 searches per batch.
+
+**When to use `batch_search` vs multiple `search` calls:**
+- Use `batch_search` when you have 2+ independent code searches and want to minimize token usage and round-trips
+- Use individual `search` calls when you need intent routing (Q&A, symbol graph, etc.) or when searches depend on each other's results
+
+## Batch Symbol Graph: batch_symbol_graph
+
+Run N independent `symbol_graph` queries in a single MCP tool invocation. Same ~75-85% token savings as `batch_search`.
+
+```json
+{
+  "queries": [
+    {"symbol": "authenticate", "query_type": "callers"},
+    {"symbol": "CacheManager", "query_type": "definition"},
+    {"symbol": "BaseModel", "query_type": "subclasses"}
+  ],
+  "limit": 10
+}
+```
+
+Returns:
+```json
+{
+  "ok": true,
+  "batch_results": [result_set_0, result_set_1, result_set_2],
+  "count": 3,
+  "elapsed_ms": 180
+}
+```
+
+Each `result_set` has the same schema as `symbol_graph` output.
+
+**Shared parameters** (applied to all queries unless overridden per-query):
+- `collection`, `language`, `under`, `repo`, `limit`, `depth`, `output_format`
+
+**Per-query overrides**: Each entry in `queries` must have a `symbol` key and can include any `symbol_graph` parameter (`query_type`, `depth`, `limit`, etc.) to override shared defaults.
+
+**Limits**: Maximum 10 queries per batch.
+
+**When to use `batch_symbol_graph` vs multiple `symbol_graph` calls:**
+- Use `batch_symbol_graph` when you need callers/definitions/importers for multiple symbols at once
+- Use individual `symbol_graph` calls when queries depend on each other's results
+
+## Batch Graph Query: batch_graph_query
+
+Run N independent `graph_query` calls in a single MCP tool invocation. Same ~75-85% token savings.
+
+```json
+{
+  "queries": [
+    {"symbol": "User", "query_type": "impact", "depth": 3},
+    {"symbol": "auth", "query_type": "cycles"},
+    {"symbol": "PaymentService", "query_type": "transitive_callers"}
+  ],
+  "limit": 15
+}
+```
+
+Returns:
+```json
+{
+  "ok": true,
+  "batch_results": [result_set_0, result_set_1, result_set_2],
+  "count": 3,
+  "elapsed_ms": 250
+}
+```
+
+Each `result_set` has the same schema as `graph_query` output.
+
+**Shared parameters** (applied to all queries unless overridden per-query):
+- `collection`, `repo`, `language`, `depth`, `limit`, `include_paths`, `output_format`
+
+**Per-query overrides**: Each entry in `queries` must have a `symbol` key and can include any `graph_query` parameter (`query_type`, `depth`, `include_paths`, etc.) to override shared defaults.
+
+**Limits**: Maximum 10 queries per batch.
 
 ## Simple Lookup: info_request
 
@@ -300,7 +420,7 @@ The `query_signature` encodes control flow: `L` (loops), `B` (branches), `T` (tr
 {"query": "utils/helpers", "limit": 10}
 ```
 
-**symbol_graph** - Symbol graph navigation (callers / callees / definition / importers):
+**symbol_graph** - Symbol graph navigation (callers / callees / definition / importers / subclasses / base classes):
 
 **Query types:**
 | Type | Description |
@@ -309,6 +429,8 @@ The `query_signature` encodes control flow: `L` (loops), `B` (branches), `T` (tr
 | `callees` | What does this symbol call? |
 | `definition` | Where is this symbol defined? |
 | `importers` | Who imports this module/symbol? |
+| `subclasses` | What classes inherit from this symbol? |
+| `base_classes` | What classes does this symbol inherit from? |
 
 **Examples:**
 ```json
@@ -323,44 +445,45 @@ The `query_signature` encodes control flow: `L` (loops), `B` (branches), `T` (tr
 ```json
 {"symbol": "authenticate", "query_type": "callees", "limit": 10}
 ```
+```json
+{"symbol": "BaseModel", "query_type": "subclasses", "limit": 20}
+```
+```json
+{"symbol": "MyService", "query_type": "base_classes"}
+```
 - Supports `language`, `under`, `depth`, and `output_format` like other tools.
 - Use `depth=2` or `depth=3` for multi-hop traversals (callers of callers).
 - If there are no graph hits, it falls back to semantic search.
 - **Note**: Results are "hydrated" with ~500-char source snippets for immediate context.
 
-**graph_query** - Advanced graph traversals (OPTIONAL — ONLY available when NEO4J_GRAPH=1 or MEMGRAPH_GRAPH=1):
+**graph_query** - Advanced graph traversals and impact analysis (available to all SaaS users):
 
-> **If `graph_query` is not in your MCP tool list, it is NOT enabled. Use `symbol_graph` for all graph queries instead. Do NOT error or warn about missing Neo4j/Memgraph.**
-
-```json
-{"symbol": "normalize_path", "query_type": "impact", "depth": 2}
-```
-```json
-{"symbol": "get_embedding_model", "query_type": "transitive_callers", "depth": 2}
-```
-```json
-{"symbol": "run_hybrid_search", "query_type": "dependencies", "limit": 15}
-```
-
-**Query types (only when graph_query is available):**
+**Query types:**
 | Type | Description |
 |------|-------------|
-| `callers` | Who calls this symbol? (depth 1) |
-| `callees` | What does this symbol call? (depth 1) |
-| `definition` | Where is this symbol defined? |
+| `callers` | Direct callers of this symbol |
+| `callees` | Direct callees of this symbol |
 | `transitive_callers` | Multi-hop callers (up to depth) |
 | `transitive_callees` | Multi-hop callees (up to depth) |
-| `impact` | What breaks if I change this? (reverse transitive) |
-| `dependencies` | What does this depend on? (calls + imports) |
-| `cycles` | Detect circular dependencies |
+| `impact` | What would break if I change this symbol? |
+| `dependencies` | Combined calls + imports |
+| `definition` | Where is this symbol defined? |
+| `cycles` | Detect circular dependencies involving this symbol |
 
-**Parameters:**
-- `symbol` - Symbol name to query
-- `query_type` - One of the types above
-- `depth` - Maximum traversal depth (default 1)
-- `limit` - Max results (default 10)
-- `include_paths` - Include file paths in results (bool, optional)
-
+**Examples:**
+```json
+{"symbol": "UserService", "query_type": "impact", "depth": 3}
+```
+```json
+{"symbol": "auth_module", "query_type": "cycles"}
+```
+```json
+{"symbol": "processPayment", "query_type": "transitive_callers", "depth": 2, "limit": 20}
+```
+- Supports `language`, `under`, `depth`, `limit`, `include_paths`, and `output_format`.
+- Use `include_paths: true` to get full traversal paths in results.
+- Use `depth` to control how many hops to traverse (default varies by query type).
+- **Note**: `symbol_graph` is always available (Qdrant-backed). `graph_query` provides advanced Memgraph-backed traversals and is available to all SaaS users.
 
 
 **search_commits_for** - Search git history:
@@ -405,6 +528,10 @@ Use `context_search` to blend code results with stored memories:
 
 ## Admin and Diagnostics
 
+> **SaaS mode:** In SaaS deployments, indexing is handled automatically by the VS Code extension upload service. The tools `qdrant_index_root`, `qdrant_index`, and `qdrant_prune` are **not available** in SaaS mode. All search, symbol graph, memory, and session tools work normally.
+
+**Available in all modes:**
+
 **qdrant_status** - Check index health:
 ```json
 {}
@@ -423,6 +550,23 @@ Use `context_search` to blend code results with stored memories:
 **set_session_defaults** - Set defaults for session:
 ```json
 {"collection": "my-project", "language": "python"}
+```
+
+**Self-hosted only (not available in SaaS):**
+
+**qdrant_index_root** - Index entire workspace:
+```json
+{"recreate": true}
+```
+
+**qdrant_index** - Index subdirectory:
+```json
+{"subdir": "src/"}
+```
+
+**qdrant_prune** - Remove stale entries from deleted files:
+```json
+{}
 ```
 
 ## Multi-Repo Navigation (CRITICAL)
@@ -561,7 +705,7 @@ Use the primary tools when possible. Compat wrappers exist for legacy clients.
 
 Tools return structured errors, typically via `error` field and sometimes `ok: false`:
 ```json
-{"ok": false, "error": "Collection not found. Run qdrant_index_root first."}
+{"ok": false, "error": "Collection not found."}
 {"error": "Timeout during rerank"}
 ```
 
@@ -574,7 +718,7 @@ Common issues:
 
 1. **Use `search` as your default tool** - It auto-routes to the best specialized tool. Only use specific tools when you need precise control or features `search` doesn't handle (cross-repo, memory, admin).
 2. **NEVER use Read File or grep for exploration** - Use MCP tools (`search`, `repo_search`, `symbol_graph`, `context_answer`) instead. The ONLY acceptable use of Read/grep is confirming exact literal strings.
-3. **Default to `symbol_graph` for all graph queries** - It is always available. Only use `graph_query` if the tool appears in your MCP tool list.
+3. **Use `symbol_graph` for graph queries** - It handles callers, callees, definitions, importers, subclasses, and base classes. Use `graph_query` for advanced traversals: impact analysis, circular dependency detection, and transitive callers/callees.
 4. **Start broad, then filter** - Begin with `search` or a semantic query, add filters if too many results
 5. **Use multi-query** - Pass 2-3 query variations for better recall on complex searches
 6. **Include snippets** - Set `include_snippet: true` to see code context in results
@@ -582,7 +726,7 @@ Common issues:
 8. **Check index health** - Run `qdrant_status` if searches return unexpected results
 11. **Use pattern_search for structural matching** - When looking for code with similar control flow (retry loops, error handling), use `pattern_search` instead of `repo_search` (if enabled)
 12. **Describe patterns in natural language** - `pattern_search` understands "retry with backoff" just as well as actual code examples (if enabled)
-13. **Fire independent searches in parallel** - Call multiple `search`, `repo_search`, `symbol_graph`, etc. in the same message block for 2-3x speedup
+13. **Fire independent searches in parallel** - Call multiple `search`, `repo_search`, `symbol_graph`, etc. in the same message block for 2-3x speedup. Or use batch tools (`batch_search`, `batch_symbol_graph`, `batch_graph_query`) to run N queries in a single invocation with ~75% token savings
 14. **Use TOON format for discovery** - Set `output_format: "toon"` for 60-80% token reduction on exploratory queries
 15. **Bootstrap sessions with defaults** - Call `set_session_defaults(output_format="toon", compact=true)` early to avoid repeating params
 16. **Two-phase search** - Discovery first (`limit=3, compact=true`), then deep dive (`limit=5-8, include_snippet=true`) on targets
