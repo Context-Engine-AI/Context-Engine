@@ -3,7 +3,7 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import { base } from '$app/paths';
-	import { Sun, Moon, Mail, Github, Layers, Menu, X, Key, LogIn } from 'lucide-svelte';
+	import { Sun, Moon, Mail, Github, Menu, X, Key, LogIn } from 'lucide-svelte';
 
 	const loginUrl = import.meta.env.VITE_CTX_LOGIN_URL || `${base}/login`;
 
@@ -62,9 +62,7 @@
 <header class="header">
 	<div class="header-left">
 		<a href="{base}/" class="logo">
-			<span class="logo-icon">
-				<Layers size={18} />
-			</span>
+			<img src="{base}/favicon.png" alt="Context Engine" class="logo-icon-img" />
 			Context Engine
 		</a>
 		<span class="byok-pill" data-tooltip="Bring Your Own LLM Key">
