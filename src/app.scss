@@ -332,8 +332,16 @@ body::before {
 }
 
 /* Show appropriate logo based on theme */
-[data-theme="light"] .hero-logo {
-  content: url('/Context-Engine/logo.svg');
+.hero-logo-light {
+  display: none;
+}
+
+[data-theme="light"] .hero-logo-dark {
+  display: none;
+}
+
+[data-theme="light"] .hero-logo-light {
+  display: block;
 }
 
 /* NVIDIA Inception Badge */
@@ -491,7 +499,7 @@ body::before {
 .hero-form {
   display: flex;
   gap: 12px;
-  margin-bottom: 24px;
+  margin-bottom: 36px;
   max-width: 440px;
 }
 
@@ -850,21 +858,6 @@ body::before {
   margin: 0;
 }
 
-/* Demo Section */
-.demo-section {
-  padding: 100px 48px;
-  max-width: 800px;
-  margin: 0 auto;
-  text-align: center;
-}
-
-.demo-form {
-  display: flex;
-  gap: 12px;
-  max-width: 480px;
-  margin: 0 auto;
-}
-
 .input {
   flex: 1;
   padding: 14px 18px;
@@ -922,6 +915,19 @@ body::before {
   color: var(--text-muted);
 }
 
+.footer-legal {
+  font-size: 11px;
+  color: var(--text-muted);
+  opacity: 0.7;
+  width: 100%;
+  max-width: 640px;
+  margin: 16px auto 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  line-height: 1.5;
+  text-align: center;
+}
+
 @keyframes drawLine {
   to { stroke-dashoffset: 0; }
 }
@@ -954,8 +960,8 @@ body::before {
   .hero-logo { height: 90px; }
   .nav { display: none; }
   .features-grid { grid-template-columns: 1fr; }
-  .graph-section, .features-section, .demo-section { padding: 60px 24px; }
-  .demo-form, .hero-form { flex-direction: column; }
+  .graph-section, .features-section { padding: 60px 24px; }
+  .hero-form { flex-direction: column; }
   .header { padding: 0 16px; }
   .graph-labels { padding: 0 20px; }
   .graph-column { width: 140px; }
@@ -1100,6 +1106,8 @@ body::before {
   .hero-actions {
     flex-direction: column;
     gap: 12px;
+    width: 100%;
+    justify-content: center;
   }
   
   .hero-actions .btn {
@@ -1227,24 +1235,6 @@ body::before {
   
   .feature-desc {
     font-size: 13px;
-  }
-  
-  /* Demo section */
-  .demo-section {
-    padding: 40px 16px;
-  }
-  
-  .demo-form {
-    gap: 12px;
-  }
-  
-  .demo-form .input {
-    min-width: unset;
-  }
-  
-  .demo-form .btn {
-    width: 100%;
-    justify-content: center;
   }
   
   /* Footer */

@@ -116,7 +116,6 @@
 				<span class="moon-icon"><Moon size={18} /></span>
 			{/if}
 		</button>
-		<a href="#demo" class="btn btn-primary desktop-only">Request Demo</a>
 		<a href={loginUrl} class="btn btn-login desktop-only">
 			<LogIn size={16} />
 			Login / Sign Up
@@ -187,9 +186,6 @@
 			<LogIn size={20} />
 			Login / Sign Up
 		</a>
-		<div class="mobile-menu-cta">
-			<a href="#demo" class="btn btn-primary btn-lg" onclick={closeMobileMenu}>Request Demo</a>
-		</div>
 	</nav>
 {/if}
 
