@@ -21,13 +21,9 @@
 
 	// Form state
 	let heroEmail = $state('');
-	let demoEmail = $state('');
 	let heroSubmitted = $state(false);
-	let demoSubmitted = $state(false);
 	let heroError = $state('');
-	let demoError = $state('');
 	let heroLoading = $state(false);
-	let demoLoading = $state(false);
 
 	const BETA_SIGNUP_URL = 'https://dev.context-engine.ai/auth/beta-signup';
 
@@ -197,29 +193,6 @@
 			heroLoading = false;
 		}
 	}
-
-	async function handleDemoSubmit(e: SubmitEvent) {
-		e.preventDefault();
-		demoError = '';
-		demoLoading = true;
-		try {
-			const response = await fetch(BETA_SIGNUP_URL, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ email: demoEmail })
-			});
-			const data = await response.json();
-			if (response.ok) {
-				demoSubmitted = true;
-			} else {
-				demoError = data.detail || 'Something went wrong. Please try again.';
-			}
-		} catch (error) {
-			demoError = 'Network error. Please try again.';
-		} finally {
-			demoLoading = false;
-		}
-	}
 </script>
 
 <svelte:head>
@@ -234,7 +207,8 @@
 <section class="hero">
 	<div class="hero-content">
 		<div class="hero-brand">
-			<img src="{base}/logo-white.svg" alt="Context Engine" class="hero-logo" />
+			<img src="{base}/logo-white.svg" alt="Context Engine" class="hero-logo hero-logo-dark" />
+			<img src="{base}/logo.svg" alt="Context Engine" class="hero-logo hero-logo-light" />
 			<a
 				href="https://www.nvidia.com/en-us/startups/"
 				target="_blank"
@@ -258,7 +232,7 @@
 
 		{#if heroSubmitted}
 			<div class="hero-form" style="color: var(--accent); font-size: 16px;">
-				Beta key sent! Check your email at {heroEmail}
+				You're in! Check your email at {heroEmail}
 			</div>
 		{:else}
 			<form class="hero-form" onsubmit={handleHeroSubmit}>
@@ -271,7 +245,7 @@
 					disabled={heroLoading}
 				/>
 				<button type="submit" class="btn btn-primary btn-lg" disabled={heroLoading}>
-					{heroLoading ? 'Sending…' : 'Request Early Access'}
+					{heroLoading ? 'Sending…' : 'Join Open Beta'}
 				</button>
 			</form>
 			{#if heroError}
@@ -442,37 +416,6 @@ result = <span class="c-fn">repo_search</span>(
 	</div>
 </section>
 
-<!-- Demo Section -->
-<section class="demo-section" id="demo">
-	<h2 class="section-title">Get <span class="gradient-text">Early Access</span></h2>
-	<p class="section-subtitle">Join the beta and give your AI the context it deserves.</p>
-
-	{#if demoSubmitted}
-		<div class="demo-form" style="color: var(--accent); font-size: 16px; justify-content: center;">
-			Beta key sent! Check your email at {demoEmail}
-		</div>
-	{:else}
-		<form class="demo-form" onsubmit={handleDemoSubmit}>
-			<input
-				type="email"
-				class="input"
-				placeholder="you@company.com"
-				required
-				bind:value={demoEmail}
-				disabled={demoLoading}
-			/>
-			<button type="submit" class="btn btn-primary btn-lg" disabled={demoLoading}>
-				{demoLoading ? 'Sending…' : 'Request Invite'}
-			</button>
-		</form>
-		{#if demoError}
-			<div style="color: #ef4444; font-size: 14px; margin-top: 8px; text-align: center;">
-				{demoError}
-			</div>
-		{/if}
-	{/if}
-</section>
-
 <!-- Footer -->
 <footer class="footer">
 	<div class="footer-content">
@@ -495,5 +438,9 @@ result = <span class="c-fn">repo_search</span>(
 			<a href="mailto:support@context-engine.ai" class="footer-link">support@context-engine.ai</a>
 		</div>
 		<div class="footer-copy">© {new Date().getFullYear()} Context Engine. All rights reserved.</div>
+	</div>
+	<div class="footer-legal">
+		© 2025 NVIDIA, the NVIDIA logo, and NVIDIA Inception Program are trademarks and/or registered
+		trademarks of NVIDIA Corporation in the U.S. and other countries.
 	</div>
 </footer>
