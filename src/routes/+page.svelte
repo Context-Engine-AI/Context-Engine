@@ -16,7 +16,11 @@
 		Bug,
 		Github,
 		Brain,
-		Leaf
+		Leaf,
+		Play,
+		X,
+		Volume2,
+		VolumeX
 	} from 'lucide-svelte';
 
 	// Form state
@@ -24,6 +28,40 @@
 	let heroSubmitted = $state(false);
 	let heroError = $state('');
 	let heroLoading = $state(false);
+
+	// Video lightbox state
+	let videoOpen = $state(false);
+	let videoMuted = $state(true);
+	let videoEl: HTMLVideoElement = $state(null!);
+
+	function openVideo() {
+		videoOpen = true;
+		document.body.style.overflow = 'hidden';
+	}
+
+	function closeVideo() {
+		videoOpen = false;
+		document.body.style.overflow = '';
+		if (videoEl) {
+			videoEl.pause();
+			videoEl.currentTime = 0;
+		}
+	}
+
+	function toggleMute() {
+		videoMuted = !videoMuted;
+		if (videoEl) videoEl.muted = videoMuted;
+	}
+
+	function handleLightboxKeydown(e: KeyboardEvent) {
+		if (e.key === 'Escape') closeVideo();
+	}
+
+	function handleOverlayClick(e: MouseEvent) {
+		if ((e.target as HTMLElement).classList.contains('video-lightbox')) {
+			closeVideo();
+		}
+	}
 
 	const BETA_SIGNUP_URL = 'https://dev.context-engine.ai/auth/beta-signup';
 
@@ -254,6 +292,10 @@
 		{/if}
 
 		<div class="hero-actions">
+			<button class="btn btn-demo" onclick={openVideo}>
+				<span class="btn-demo-icon"><Play size={18} /></span>
+				Watch Demo
+			</button>
 			<a
 				href="https://github.com/Context-Engine-AI/Context-Engine"
 				class="btn btn-secondary"
@@ -415,6 +457,51 @@ result = <span class="c-fn">repo_search</span>(
 		{/each}
 	</div>
 </section>
+
+<!-- Video Lightbox -->
+{#if videoOpen}
+	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+	<div
+		class="video-lightbox"
+		role="dialog"
+		aria-modal="true"
+		aria-label="Demo video"
+		tabindex="-1"
+		onkeydown={handleLightboxKeydown}
+		onclick={handleOverlayClick}
+	>
+		<div class="video-lightbox-inner">
+			<div class="video-lightbox-controls">
+				<button
+					class="video-control-btn"
+					onclick={toggleMute}
+					aria-label={videoMuted ? 'Unmute' : 'Mute'}
+				>
+					{#if videoMuted}
+						<VolumeX size={20} />
+					{:else}
+						<Volume2 size={20} />
+					{/if}
+				</button>
+				<button class="video-control-btn" onclick={closeVideo} aria-label="Close video">
+					<X size={20} />
+				</button>
+			</div>
+			<!-- svelte-ignore a11y_media_has_caption -->
+			<video
+				bind:this={videoEl}
+				autoplay
+				muted={videoMuted}
+				loop
+				playsinline
+				class="video-lightbox-player"
+			>
+				<source src="{base}/context_engine_1.webm" type="video/webm" />
+				<source src="{base}/context_engine_1.mp4" type="video/mp4" />
+			</video>
+		</div>
+	</div>
+{/if}
 
 <!-- Footer -->
 <footer class="footer">
