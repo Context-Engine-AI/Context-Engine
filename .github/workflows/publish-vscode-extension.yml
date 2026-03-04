@@ -1,0 +1,68 @@
+name: Publish VS Code Extension
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - test
+    paths:
+      - "vscode-extension/context-engine-uploader/package.json"
+
+concurrency:
+  group: vscode-marketplace-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Check extension version change
+        id: version_check
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          FILE="vscode-extension/context-engine-uploader/package.json"
+          CURRENT_VERSION="$(node -p "require('./' + process.env.FILE).version" )"
+
+          PREVIOUS_VERSION=""
+          if git cat-file -e "${{ github.event.before }}:${FILE}" 2>/dev/null; then
+            PREVIOUS_VERSION="$(git show "${{ github.event.before }}:${FILE}" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{try{console.log(JSON.parse(d).version||"")}catch(e){console.log("")}})')"
+          fi
+
+          echo "current_version=${CURRENT_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "previous_version=${PREVIOUS_VERSION}" >> "$GITHUB_OUTPUT"
+
+          if [[ -n "$CURRENT_VERSION" && "$CURRENT_VERSION" != "$PREVIOUS_VERSION" ]]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          FILE: "vscode-extension/context-engine-uploader/package.json"
+
+      - name: Publish to VS Code Marketplace
+        if: steps.version_check.outputs.changed == 'true'
+        shell: bash
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: |
+          chmod +x vscode-extension/build/publish-vscode-extension.sh
+          vscode-extension/build/publish-vscode-extension.sh --bundle-deps

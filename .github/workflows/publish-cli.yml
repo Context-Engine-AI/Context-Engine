@@ -1,0 +1,68 @@
+name: Publish ctxce CLI to npm
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - test
+    paths:
+      - "ctx-mcp-bridge/package.json"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Check bridge version change
+        id: version_check
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          PKG_PATH="ctx-mcp-bridge/package.json"
+          CURRENT_VERSION="$(node -p "require('./' + process.env.PKG_PATH).version")"
+
+          PREVIOUS_VERSION=""
+          if git cat-file -e "${{ github.event.before }}:${PKG_PATH}" 2>/dev/null; then
+            PREVIOUS_VERSION="$(git show "${{ github.event.before }}:${PKG_PATH}" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{try{console.log(JSON.parse(d).version||"")}catch(e){console.log("")}})')"
+          fi
+
+          ALREADY_PUBLISHED=false
+          if npm view "@context-engine-bridge/context-engine-mcp-bridge@${CURRENT_VERSION}" version >/dev/null 2>&1; then
+            ALREADY_PUBLISHED=true
+          fi
+
+          echo "current_version=${CURRENT_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "previous_version=${PREVIOUS_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "already_published=${ALREADY_PUBLISHED}" >> "$GITHUB_OUTPUT"
+
+          if [[ -n "$CURRENT_VERSION" && "$CURRENT_VERSION" != "$PREVIOUS_VERSION" ]]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          PKG_PATH: "ctx-mcp-bridge/package.json"
+
+      - name: Install dependencies
+        working-directory: ctx-mcp-bridge
+        run: npm install
+
+      - name: Publish to npm
+        if: steps.version_check.outputs.changed == 'true' && steps.version_check.outputs.already_published != 'true'
+        working-directory: ctx-mcp-bridge
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public --provenance
