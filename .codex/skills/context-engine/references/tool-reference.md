@@ -1,202 +1,57 @@
 # Context Engine Tool Reference
 
-Complete parameter reference for all MCP tools.
+This file is a **Codex quick reference**, not the canonical parameter spec. For full semantics and examples, defer to `skills/context-engine/SKILL.md` and the live MCP tool schemas.
 
-## search (UNIFIED - DEFAULT)
+## Default Entry Points
 
-**Use this by DEFAULT for any code search, exploration, or question.** Automatically detects query intent and routes to the optimal specialized tool.
+| Tool | Reach for it when | Notes |
+|------|-------------------|-------|
+| `search` | You have a general codebase question, lookup, or exploration task | Default first tool. Auto-routes to code search, Q&A, tests, config, symbols, and import lookups. |
+| `repo_search` / `code_search` | You need direct code-search control | Good for explicit filters like `language`, `under`, `path_glob`, `not_glob`, and `repo`. |
+| `batch_search` | You have 2+ independent code searches | Prefer this over repeated `repo_search` calls when the searches do not depend on one another. |
+| `context_answer` | You want an explanation grounded in retrieved code | Use when the output should be synthesized rather than raw hits. |
+| `info_request` | You want a lightweight natural-language lookup | Useful when you want discovery with minimal parameters. |
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `query` | string | Natural language query describing what you need |
-| `collection` | string | Target a specific collection |
-| `limit` | int | Max results (default varies by detected intent) |
-| `language` | string | Filter by programming language |
-| `under` | string | Filter by directory path prefix |
-| `include_snippet` | bool | Include code snippets in results |
-| `compact` | bool | Compact output format |
+## Symbol and Relationship Tools
 
-**Returns:** `{ok, intent, confidence, tool, result, plan, execution_time_ms}`
+| Tool | Reach for it when | Notes |
+|------|-------------------|-------|
+| `symbol_graph` | You need direct callers, callees, definitions, importers, subclasses, or base classes | Use first for symbol relationships. Supports `depth` for multi-hop caller/callee traversals. |
+| `search_callers_for` | You want a quick heuristic caller search | Broader and less precise than `symbol_graph`. |
+| `search_importers_for` | You want a quick heuristic importer search | Use when text-level import searching is sufficient. |
+| `graph_query` | You need deeper impact, dependency, transitive, or cycle analysis | Use **only if the tool is actually available** in the environment. Otherwise combine `symbol_graph` with targeted `search`. |
 
-**Dispatchable tools:** `repo_search`, `context_answer`, `search_tests_for`, `search_config_for`, `symbol_graph`, `search_callers_for`, `search_importers_for`, `info_request`, `context_search`
+## Search Specializations
 
-## repo_search / code_search
+| Tool | Reach for it when | Notes |
+|------|-------------------|-------|
+| `search_tests_for` | You want tests related to a feature or symbol | `search` can route here automatically. |
+| `search_config_for` | You want config or settings files | `search` can route here automatically. |
+| `pattern_search` | You want structurally similar code | Optional; availability depends on deployment. |
+| `search_commits_for` | You want commit history or co-change prediction | Use `predict_related=true` for historically coupled files. |
+| `change_history_for_path` | You want a file-level change summary | Optionally include recent commits. |
 
-Primary hybrid search tool. Reranking enabled by default.
+## Multi-Repo and Memory
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `query` | string/list | Search query (multi-query fuses results) |
-| `limit` | int | Max results (default 10) |
-| `per_path` | int | Max results per file (default 2) |
-| `include_snippet` | bool | Include code snippets |
-| `context_lines` | int | Lines of context around matches |
-| `language` | string | Filter by language |
-| `under` | string | Path prefix filter |
-| `path_glob` | list | Include patterns |
-| `not_glob` | list | Exclude patterns |
-| `symbol` | string | Symbol name filter |
-| `repo` | string/list | Repository filter ("*" for all) |
-| `rerank_enabled` | bool | Enable neural reranking (default true) |
-| `output_format` | string | "json" or "toon" (compact) |
-| `compact` | bool | Minimal response fields |
+| Tool | Reach for it when | Notes |
+|------|-------------------|-------|
+| `cross_repo_search` | The question spans multiple repos or collections | Prefer this over ad hoc cross-repo search chains. |
+| `context_search` | You want code + stored notes together | Set `include_memories=true`. |
+| `memory_store` / `memory_find` | You want to persist or recall non-code knowledge | Use for decisions, conventions, gotchas, and notes. |
+| `qdrant_status` / `qdrant_list` | You are debugging search/index availability | Diagnostics only; do not assume indexing tools exist unless the live tool schema exposes them. |
 
-## symbol_graph
+## Common Filter Reminders
 
-AST-backed symbol relationship queries. Always available.
+- `language` — narrow by language.
+- `under` — restrict to a path prefix.
+- `path_glob` / `not_glob` — include or exclude paths.
+- `repo` — limit to repo names when supported.
+- `include_snippet` — include code excerpts in results.
+- `compact` / `output_format="toon"` — reduce token usage during discovery.
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `symbol` | string | Symbol to analyze |
-| `query_type` | string | "callers", "definition", "importers", "callees", "subclasses", "base_classes" |
-| `depth` | int | Traversal depth (1=direct, 2+=multi-hop) |
-| `limit` | int | Max results (default 20) |
-| `language` | string | Filter by language |
-| `under` | string | Path prefix filter |
-| `repo` | string | Repository filter |
+## Exploration Policy
 
-## context_answer
-
-LLM-generated answers with code citations.
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `query` | string/list | Question requiring explanation |
-| `budget_tokens` | int | Token budget for context |
-| `max_tokens` | int | Max tokens for answer |
-| `expand` | bool | Generate query expansions |
-| `include_snippet` | bool | Include code in response |
-| `language` | string | Filter retrieval |
-| `under` | string | Path prefix filter |
-
-## info_request
-
-Simplified discovery with optional explanations.
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `info_request` | string | Natural language query |
-| `include_explanation` | bool | Add NL summary |
-| `include_relationships` | bool | Add imports/calls info |
-| `limit` | int | Max results |
-
-## pattern_search (Optional)
-
-Structural code pattern matching. May not be enabled in all deployments.
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `query` | string | Code snippet OR pattern description |
-| `query_mode` | string | "code", "description", or "auto" |
-| `language` | string | Language hint for code examples |
-| `target_languages` | list | Filter results to languages |
-| `min_score` | float | Minimum similarity (default 0.3) |
-| `aroma_rerank` | bool | AROMA structural reranking |
-
-## graph_query
-
-Advanced Memgraph-backed graph traversals and impact analysis. Available to all SaaS users.
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `symbol` | string | Symbol to analyze |
-| `query_type` | string | "callers", "callees", "transitive_callers", "transitive_callees", "impact", "dependencies", "definition", "cycles" |
-| `depth` | int | Max traversal depth (default varies by query type) |
-| `limit` | int | Max results (default 20) |
-| `language` | string | Filter by language |
-| `under` | string | Path prefix filter |
-| `repo` | string | Repository filter |
-| `include_paths` | bool | Include full traversal paths in results |
-| `output_format` | string | "json" or "toon" |
-
-## batch_search
-
-Run N independent `repo_search` calls in one MCP invocation. ~75% token savings.
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `searches` | list[dict] | List of search specs (each with at least a `query` key) |
-| `collection` | string | Shared collection (overridable per-search) |
-| `limit` | int | Shared max results (overridable per-search) |
-| `language` | string | Shared language filter |
-| `under` | string | Shared path prefix filter |
-| `repo` | string/list | Shared repository filter |
-| `include_snippet` | bool | Shared snippet toggle |
-| `rerank_enabled` | bool | Shared reranking toggle |
-| `output_format` | string | "json" or "toon" |
-| `compact` | bool | Minimal response fields |
-
-**Returns:** `{ok, batch_results: [result_set_0, ...], count, elapsed_ms}`. Max 10 searches per batch.
-
-## batch_symbol_graph
-
-Run N independent `symbol_graph` queries in one MCP invocation. ~75% token savings.
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `queries` | list[dict] | List of query specs (each must have a `symbol` key) |
-| `collection` | string | Shared collection (overridable per-query) |
-| `language` | string | Shared language filter |
-| `under` | string | Shared path prefix filter |
-| `repo` | string | Shared repository filter |
-| `limit` | int | Shared max results |
-| `depth` | int | Shared traversal depth |
-| `output_format` | string | "json" or "toon" |
-
-**Returns:** `{ok, batch_results: [result_set_0, ...], count, elapsed_ms}`. Max 10 queries per batch.
-
-## batch_graph_query
-
-Run N independent `graph_query` calls in one MCP invocation. ~75% token savings.
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `queries` | list[dict] | List of query specs (each must have a `symbol` key) |
-| `collection` | string | Shared collection (overridable per-query) |
-| `repo` | string | Shared repository filter |
-| `language` | string | Shared language filter |
-| `depth` | int | Shared traversal depth |
-| `limit` | int | Shared max results |
-| `include_paths` | bool | Shared include traversal paths |
-| `output_format` | string | "json" or "toon" |
-
-**Returns:** `{ok, batch_results: [result_set_0, ...], count, elapsed_ms}`. Max 10 queries per batch.
-
-## Memory Tools
-
-**memory_store**
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `information` | string | Knowledge to store |
-| `metadata` | object | Tags, topic, priority, etc. |
-
-**memory_find**
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `query` | string | Search query |
-| `limit` | int | Max results |
-| `kind` | string | Filter by type |
-| `topic` | string | Filter by topic |
-
-**context_search**
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `query` | string | Search query |
-| `include_memories` | bool | Blend with stored memories |
-| `per_source_limits` | object | `{"code": 6, "memory": 3}` |
-
-## Index Management
-
-> **SaaS mode:** Indexing is handled automatically by the VS Code extension upload service. `qdrant_index_root`, `qdrant_index`, and `qdrant_prune` are **not available** in SaaS. All search, symbol graph, memory, and session tools work normally.
-
-**Available in all modes:**
-- **qdrant_status** - Check health
-- **qdrant_list** - List all collections (alias for `qdrant_status(list_all=True)`)
-- **set_session_defaults** - Set collection, output_format, compact, limit
-- **embedding_pipeline_stats** - Cache efficiency, bloom filter stats, pipeline performance
-
-**Self-hosted only (not available in SaaS):**
-- **qdrant_index_root** - `{"recreate": true}` to drop existing data
-- **qdrant_index** - `{"subdir": "src/"}` for partial index
-- **qdrant_prune** - Remove stale entries
+- Prefer MCP tools over grep/file-open for cross-file exploration.
+- Narrow grep/file-open usage is still okay for exact literal confirmation, exact path/file confirmation, or opening a file you already identified for editing.
+- If this quick reference conflicts with the shared skill doc or the live tool schema, follow the shared skill doc or tool schema.
 
