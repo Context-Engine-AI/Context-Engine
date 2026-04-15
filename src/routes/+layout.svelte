@@ -3,7 +3,7 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import { base } from '$app/paths';
-	import { Sun, Moon, Mail, Github, Menu, X, Key, LogIn } from 'lucide-svelte';
+	import { Sun, Moon, Mail, Github, Menu, X, Key, LogIn, BookOpen } from 'lucide-svelte';
 
 	const loginUrl = import.meta.env.VITE_CTX_LOGIN_URL || `${base}/login`;
 
@@ -102,6 +102,10 @@
 				</svg>
 				VS Code <span style="font-size:11px;opacity:0.7">(OSS)</span>
 			</a>
+			<a href="https://docs.context-engine.ai" class="nav-link" target="_blank">
+				<BookOpen size={16} />
+				Docs
+			</a>
 		</nav>
 	</div>
 	<div class="header-right">
@@ -177,6 +181,16 @@
 				/>
 			</svg>
 			VS Code Extension
+		</a>
+		<a
+			href="https://docs.context-engine.ai"
+			class="mobile-nav-link"
+			target="_blank"
+			rel="noopener noreferrer"
+			onclick={closeMobileMenu}
+		>
+			<BookOpen size={20} />
+			Docs
 		</a>
 		<a href="mailto:support@context-engine.ai" class="mobile-nav-link" onclick={closeMobileMenu}>
 			<Mail size={20} />
