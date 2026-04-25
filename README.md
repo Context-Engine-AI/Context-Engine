@@ -7,6 +7,9 @@
 <p align="center">
   <strong>Semantic code search, memory, and symbol intelligence for AI coding assistants.</strong>
 </p>
+<p align="center">
+  <strong>Get your free account at dev.context-engine.ai</strong>
+</p>
 
 <p align="center">
   <a href="https://context-engine.ai">Website</a> · <a href="https://context-engine.ai">Get Started</a> · <a href="LICENSE">License</a>
