@@ -12,8 +12,19 @@
 	let theme = $state('dark');
 	let mobileMenuOpen = $state(false);
 
+	function readTheme(): string | null {
+		const m = document.cookie.match(/(?:^|; )theme=(dark|light)/);
+		if (m) return m[1];
+		return localStorage.getItem('theme');
+	}
+
+	function writeTheme(t: string) {
+		document.cookie = `theme=${t}; domain=.context-engine.ai; path=/; max-age=31536000; SameSite=Lax`;
+		localStorage.setItem('theme', t);
+	}
+
 	onMount(() => {
-		const saved = localStorage.getItem('theme');
+		const saved = readTheme();
 		if (saved) {
 			theme = saved;
 			document.documentElement.setAttribute('data-theme', saved);
@@ -44,7 +55,7 @@
 	function toggleTheme() {
 		theme = theme === 'dark' ? 'light' : 'dark';
 		document.documentElement.setAttribute('data-theme', theme);
-		localStorage.setItem('theme', theme);
+		writeTheme(theme);
 	}
 
 	function toggleMobileMenu() {
