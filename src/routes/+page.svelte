@@ -283,7 +283,7 @@
 					disabled={heroLoading}
 				/>
 				<button type="submit" class="btn btn-primary btn-lg" disabled={heroLoading}>
-					{heroLoading ? 'Sending…' : 'Join Open Beta'}
+					{heroLoading ? 'Sending…' : 'Get Started'}
 				</button>
 			</form>
 			{#if heroError}
