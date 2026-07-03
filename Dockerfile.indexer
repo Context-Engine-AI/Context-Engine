@@ -1,0 +1,37 @@
+# Dockerized code indexer for Qdrant
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    WORK_ROOTS="/work,/app" \
+    PIP_DEFAULT_TIMEOUT=120 \
+    PIP_RETRIES=10 \
+    LOG_LEVEL=INFO
+
+# OS packages needed: git for history ingestion, curl for model downloads
+RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates curl && rm -rf /var/lib/apt/lists/*
+
+# Python deps: reuse shared requirements file
+COPY requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir --upgrade --timeout=${PIP_DEFAULT_TIMEOUT} --retries=${PIP_RETRIES} -r /tmp/requirements.txt
+
+# Download reranker model and tokenizer during build
+# Cross-encoder for reranking (ms-marco-MiniLM) + BGE tokenizer for micro-chunking
+ARG RERANKER_ONNX_URL=https://huggingface.co/cross-encoder/ms-marco-MiniLM-L-6-v2/resolve/main/onnx/model.onnx
+ARG TOKENIZER_URL=https://huggingface.co/BAAI/bge-base-en-v1.5/resolve/main/tokenizer.json
+RUN mkdir -p /app/models && \
+    curl -L --fail --retry 3 -o /app/models/reranker.onnx "${RERANKER_ONNX_URL}" && \
+    curl -L --fail --retry 3 -o /app/models/tokenizer.json "${TOKENIZER_URL}"
+
+# Set default paths for reranker (can be overridden via env)
+ENV RERANKER_ONNX_PATH=/app/models/reranker.onnx \
+    RERANKER_TOKENIZER_PATH=/app/models/tokenizer.json
+
+# Bake scripts into the image so we can mount arbitrary code at /work
+COPY scripts /app/scripts
+
+
+WORKDIR /work
+
+# Default command shows help; Makefile/compose will override entrypoint
+CMD ["python", "/app/scripts/ingest_code.py", "--help"]

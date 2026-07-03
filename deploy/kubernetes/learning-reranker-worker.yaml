@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: learning-reranker-worker
+  namespace: context-engine
+  labels:
+    app: context-engine
+    component: learning-reranker-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: context-engine
+      component: learning-reranker-worker
+  template:
+    metadata:
+      labels:
+        app: context-engine
+        component: learning-reranker-worker
+    spec:
+      serviceAccountName: context-engine
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      initContainers:
+      - name: init-rerank-dirs
+        image: busybox:1.36
+        imagePullPolicy: IfNotPresent
+        command:
+        - sh
+        - -c
+        - mkdir -p /mnt/rerank_weights /mnt/rerank_events && chmod 777 /mnt/rerank_weights /mnt/rerank_events
+        volumeMounts:
+        - name: metadata-volume
+          mountPath: /mnt
+      containers:
+      - name: learning-reranker-worker
+        image: context-engine-indexer
+        imagePullPolicy: IfNotPresent
+        command:
+        - python
+        - /app/scripts/learning_reranker_worker.py
+        - --daemon
+        resources:
+          requests:
+            memory: 512Mi
+            cpu: 250m
+          limits:
+            memory: 2Gi
+            cpu: 1000m
+        volumeMounts:
+        - name: metadata-volume
+          mountPath: /tmp/rerank_weights
+          subPath: rerank_weights
+        - name: metadata-volume
+          mountPath: /tmp/rerank_events
+          subPath: rerank_events
+        envFrom:
+        - configMapRef:
+            name: context-engine-config
+      volumes:
+      - name: metadata-volume
+        persistentVolumeClaim:
+          claimName: code-metadata-pvc

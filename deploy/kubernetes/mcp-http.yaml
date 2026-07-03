@@ -1,0 +1,405 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-memory-http
+  namespace: context-engine
+  labels:
+    app: context-engine
+    component: mcp-memory-http
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: context-engine
+      component: mcp-memory-http
+  template:
+    metadata:
+      labels:
+        app: context-engine
+        component: mcp-memory-http
+    spec:
+      serviceAccountName: context-engine
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      initContainers:
+      - name: init-rerank-dirs
+        image: busybox:1.36
+        imagePullPolicy: IfNotPresent
+        command:
+        - sh
+        - -c
+        - mkdir -p /mnt/rerank_weights /mnt/rerank_events && chmod 777 /mnt/rerank_weights /mnt/rerank_events
+        volumeMounts:
+        - name: metadata-volume
+          mountPath: /mnt
+      containers:
+      - name: mcp-memory-http
+        image: context-engine-memory
+        imagePullPolicy: IfNotPresent
+        command:
+        - python
+        - /app/scripts/mcp_memory_server.py
+        ports:
+        - name: http
+          containerPort: 8000
+          protocol: TCP
+        - name: health
+          containerPort: 18000
+          protocol: TCP
+        env:
+        - name: QDRANT_URL
+          valueFrom:
+            configMapKeyRef:
+              name: context-engine-config
+              key: QDRANT_URL
+        - name: COLLECTION_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: context-engine-config
+              key: COLLECTION_NAME
+        - name: EMBEDDING_MODEL
+          valueFrom:
+            configMapKeyRef:
+              name: context-engine-config
+              key: EMBEDDING_MODEL
+        - name: HF_HOME
+          value: /work/models/hf-cache
+        - name: XDG_CACHE_HOME
+          value: /work/models/hf-cache
+        - name: EMBEDDING_PROVIDER
+          valueFrom:
+            configMapKeyRef:
+              name: context-engine-config
+              key: EMBEDDING_PROVIDER
+        - name: TOOL_STORE_DESCRIPTION
+          valueFrom:
+            configMapKeyRef:
+              name: context-engine-config
+              key: TOOL_STORE_DESCRIPTION
+        - name: TOOL_FIND_DESCRIPTION
+          valueFrom:
+            configMapKeyRef:
+              name: context-engine-config
+              key: TOOL_FIND_DESCRIPTION
+        - name: FASTMCP_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: context-engine-config
+              key: FASTMCP_HOST
+        - name: FASTMCP_PORT
+          value: '8000'
+        - name: FASTMCP_TRANSPORT
+          valueFrom:
+            configMapKeyRef:
+              name: context-engine-config
+              key: FASTMCP_HTTP_TRANSPORT
+        - name: FASTMCP_HEALTH_PORT
+          value: '18000'
+        resources:
+          requests:
+            memory: 512Mi
+            cpu: 250m
+          limits:
+            memory: 2Gi
+            cpu: 1000m
+        volumeMounts:
+        - name: work-volume
+          mountPath: /work
+          readOnly: true
+        - name: metadata-volume
+          mountPath: /tmp/rerank_weights
+          subPath: rerank_weights
+        - name: metadata-volume
+          mountPath: /tmp/rerank_events
+          subPath: rerank_events
+        livenessProbe:
+          httpGet:
+            path: /readyz
+            port: health
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: health
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        envFrom:
+        - configMapRef:
+            name: context-engine-config
+      volumes:
+      - name: work-volume
+        persistentVolumeClaim:
+          claimName: code-repos-pvc
+      - name: metadata-volume
+        persistentVolumeClaim:
+          claimName: code-metadata-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-memory-http
+  namespace: context-engine
+  labels:
+    app: context-engine
+    component: mcp-memory-http
+spec:
+  type: ClusterIP
+  ports:
+  - name: http
+    port: 8002
+    targetPort: http
+    protocol: TCP
+  - name: health
+    port: 18002
+    targetPort: health
+    protocol: TCP
+  selector:
+    app: context-engine
+    component: mcp-memory-http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-memory-http-external
+  namespace: context-engine
+  labels:
+    app: context-engine
+    component: mcp-memory-http
+spec:
+  type: NodePort
+  ports:
+  - name: http
+    port: 8002
+    targetPort: http
+    nodePort: 30804
+    protocol: TCP
+  - name: health
+    port: 18002
+    targetPort: health
+    nodePort: 30805
+    protocol: TCP
+  selector:
+    app: context-engine
+    component: mcp-memory-http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-indexer-http
+  namespace: context-engine
+  labels:
+    app: context-engine
+    component: mcp-indexer-http
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: context-engine
+      component: mcp-indexer-http
+  template:
+    metadata:
+      labels:
+        app: context-engine
+        component: mcp-indexer-http
+    spec:
+      serviceAccountName: context-engine
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      initContainers:
+      - name: init-rerank-dirs
+        image: busybox:1.36
+        imagePullPolicy: IfNotPresent
+        command:
+        - sh
+        - -c
+        - mkdir -p /work/.codebase/rerank_weights /work/.codebase/rerank_events && chmod 777 /work/.codebase/rerank_weights /work/.codebase/rerank_events
+        volumeMounts:
+        - name: codebase-volume
+          mountPath: /work/.codebase
+      containers:
+      - name: mcp-indexer-http
+        image: context-engine-indexer
+        imagePullPolicy: IfNotPresent
+        command:
+        - python
+        - /app/scripts/mcp_indexer_server.py
+        ports:
+        - name: http
+          containerPort: 8001
+          protocol: TCP
+        - name: health
+          containerPort: 18001
+          protocol: TCP
+        env:
+        - name: QDRANT_URL
+          valueFrom:
+            configMapKeyRef:
+              name: context-engine-config
+              key: QDRANT_URL
+        - name: COLLECTION_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: context-engine-config
+              key: COLLECTION_NAME
+        - name: EMBEDDING_MODEL
+          valueFrom:
+            configMapKeyRef:
+              name: context-engine-config
+              key: EMBEDDING_MODEL
+        - name: HF_HOME
+          value: /work/models/hf-cache
+        - name: XDG_CACHE_HOME
+          value: /work/models/hf-cache
+        - name: HF_HUB_CACHE
+          value: /work/models/hf-cache/huggingface
+        - name: INDEX_MICRO_CHUNKS
+          valueFrom:
+            configMapKeyRef:
+              name: context-engine-config
+              key: INDEX_MICRO_CHUNKS
+        - name: MAX_MICRO_CHUNKS_PER_FILE
+          valueFrom:
+            configMapKeyRef:
+              name: context-engine-config
+              key: MAX_MICRO_CHUNKS_PER_FILE
+        - name: REFRAG_MODE
+          valueFrom:
+            configMapKeyRef:
+              name: context-engine-config
+              key: REFRAG_MODE
+        - name: REFRAG_DECODER
+          valueFrom:
+            configMapKeyRef:
+              name: context-engine-config
+              key: REFRAG_DECODER
+        - name: LLAMACPP_URL
+          valueFrom:
+            configMapKeyRef:
+              name: context-engine-config
+              key: LLAMACPP_URL
+        - name: MEMORY_SSE_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              name: context-engine-config
+              key: MEMORY_SSE_ENABLED
+        - name: MEMORY_MCP_URL
+          valueFrom:
+            configMapKeyRef:
+              name: context-engine-config
+              key: MEMORY_MCP_URL
+        - name: FASTMCP_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: context-engine-config
+              key: FASTMCP_HOST
+        - name: FASTMCP_INDEXER_PORT
+          value: '8001'
+        - name: FASTMCP_TRANSPORT
+          valueFrom:
+            configMapKeyRef:
+              name: context-engine-config
+              key: FASTMCP_HTTP_TRANSPORT
+        - name: FASTMCP_HEALTH_PORT
+          value: '18001'
+        resources:
+          requests:
+            memory: 512Mi
+            cpu: 250m
+          limits:
+            memory: 2Gi
+            cpu: 1000m
+        volumeMounts:
+        - name: work-volume
+          mountPath: /work
+        - name: codebase-volume
+          mountPath: /work/.codebase
+        - name: models-volume
+          mountPath: /work/models
+        - name: codebase-volume
+          mountPath: /tmp/rerank_weights
+          subPath: rerank_weights
+        - name: codebase-volume
+          mountPath: /tmp/rerank_events
+          subPath: rerank_events
+        livenessProbe:
+          httpGet:
+            path: /readyz
+            port: health
+          initialDelaySeconds: 120
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 6
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: health
+          initialDelaySeconds: 60
+          periodSeconds: 15
+          timeoutSeconds: 10
+          failureThreshold: 6
+        envFrom:
+        - configMapRef:
+            name: context-engine-config
+      volumes:
+      - name: work-volume
+        persistentVolumeClaim:
+          claimName: code-repos-pvc
+      - name: codebase-volume
+        persistentVolumeClaim:
+          claimName: code-metadata-pvc
+      - name: models-volume
+        persistentVolumeClaim:
+          claimName: code-models-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-indexer-http
+  namespace: context-engine
+  labels:
+    app: context-engine
+    component: mcp-indexer-http
+spec:
+  type: ClusterIP
+  ports:
+  - name: http
+    port: 8003
+    targetPort: http
+    protocol: TCP
+  - name: health
+    port: 18003
+    targetPort: health
+    protocol: TCP
+  selector:
+    app: context-engine
+    component: mcp-indexer-http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-indexer-http-external
+  namespace: context-engine
+  labels:
+    app: context-engine
+    component: mcp-indexer-http
+spec:
+  type: NodePort
+  ports:
+  - name: http
+    port: 8003
+    targetPort: http
+    nodePort: 30806
+    protocol: TCP
+  - name: health
+    port: 18003
+    targetPort: health
+    nodePort: 30807
+    protocol: TCP
+  selector:
+    app: context-engine
+    component: mcp-indexer-http

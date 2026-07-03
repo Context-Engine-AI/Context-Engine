@@ -1,0 +1,74 @@
+---
+# Ingress for Context-Engine services (optional)
+# Requires an Ingress controller (e.g., nginx-ingress, traefik)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: context-engine-ingress
+  namespace: context-engine
+  labels:
+    app: context-engine
+    component: ingress
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    # nginx.ingress.kubernetes.io/enable-cors: "true"
+    # nginx.ingress.kubernetes.io/cors-allow-origin: "*"
+spec:
+  ingressClassName: nginx  # Adjust based on your ingress controller
+  rules:
+  - host: context-engine.example.com  # Change to your domain
+    http:
+      paths:
+      - path: /qdrant(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: qdrant
+            port:
+              number: 6333
+      - path: /mcp/memory(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: mcp-memory
+            port:
+              number: 8000
+      - path: /mcp/indexer(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: mcp-indexer
+            port:
+              number: 8001
+      - path: /mcp-http/memory(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: mcp-memory-http
+            port:
+              number: 8002
+      - path: /mcp-http/indexer(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: mcp-indexer-http
+            port:
+              number: 8003
+      - path: /llamacpp(/|$)(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: llamacpp
+            port:
+              number: 8080
+
+  # TLS configuration (optional)
+  # tls:
+  # - hosts:
+  #   - context-engine.example.com
+  #   secretName: context-engine-tls

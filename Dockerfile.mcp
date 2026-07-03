@@ -1,0 +1,25 @@
+# Minimal image to run the Qdrant MCP server with SSE transport
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    WORK_ROOTS="/work,/app" \
+    HF_HOME=/tmp/cache \
+    TRANSFORMERS_CACHE=/tmp/cache
+
+# Python deps: reuse shared requirements file for consistency across services
+# Create cache/rerank directories in same layer
+COPY requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir --upgrade -r /tmp/requirements.txt \
+    && mkdir -p /tmp/cache && chmod 755 /tmp/cache \
+    && mkdir -p /tmp/rerank_events /tmp/rerank_weights \
+    && chmod 777 /tmp/rerank_events /tmp/rerank_weights
+
+# Bake scripts into image so server can run even when /work points elsewhere
+COPY scripts /app/scripts
+
+# Expose SSE port
+EXPOSE 8000
+
+# Default command: run the server with SSE transport (env provides host/port)
+CMD ["python", "/app/scripts/mcp_memory_server.py"]

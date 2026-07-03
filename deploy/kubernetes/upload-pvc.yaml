@@ -1,0 +1,47 @@
+---
+# Persistent Volume Claim for code repositories storage (CephFS RWX)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: code-repos-pvc
+  namespace: context-engine
+  labels:
+    app: context-engine
+    component: upload-service
+    type: storage
+spec:
+  accessModes:
+    - ReadWriteMany  # CephFS supports RWX for multiple pods
+  storageClassName: ceph-filesystem  # Adjust based on your CephFS storage class
+  resources:
+    requests:
+      storage: 10Gi  # Adjust size based on your needs
+  # Optional: selector for specific PV
+  # selector:
+  #   matchLabels:
+  #     app: context-engine
+  #     component: code-repos
+
+---
+# Persistent Volume Claim for code metadata storage (CephFS RWX)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: code-metadata-pvc
+  namespace: context-engine
+  labels:
+    app: context-engine
+    component: upload-service
+    type: storage
+spec:
+  accessModes:
+    - ReadWriteMany  # CephFS supports RWX for multiple pods
+  storageClassName: ceph-filesystem  # Adjust based on your CephFS storage class
+  resources:
+    requests:
+      storage: 5Gi  # Smaller size for metadata/cache
+  # Optional: selector for specific PV
+  # selector:
+  #   matchLabels:
+  #     app: context-engine
+  #     component: code-metadata

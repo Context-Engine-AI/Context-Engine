@@ -1,0 +1,109 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: upload-service
+  namespace: context-engine
+  labels:
+    app: context-engine
+    component: upload-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: context-engine
+      component: upload-service
+  template:
+    metadata:
+      labels:
+        app: context-engine
+        component: upload-service
+    spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      containers:
+      - name: upload-service
+        image: context-engine-upload-service
+        imagePullPolicy: IfNotPresent
+        command:
+        - uvicorn
+        args:
+        - scripts.upload_service:app
+        - --host
+        - 0.0.0.0
+        - --port
+        - '8002'
+        - --workers
+        - '2'
+        ports:
+        - name: http
+          containerPort: 8002
+          protocol: TCP
+        env:
+        - name: UPLOAD_SERVICE_HOST
+          value: 0.0.0.0
+        - name: UPLOAD_SERVICE_PORT
+          value: '8002'
+        - name: WORK_DIR
+          value: /work
+        - name: MAX_BUNDLE_SIZE_MB
+          value: '100'
+        - name: UPLOAD_TIMEOUT_SECS
+          value: '300'
+        resources:
+          requests:
+            memory: 512Mi
+            cpu: 250m
+          limits:
+            memory: 2Gi
+            cpu: 1000m
+        volumeMounts:
+        - name: work-volume
+          mountPath: /work
+        - name: codebase-volume
+          mountPath: /work/.codebase
+        # livenessProbe:
+        #   httpGet:
+        #     path: /health
+        #     port: http
+        #   initialDelaySeconds: 30
+        #   periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 10
+          timeoutSeconds: 15
+          periodSeconds: 10
+          failureThreshold: 10
+        envFrom:
+        - configMapRef:
+            name: context-engine-config
+      volumes:
+      - name: work-volume
+        persistentVolumeClaim:
+          claimName: code-repos-pvc
+      - name: codebase-volume
+        persistentVolumeClaim:
+          claimName: code-metadata-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: upload-service
+  namespace: context-engine
+  labels:
+    app: context-engine
+    component: upload-service
+spec:
+  type: NodePort
+  ports:
+  - name: http
+    port: 8002
+    targetPort: http
+    nodePort: 30810
+    protocol: TCP
+  selector:
+    app: context-engine
+    component: upload-service

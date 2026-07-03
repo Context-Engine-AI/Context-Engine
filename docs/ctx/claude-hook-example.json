@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/coder/project/Context-Engine/ctx-hook-simple.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

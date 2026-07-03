@@ -1,0 +1,47 @@
+<?xml version="1.0"?>
+<clickhouse>
+    <!-- Listen on IPv4 only (IPv6 may be disabled on host) -->
+    <listen_host>0.0.0.0</listen_host>
+
+    <logger>
+        <level>warning</level>
+        <console>true</console>
+    </logger>
+    
+    <trace_log>
+        <level>6</level>
+        <flush_interval_milliseconds>120000</flush_interval_milliseconds>
+        <table_ttl>604800</table_ttl>
+    </trace_log>
+    
+    <text_log>
+        <level>warning</level>
+        <table_ttl>604800</table_ttl>
+        <flush_interval_milliseconds>120000</flush_interval_milliseconds>
+    </text_log>
+    
+    <query_log>
+        <log_queries_min_query_duration_ms>1000</log_queries_min_query_duration_ms>
+        <flush_interval_milliseconds>60000</flush_interval_milliseconds>
+        <table_ttl>604800</table_ttl>
+    </query_log>
+    
+    <metric_log>
+        <collect_interval_milliseconds>60000</collect_interval_milliseconds>
+        <flush_interval_milliseconds>120000</flush_interval_milliseconds>
+        <table_ttl>604800</table_ttl>
+    </metric_log>
+    
+    <asynchronous_metric_log>
+        <collect_interval_milliseconds>60000</collect_interval_milliseconds>
+        <flush_interval_milliseconds>120000</flush_interval_milliseconds>
+        <table_ttl>604800</table_ttl>
+    </asynchronous_metric_log>
+    
+    <part_log>
+        <level>warning</level>
+        <flush_interval_milliseconds>120000</flush_interval_milliseconds>
+        <table_ttl>604800</table_ttl>
+    </part_log>
+</clickhouse>
+

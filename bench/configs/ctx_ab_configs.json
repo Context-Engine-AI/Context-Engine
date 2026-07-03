@@ -1,0 +1,54 @@
+{
+  "description": "A/B config variants for Context-Engine retrieval benchmarks",
+  "version": "1.0.0",
+  "configs": [
+    {
+      "id": "default",
+      "name": "Default (rerank + RRF balanced)",
+      "args": [],
+      "description": "Production defaults"
+    },
+    {
+      "id": "no_rerank",
+      "name": "No Reranker",
+      "args": ["--no-rerank"],
+      "description": "Disable cross-encoder reranking"
+    },
+    {
+      "id": "no_lex",
+      "name": "Dense Only",
+      "args": ["--no-lex"],
+      "description": "Disable lexical/BM25 component"
+    },
+    {
+      "id": "no_dense",
+      "name": "Lexical Only", 
+      "args": ["--no-dense"],
+      "description": "Disable dense vector component"
+    },
+    {
+      "id": "rrf_lex_heavy",
+      "name": "RRF Lex Heavy (0.7/0.3)",
+      "args": ["--rrf-lex-weight", "0.7", "--rrf-dense-weight", "0.3"],
+      "description": "Weight lexical higher in RRF fusion"
+    },
+    {
+      "id": "rrf_dense_heavy",
+      "name": "RRF Dense Heavy (0.3/0.7)",
+      "args": ["--rrf-lex-weight", "0.3", "--rrf-dense-weight", "0.7"],
+      "description": "Weight dense higher in RRF fusion"
+    },
+    {
+      "id": "expand_query",
+      "name": "Query Expansion",
+      "args": ["--expand"],
+      "description": "Enable LLM query expansion"
+    },
+    {
+      "id": "high_limit",
+      "name": "High Limit (50)",
+      "args": ["--limit", "50"],
+      "description": "Retrieve more candidates before reranking"
+    }
+  ]
+}
