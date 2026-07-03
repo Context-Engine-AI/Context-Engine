@@ -47,3 +47,4 @@ docs/FORMULAS.md
 # SvelteKit
 .svelte-kit/
 build/
+/.omc
