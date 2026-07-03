@@ -1,0 +1,163 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-memory
+  namespace: context-engine
+  labels:
+    app: context-engine
+    component: mcp-memory
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: context-engine
+      component: mcp-memory
+  template:
+    metadata:
+      labels:
+        app: context-engine
+        component: mcp-memory
+    spec:
+      serviceAccountName: context-engine
+      initContainers:
+      - name: init-rerank-dirs
+        image: busybox:1.36
+        imagePullPolicy: IfNotPresent
+        command:
+        - sh
+        - -c
+        - mkdir -p /mnt/rerank_weights /mnt/rerank_events && chmod 777 /mnt/rerank_weights /mnt/rerank_events
+        volumeMounts:
+        - name: metadata-volume
+          mountPath: /mnt
+      containers:
+      - name: mcp-memory
+        image: context-engine-memory
+        imagePullPolicy: IfNotPresent
+        command:
+        - python
+        - /app/scripts/mcp_memory_server.py
+        ports:
+        - name: sse
+          containerPort: 8000
+          protocol: TCP
+        - name: health
+          containerPort: 18000
+          protocol: TCP
+        env:
+        - name: FASTMCP_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: context-engine-config
+              key: FASTMCP_HOST
+        - name: FASTMCP_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: context-engine-config
+              key: FASTMCP_PORT
+        - name: FASTMCP_HEALTH_PORT
+          value: '18000'
+        - name: FASTMCP_TRANSPORT
+          value: sse
+        - name: QDRANT_URL
+          valueFrom:
+            configMapKeyRef:
+              name: context-engine-config
+              key: QDRANT_URL
+        - name: COLLECTION_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: context-engine-config
+              key: COLLECTION_NAME
+        - name: EMBEDDING_MODEL
+          valueFrom:
+            configMapKeyRef:
+              name: context-engine-config
+              key: EMBEDDING_MODEL
+        resources:
+          requests:
+            memory: 1Gi
+            cpu: 500m
+          limits:
+            memory: 4Gi
+            cpu: '2'
+        volumeMounts:
+        - name: work-volume
+          mountPath: /work
+          readOnly: true
+        - name: metadata-volume
+          mountPath: /tmp/rerank_weights
+          subPath: rerank_weights
+        - name: metadata-volume
+          mountPath: /tmp/rerank_events
+          subPath: rerank_events
+        livenessProbe:
+          httpGet:
+            path: /readyz
+            port: health
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: health
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        envFrom:
+        - configMapRef:
+            name: context-engine-config
+      volumes:
+      - name: work-volume
+        persistentVolumeClaim:
+          claimName: code-repos-pvc
+      - name: metadata-volume
+        persistentVolumeClaim:
+          claimName: code-metadata-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-memory
+  namespace: context-engine
+  labels:
+    app: context-engine
+    component: mcp-memory
+spec:
+  type: ClusterIP
+  ports:
+  - name: sse
+    port: 8000
+    targetPort: sse
+    protocol: TCP
+  - name: health
+    port: 18000
+    targetPort: health
+    protocol: TCP
+  selector:
+    app: context-engine
+    component: mcp-memory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-memory-external
+  namespace: context-engine
+  labels:
+    app: context-engine
+    component: mcp-memory
+spec:
+  type: NodePort
+  ports:
+  - name: sse
+    port: 8000
+    targetPort: sse
+    nodePort: 30800
+    protocol: TCP
+  - name: health
+    port: 18000
+    targetPort: health
+    nodePort: 30801
+    protocol: TCP
+  selector:
+    app: context-engine
+    component: mcp-memory

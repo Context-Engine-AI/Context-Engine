@@ -1,0 +1,20 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-intra-namespace-ingress-internal
+  namespace: context-engine
+spec:
+  podSelector:
+    matchLabels:
+      app: context-engine
+    matchExpressions:
+      - key: component
+        operator: In
+        values: ["watcher", "indexer", "init"]
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector: {}
+

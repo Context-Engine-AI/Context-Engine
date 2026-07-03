@@ -1,0 +1,44 @@
+# Companion MCP server that exposes indexing/pruning/list tools over SSE
+# Reuse the same deps as the indexer image so we can call the scripts directly.
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    WORK_ROOTS="/work,/app" \
+    PIP_DEFAULT_TIMEOUT=120 \
+    PIP_RETRIES=10 \
+    LOG_LEVEL=INFO
+
+# OS deps (git for history if we extend later, curl for model downloads, build-essential for compiling native extensions)
+RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates curl build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Python deps: reuse shared requirements (includes FastMCP + OpenAI SDK)
+COPY requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir --upgrade --timeout=${PIP_DEFAULT_TIMEOUT} --retries=${PIP_RETRIES} -r /tmp/requirements.txt
+
+# Create rerank dirs + download reranker model/tokenizer in single layer
+ARG RERANKER_ONNX_URL=https://huggingface.co/cross-encoder/ms-marco-MiniLM-L-6-v2/resolve/main/onnx/model.onnx
+ARG TOKENIZER_URL=https://huggingface.co/BAAI/bge-base-en-v1.5/resolve/main/tokenizer.json
+RUN mkdir -p /tmp/rerank_events /tmp/rerank_weights \
+    && chmod 777 /tmp/rerank_events /tmp/rerank_weights \
+    && mkdir -p /app/models \
+    && curl -L --fail --retry 3 -o /app/models/reranker.onnx "${RERANKER_ONNX_URL}" \
+    && curl -L --fail --retry 3 -o /app/models/tokenizer.json "${TOKENIZER_URL}"
+
+# Set default paths for reranker (can be overridden via env)
+ENV RERANKER_ONNX_PATH=/app/models/reranker.onnx \
+    RERANKER_TOKENIZER_PATH=/app/models/tokenizer.json
+
+# Bake scripts into the image so entrypoints don't rely on /work
+COPY scripts /app/scripts
+
+COPY bench /app/bench
+
+# Expose SSE port for this companion server
+EXPOSE 8001
+
+WORKDIR /work
+
+# Default command runs the companion MCP server
+CMD ["python", "/app/scripts/mcp_indexer_server.py"]

@@ -1,0 +1,33 @@
+{
+  "id": "ctx-bench-v1",
+  "version": "1.0.0",
+  "description": "Public benchmark dataset for Context-Engine retrieval quality evaluation",
+  "created": "2024-12-29",
+  "repos": [
+    {
+      "name": "kubernetes/kubernetes",
+      "ref": "v1.28.0",
+      "sha": null,
+      "language": ["go", "yaml"],
+      "domain": "infrastructure",
+      "size_hint": "large"
+    },
+    {
+      "name": "microsoft/vscode",
+      "ref": "1.86.0",
+      "sha": null,
+      "language": ["typescript", "javascript"],
+      "domain": "editor",
+      "size_hint": "large"
+    },
+    {
+      "name": "huggingface/transformers",
+      "ref": "v4.37.0",
+      "sha": null,
+      "language": ["python"],
+      "domain": "ml",
+      "size_hint": "large"
+    }
+  ],
+  "notes": "SHA fields populated by clone_snapshot.py after cloning"
+}

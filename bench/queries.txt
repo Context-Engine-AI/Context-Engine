@@ -1,0 +1,29 @@
+# Gold Query Set for Context-Engine Benchmarks
+# Format: query text (one per line)
+# Comments start with #
+
+# Core search functionality
+hybrid search RRF ranking implementation
+memory store implementation details
+recursive reranker learning workflow
+
+# Embeddings and models
+embedder model loading and caching
+where is the embedding dimension configured
+
+# MCP and routing
+MCP router intent classification
+symbol graph callers query
+
+# Context and grounding
+context answer grounded citations
+deduplication request fingerprint
+
+# Infrastructure
+workspace state persistence
+openlit initialization tracing
+
+# Advanced features
+upload service delta bundle
+pattern search structural matching
+query expansion pseudo relevance feedback

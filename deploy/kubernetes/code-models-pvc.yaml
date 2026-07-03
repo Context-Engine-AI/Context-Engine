@@ -1,0 +1,18 @@
+---
+# Persistent Volume Claim for model storage (CephFS RWX)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: code-models-pvc
+  namespace: context-engine
+  labels:
+    app: context-engine
+    component: llamacpp
+    type: storage
+spec:
+  accessModes:
+    - ReadWriteMany  # CephFS supports RWX for multiple pods
+  storageClassName: ceph-filesystem  # Adjust based on your storage class
+  resources:
+    requests:
+      storage: 20Gi  # Adjust size based on expected model footprint

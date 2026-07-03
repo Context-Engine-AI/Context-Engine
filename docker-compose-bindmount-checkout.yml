@@ -1,0 +1,307 @@
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: qdrant-db
+    # Expose Qdrant database APIs to the host
+    # 6333 = HTTP API, 6334 = gRPC
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_storage:/qdrant/storage
+
+  mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile.mcp
+    container_name: mcp-search
+    depends_on:
+      - qdrant
+    env_file:
+      - .env
+    environment:
+      # Ensure the server binds to all interfaces for container networking
+      - FASTMCP_HOST=${FASTMCP_HOST}
+      - FASTMCP_PORT=${FASTMCP_PORT}
+      - QDRANT_URL=${QDRANT_URL}
+      - COLLECTION_NAME=${COLLECTION_NAME:-codebase}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL}
+      - EMBEDDING_PROVIDER=${EMBEDDING_PROVIDER}
+      - QWEN3_EMBEDDING_ENABLED=${QWEN3_EMBEDDING_ENABLED:-0}
+      - QWEN3_QUERY_INSTRUCTION=${QWEN3_QUERY_INSTRUCTION:-1}
+      - QWEN3_INSTRUCTION_TEXT=${QWEN3_INSTRUCTION_TEXT}
+      - TOOL_STORE_DESCRIPTION=${TOOL_STORE_DESCRIPTION}
+      - TOOL_FIND_DESCRIPTION=${TOOL_FIND_DESCRIPTION}
+      - FASTMCP_HEALTH_PORT=18000
+
+    # SSE endpoint for IDE agents at http://localhost:8000/sse
+    ports:
+      - "18000:18000"
+
+      - "8000:8000"
+
+    volumes:
+      - ${HOST_INDEX_PATH:-.}:/work:ro
+
+  mcp_indexer:
+    build:
+      context: .
+      dockerfile: Dockerfile.mcp-indexer
+    container_name: mcp-indexer
+    depends_on:
+      - qdrant
+    env_file:
+      - .env
+    environment:
+      - FASTMCP_HEALTH_PORT=18001
+      - FASTMCP_HOST=${FASTMCP_HOST}
+      - FASTMCP_INDEXER_PORT=${FASTMCP_INDEXER_PORT}
+      - QDRANT_URL=${QDRANT_URL}
+      - DEBUG_CONTEXT_ANSWER=${DEBUG_CONTEXT_ANSWER:-1}
+      - REFRAG_DECODER=${REFRAG_DECODER:-1}
+      - LLAMACPP_URL=${LLAMACPP_URL:-http://llamacpp:8080}
+      - USE_GPU_DECODER=${USE_GPU_DECODER:-0}
+      - LLAMACPP_TIMEOUT_SEC=${LLAMACPP_TIMEOUT_SEC:-180}
+      - CTX_REQUIRE_IDENTIFIER=${CTX_REQUIRE_IDENTIFIER:-0}
+      - COLLECTION_NAME=${COLLECTION_NAME:-codebase}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL}
+      - QWEN3_EMBEDDING_ENABLED=${QWEN3_EMBEDDING_ENABLED:-0}
+      - QWEN3_QUERY_INSTRUCTION=${QWEN3_QUERY_INSTRUCTION:-1}
+      - QWEN3_INSTRUCTION_TEXT=${QWEN3_INSTRUCTION_TEXT}
+    # SSE endpoint for IDE agents at http://localhost:${FASTMCP_INDEXER_PORT:-8001}/sse
+    ports:
+      - "${FASTMCP_INDEXER_PORT:-8001}:8001"
+      - "18001:18001"
+    volumes:
+      - ${HOST_INDEX_PATH:-.}:/work
+
+
+  mcp_http:
+    build:
+      context: .
+      dockerfile: Dockerfile.mcp
+    container_name: mcp-search-http
+    depends_on:
+      - qdrant
+    env_file:
+      - .env
+    environment:
+      - FASTMCP_HOST=${FASTMCP_HOST}
+      - FASTMCP_PORT=8000
+      - FASTMCP_TRANSPORT=${FASTMCP_HTTP_TRANSPORT}
+      - QDRANT_URL=${QDRANT_URL}
+      - COLLECTION_NAME=${COLLECTION_NAME:-codebase}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL}
+      - EMBEDDING_PROVIDER=${EMBEDDING_PROVIDER}
+      - QWEN3_EMBEDDING_ENABLED=${QWEN3_EMBEDDING_ENABLED:-0}
+      - QWEN3_QUERY_INSTRUCTION=${QWEN3_QUERY_INSTRUCTION:-1}
+      - QWEN3_INSTRUCTION_TEXT=${QWEN3_INSTRUCTION_TEXT}
+      - TOOL_STORE_DESCRIPTION=${TOOL_STORE_DESCRIPTION}
+      - TOOL_FIND_DESCRIPTION=${TOOL_FIND_DESCRIPTION}
+      - FASTMCP_HEALTH_PORT=18000
+    # Streamable HTTP endpoint for IDE agents at http://localhost:${FASTMCP_HTTP_PORT:-8002}/mcp/
+    ports:
+      - "${FASTMCP_HTTP_HEALTH_PORT:-18002}:18000"
+      - "${FASTMCP_HTTP_PORT:-8002}:8000"
+    volumes:
+      - ${HOST_INDEX_PATH:-.}:/work:ro
+
+  mcp_indexer_http:
+    build:
+      context: .
+      dockerfile: Dockerfile.mcp-indexer
+    container_name: mcp-indexer-http
+    depends_on:
+      - qdrant
+      - llamacpp
+    env_file:
+      - .env
+    environment:
+      - FASTMCP_HOST=${FASTMCP_HOST}
+      - FASTMCP_INDEXER_PORT=8001
+      - FASTMCP_TRANSPORT=${FASTMCP_HTTP_TRANSPORT}
+      - QDRANT_URL=${QDRANT_URL}
+      - FASTMCP_HEALTH_PORT=18001
+      - DEBUG_CONTEXT_ANSWER=${DEBUG_CONTEXT_ANSWER:-1}
+      - REFRAG_DECODER=${REFRAG_DECODER:-1}
+      - LLAMACPP_URL=${LLAMACPP_URL:-http://llamacpp:8080}
+      - USE_GPU_DECODER=${USE_GPU_DECODER:-0}
+      - LLAMACPP_TIMEOUT_SEC=${LLAMACPP_TIMEOUT_SEC:-180}
+      - CTX_REQUIRE_IDENTIFIER=${CTX_REQUIRE_IDENTIFIER:-0}
+      - COLLECTION_NAME=${COLLECTION_NAME:-codebase}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL}
+      - QWEN3_EMBEDDING_ENABLED=${QWEN3_EMBEDDING_ENABLED:-0}
+      - QWEN3_QUERY_INSTRUCTION=${QWEN3_QUERY_INSTRUCTION:-1}
+      - QWEN3_INSTRUCTION_TEXT=${QWEN3_INSTRUCTION_TEXT}
+    # Streamable HTTP endpoint for IDE agents at http://localhost:${FASTMCP_INDEXER_HTTP_PORT:-8003}/mcp/
+    ports:
+      - "${FASTMCP_INDEXER_HTTP_PORT:-8003}:8001"
+      - "${FASTMCP_INDEXER_HTTP_HEALTH_PORT:-18003}:18001"
+    volumes:
+      - ${HOST_INDEX_PATH:-.}:/work
+
+  llamacpp:
+    image: ghcr.io/ggml-org/llama.cpp:server
+    container_name: llama-decoder
+    # Optional sidecar providing a text-generation API on :8080
+    # No behavior change unless REFRAG_DECODER=1
+    environment:
+      - LLAMACPP_CTX_SIZE=${LLAMACPP_CTX_SIZE:-8192}
+      - LLAMACPP_HOST=0.0.0.0
+      - LLAMACPP_PORT=8080
+      - LLAMACPP_USE_GPU=${LLAMACPP_USE_GPU:-0}
+      - LLAMACPP_GPU_LAYERS=${LLAMACPP_GPU_LAYERS:-0}
+      - LLAMACPP_GPU_SPLIT=${LLAMACPP_GPU_SPLIT:-}
+      - LLAMACPP_THREADS=${LLAMACPP_THREADS:-}
+      - LLAMACPP_EXTRA_ARGS=${LLAMACPP_EXTRA_ARGS:-}
+      - LLAMACPP_NO_WARMUP=${LLAMACPP_NO_WARMUP:-1}
+      - LLAMACPP_TEMPERATURE=${LLAMACPP_TEMPERATURE:-}
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./models:/models:ro
+    entrypoint: ["/bin/sh","-lc"]
+    command:
+      - |
+        set -e
+        ARGS="--model /models/model.gguf --host ${LLAMACPP_HOST:-0.0.0.0} --port ${LLAMACPP_PORT:-8080} --ctx-size ${LLAMACPP_CTX_SIZE:-8192}"
+        if [ "${LLAMACPP_USE_GPU:-0}" = "1" ]; then
+          LAYERS="${LLAMACPP_GPU_LAYERS:--1}"
+        else
+          LAYERS="${LLAMACPP_GPU_LAYERS:-0}"
+        fi
+        ARGS="$$ARGS --n-gpu-layers $${LAYERS}"
+        if [ -n "${LLAMACPP_GPU_SPLIT:-}" ]; then
+          ARGS="$$ARGS --tensor-split ${LLAMACPP_GPU_SPLIT}"
+        fi
+        if [ "${LLAMACPP_NO_WARMUP:-1}" != "0" ]; then
+          ARGS="$$ARGS --no-warmup"
+        fi
+        if [ -n "${LLAMACPP_THREADS:-}" ]; then
+          ARGS="$$ARGS --threads ${LLAMACPP_THREADS}"
+        fi
+        if [ -n "${LLAMACPP_EXTRA_ARGS:-}" ]; then
+          ARGS="$$ARGS ${LLAMACPP_EXTRA_ARGS}"
+        fi
+        exec /app/llama-server $$ARGS
+
+  indexer:
+    build:
+      context: .
+      dockerfile: Dockerfile.indexer
+    depends_on:
+      - qdrant
+    env_file:
+      - .env
+    environment:
+      - QDRANT_URL=${QDRANT_URL}
+      - COLLECTION_NAME=${COLLECTION_NAME:-codebase}
+      - HF_HOME=/tmp/huggingface
+      - HF_HUB_CACHE=/tmp/huggingface/hub
+      - HUGGINGFACE_HUB_CACHE=/tmp/huggingface/hub
+      - TRANSFORMERS_CACHE=/tmp/huggingface/transformers
+      - FASTEMBED_CACHE_PATH=/tmp/huggingface/fastembed
+      - HF_HUB_DISABLE_XET=1
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL}
+      - QWEN3_EMBEDDING_ENABLED=${QWEN3_EMBEDDING_ENABLED:-0}
+      - QWEN3_QUERY_INSTRUCTION=${QWEN3_QUERY_INSTRUCTION:-1}
+      - QWEN3_INSTRUCTION_TEXT=${QWEN3_INSTRUCTION_TEXT}
+    working_dir: /work
+    volumes:
+      - ${HOST_INDEX_PATH:-.}:/work:ro
+      - ${HOST_INDEX_PATH:-.}/.codebase:/work/.codebase:rw
+
+    entrypoint: ["sh", "-c", "mkdir -p /tmp/huggingface/hub /tmp/huggingface/transformers /tmp/huggingface/fastembed && exec python /app/scripts/ingest_code.py"]
+
+  watcher:
+    build:
+      context: .
+      dockerfile: Dockerfile.indexer
+    depends_on:
+      - qdrant
+    env_file:
+      - .env
+    environment:
+      - QDRANT_URL=${QDRANT_URL}
+      - COLLECTION_NAME=${COLLECTION_NAME:-codebase}
+      - HF_HOME=/tmp/huggingface
+      - HF_HUB_CACHE=/tmp/huggingface/hub
+      - HUGGINGFACE_HUB_CACHE=/tmp/huggingface/hub
+      - TRANSFORMERS_CACHE=/tmp/huggingface/transformers
+      - FASTEMBED_CACHE_PATH=/tmp/huggingface/fastembed
+      - HF_HUB_DISABLE_XET=1
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL}
+      - QWEN3_EMBEDDING_ENABLED=${QWEN3_EMBEDDING_ENABLED:-0}
+      - QWEN3_QUERY_INSTRUCTION=${QWEN3_QUERY_INSTRUCTION:-1}
+      - QWEN3_INSTRUCTION_TEXT=${QWEN3_INSTRUCTION_TEXT}
+      - WATCH_ROOT=/work
+      # Watcher-specific backpressure & timeouts (safer defaults)
+      - QDRANT_TIMEOUT=60
+      - MAX_MICRO_CHUNKS_PER_FILE=${MAX_MICRO_CHUNKS_PER_FILE:-200}
+      - INDEX_UPSERT_BATCH=128
+      - INDEX_UPSERT_RETRIES=5
+      - WATCH_DEBOUNCE_SECS=${WATCH_DEBOUNCE_SECS:-1.5}
+    working_dir: /work
+    volumes:
+      - ${HOST_INDEX_PATH:-.}:/work:ro
+      - ${HOST_INDEX_PATH:-.}/.codebase:/work/.codebase:rw
+    entrypoint: ["sh", "-c", "mkdir -p /tmp/huggingface/hub /tmp/huggingface/transformers /tmp/huggingface/fastembed && exec python /app/scripts/watch_index.py"]
+
+
+  upload_service:
+    build:
+      context: .
+      dockerfile: Dockerfile.upload-service
+    container_name: upload-service
+    depends_on:
+      - qdrant
+    env_file:
+      - .env
+    environment:
+      - UPLOAD_SERVICE_HOST=0.0.0.0
+      - UPLOAD_SERVICE_PORT=8002
+      - QDRANT_URL=${QDRANT_URL}
+      - WORK_DIR=/work
+      - CTXCE_ADMIN_COLLECTION_DELETE_ENABLED=0
+      - CTXCE_COLLECTION_REGISTRY_UNDELETE_ON_DISCOVERY=${CTXCE_COLLECTION_REGISTRY_UNDELETE_ON_DISCOVERY:-0}
+      - COLLECTION_NAME=${COLLECTION_NAME:-codebase}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL}
+      - EMBEDDING_PROVIDER=${EMBEDDING_PROVIDER}
+      - QWEN3_EMBEDDING_ENABLED=${QWEN3_EMBEDDING_ENABLED:-0}
+      - QWEN3_QUERY_INSTRUCTION=${QWEN3_QUERY_INSTRUCTION:-1}
+      - QWEN3_INSTRUCTION_TEXT=${QWEN3_INSTRUCTION_TEXT}
+    ports:
+      - "8004:8002"
+    volumes:
+      - ${HOST_INDEX_PATH:-.}:/work:rw
+      - ${HOST_INDEX_PATH:-.}/.codebase:/work/.codebase:rw
+    user: "0:0"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  init_payload:
+    build:
+      context: .
+      dockerfile: Dockerfile.indexer
+    depends_on:
+      - qdrant
+    env_file:
+      - .env
+    environment:
+      - QDRANT_URL=${QDRANT_URL}
+      - COLLECTION_NAME=${COLLECTION_NAME:-codebase}
+    working_dir: /work
+    volumes:
+      - ${HOST_INDEX_PATH:-.}:/work:ro
+      - ${HOST_INDEX_PATH:-.}/.codebase:/work/.codebase:rw
+
+    entrypoint: ["python", "/app/scripts/create_indexes.py"]
+
+volumes:
+  qdrant_storage:
+    driver: local

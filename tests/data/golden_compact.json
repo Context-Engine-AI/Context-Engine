@@ -1,0 +1,4 @@
+[
+  {"path": "/x/a.py", "start_line": 1, "end_line": 3},
+  {"path": "/x/b.py", "start_line": 10, "end_line": 20}
+]

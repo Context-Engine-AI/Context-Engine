@@ -1,0 +1,23 @@
+{
+  "name": "@context-engine-bridge/context-engine-mcp-bridge",
+  "version": "0.0.13",
+  "description": "Context Engine MCP bridge (http/stdio proxy combining indexer + memory servers)",
+  "bin": {
+    "ctxce": "bin/ctxce.js",
+    "ctxce-bridge": "bin/ctxce.js"
+  },
+  "type": "module",
+  "scripts": {
+    "start": "node bin/ctxce.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.24.3",
+    "zod": "^3.25.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

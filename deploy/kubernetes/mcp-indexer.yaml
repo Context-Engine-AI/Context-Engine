@@ -1,0 +1,183 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-indexer
+  namespace: context-engine
+  labels:
+    app: context-engine
+    component: mcp-indexer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: context-engine
+      component: mcp-indexer
+  template:
+    metadata:
+      labels:
+        app: context-engine
+        component: mcp-indexer
+    spec:
+      serviceAccountName: context-engine
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      initContainers:
+      - name: init-rerank-dirs
+        image: busybox:1.36
+        imagePullPolicy: IfNotPresent
+        command:
+        - sh
+        - -c
+        - mkdir -p /work/.codebase/rerank_weights /work/.codebase/rerank_events && chmod 777 /work/.codebase/rerank_weights /work/.codebase/rerank_events
+        volumeMounts:
+        - name: codebase-volume
+          mountPath: /work/.codebase
+      containers:
+      - name: mcp-indexer
+        image: context-engine-indexer
+        imagePullPolicy: IfNotPresent
+        command:
+        - python
+        - /app/scripts/mcp_indexer_server.py
+        ports:
+        - name: sse
+          containerPort: 8001
+          protocol: TCP
+        - name: health
+          containerPort: 18001
+          protocol: TCP
+        env:
+        - name: FASTMCP_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: context-engine-config
+              key: FASTMCP_HOST
+        - name: FASTMCP_INDEXER_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: context-engine-config
+              key: FASTMCP_INDEXER_PORT
+        - name: FASTMCP_HEALTH_PORT
+          value: '18001'
+        - name: FASTMCP_TRANSPORT
+          value: sse
+        - name: QDRANT_URL
+          valueFrom:
+            configMapKeyRef:
+              name: context-engine-config
+              key: QDRANT_URL
+        - name: COLLECTION_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: context-engine-config
+              key: COLLECTION_NAME
+        - name: EMBEDDING_MODEL
+          valueFrom:
+            configMapKeyRef:
+              name: context-engine-config
+              key: EMBEDDING_MODEL
+        - name: HF_HOME
+          value: /work/models/hf-cache
+        - name: XDG_CACHE_HOME
+          value: /work/models/hf-cache
+        - name: HF_HUB_CACHE
+          value: /work/models/hf-cache/huggingface
+        resources:
+          requests:
+            memory: 512Mi
+            cpu: 250m
+          limits:
+            memory: 2Gi
+            cpu: 1000m
+        volumeMounts:
+        - name: work-volume
+          mountPath: /work
+        - name: codebase-volume
+          mountPath: /work/.codebase
+        - name: models-volume
+          mountPath: /work/models
+        - name: codebase-volume
+          mountPath: /tmp/rerank_weights
+          subPath: rerank_weights
+        - name: codebase-volume
+          mountPath: /tmp/rerank_events
+          subPath: rerank_events
+        livenessProbe:
+          httpGet:
+            path: /readyz
+            port: health
+          initialDelaySeconds: 120
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 6
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: health
+          initialDelaySeconds: 60
+          periodSeconds: 15
+          timeoutSeconds: 10
+          failureThreshold: 6
+        envFrom:
+        - configMapRef:
+            name: context-engine-config
+      volumes:
+      - name: work-volume
+        persistentVolumeClaim:
+          claimName: code-repos-pvc
+      - name: codebase-volume
+        persistentVolumeClaim:
+          claimName: code-metadata-pvc
+      - name: models-volume
+        persistentVolumeClaim:
+          claimName: code-models-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-indexer
+  namespace: context-engine
+  labels:
+    app: context-engine
+    component: mcp-indexer
+spec:
+  type: ClusterIP
+  ports:
+  - name: sse
+    port: 8001
+    targetPort: sse
+    protocol: TCP
+  - name: health
+    port: 18001
+    targetPort: health
+    protocol: TCP
+  selector:
+    app: context-engine
+    component: mcp-indexer
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-indexer-external
+  namespace: context-engine
+  labels:
+    app: context-engine
+    component: mcp-indexer
+spec:
+  type: NodePort
+  ports:
+  - name: sse
+    port: 8001
+    targetPort: sse
+    nodePort: 30802
+    protocol: TCP
+  - name: health
+    port: 18001
+    targetPort: health
+    nodePort: 30803
+    protocol: TCP
+  selector:
+    app: context-engine
+    component: mcp-indexer

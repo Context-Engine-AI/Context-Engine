@@ -1,0 +1,79 @@
+# OpenLit Observability Stack - POC
+# Usage: docker compose -f docker-compose.yml -f docker-compose.openlit.yml up -d
+#
+# This adds OpenLit observability to your existing Context-Engine stack.
+# Dashboard: http://localhost:3000 (login: user@openlit.io / openlituser)
+
+services:
+  # ClickHouse - storage backend for OpenLit
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.4.1
+    container_name: openlit-clickhouse
+    ports:
+      - "9000:9000"   # Native protocol (for OTEL exporter)
+      - "8123:8123"   # HTTP interface (for dashboard queries)
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - ./config/clickhouse-config.xml:/etc/clickhouse-server/config.d/custom-config.xml:ro
+      - ./config/docker_related_config.xml:/etc/clickhouse-server/config.d/docker_related_config.xml:ro
+    environment:
+      - CLICKHOUSE_PASSWORD=OPENLIT
+      - CLICKHOUSE_USER=default
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--query", "SELECT 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - dev-remote-network
+
+  # OpenLit Dashboard (has built-in OTEL collector)
+  openlit:
+    image: ghcr.io/openlit/openlit:latest
+    container_name: openlit-dashboard
+    ports:
+      - "3000:3000"   # Dashboard UI
+      - "4317:4317"   # OTLP gRPC receiver
+      - "4318:4318"   # OTLP HTTP receiver
+    environment:
+      - INIT_DB_HOST=clickhouse
+      - INIT_DB_PORT=8123
+      - INIT_DB_DATABASE=openlit
+      - INIT_DB_USERNAME=default
+      - INIT_DB_PASSWORD=OPENLIT
+      - SQLITE_DATABASE_URL=file:/app/client/data/data.db
+    volumes:
+      - openlit_data:/app/client/data
+      - ./config/otel-collector-config.yaml:/etc/otel/otel-collector-config.yaml:ro
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    networks:
+      - dev-remote-network
+
+  # Enable OpenLit observability for MCP services
+  mcp:
+    environment:
+      - OPENLIT_ENABLED=1
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://openlit:4318
+
+  mcp_http:
+    environment:
+      - OPENLIT_ENABLED=1
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://openlit:4318
+
+  mcp_indexer:
+    environment:
+      - OPENLIT_ENABLED=1
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://openlit:4318
+
+  mcp_indexer_http:
+    environment:
+      - OPENLIT_ENABLED=1
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://openlit:4318
+
+volumes:
+  clickhouse_data:
+    driver: local
+  openlit_data:
+    driver: local

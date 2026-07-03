@@ -1,0 +1,21 @@
+# Optional: build llama.cpp server with default settings
+# Production note: choose a tiny GGUF model (e.g., tinyllama) in ./models/model.gguf
+FROM debian:bookworm-slim AS build
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git build-essential cmake curl ca-certificates libcurl4-openssl-dev && rm -rf /var/lib/apt/lists/*
+WORKDIR /src
+RUN git clone --depth=1 https://github.com/ggerganov/llama.cpp.git
+WORKDIR /src/llama.cpp
+RUN cmake -S . -B build -DLLAMA_BUILD_SERVER=ON -DBUILD_SHARED_LIBS=OFF && cmake --build build -j
+
+FROM debian:bookworm-slim
+ARG MODEL_URL=""
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates curl libgomp1 libcurl4 && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY --from=build /src/llama.cpp/build/bin/llama-server /app/llama-server
+# Optionally bake a model into the image if MODEL_URL is provided
+RUN mkdir -p /models \
+    && if [ -n "$MODEL_URL" ]; then echo "Fetching model: $MODEL_URL" && curl -L --fail --retry 3 -C - "$MODEL_URL" -o /models/model.gguf; else echo "No MODEL_URL provided; expecting host volume /models"; fi
+EXPOSE 8080
+ENTRYPOINT ["/app/llama-server"]

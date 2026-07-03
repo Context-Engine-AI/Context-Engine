@@ -1,0 +1,19 @@
+{
+  "default_collection": "codebase",
+  "refrag_runtime": "glm",
+  "glm_api_key": "",
+  "glm_api_base": "https://api.z.ai/api/coding/paas/v4/",
+  "glm_model": "glm-4.6",
+  "always_include_tests": true,
+  "prefer_bullet_commands": false,
+  "extra_instructions": "Always consider error handling and edge cases",
+  "default_mode": "unicorn",
+  "streaming": true,
+  "require_context": true,
+  "relevance_gate_enabled": false,
+  "min_relevance": 0.1,
+  "rewrite_max_tokens": 420,
+  "surface_qdrant_collection_hint": true
+
+}
+

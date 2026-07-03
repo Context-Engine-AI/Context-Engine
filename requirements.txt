@@ -1,0 +1,45 @@
+# Runtime dependencies (mirrors Dockerfiles)
+# Pin to 1.15.x - version 1.16+ removed .search() method which breaks OpenLit instrumentation
+qdrant-client>=1.15.0,<1.16.0
+fastembed
+watchdog
+onnxruntime
+tokenizers
+orjson
+# Tree-sitter 0.25+ with individual language packages
+tree_sitter>=0.25.0
+tree_sitter_python>=0.23.0
+tree_sitter_javascript>=0.23.0
+tree_sitter_typescript>=0.23.0
+tree_sitter_go>=0.23.0
+tree_sitter_rust>=0.23.0
+tree_sitter_java>=0.23.0
+tree_sitter_c>=0.23.0
+tree_sitter_cpp>=0.23.0
+tree_sitter_ruby>=0.23.0
+tree_sitter_c_sharp>=0.23.0
+tree_sitter_bash>=0.23.0
+tree_sitter_json>=0.24.0
+tree_sitter_yaml>=0.7.0
+tree_sitter_html>=0.23.0
+tree_sitter_css>=0.23.0
+tree_sitter_markdown>=0.5.0
+mcp==1.17.0
+fastmcp==2.12.4
+fastapi
+uvicorn[standard]
+python-multipart
+jinja2
+openai>=2.11.0
+openlit>=1.0.0  # LLM observability SDK
+
+# Test-only
+pytest
+pytest-asyncio
+anyio
+testcontainers
+python-toon>=0.1.3
+
+# # Benchmark-only (external suite)
+# coir-eval
+

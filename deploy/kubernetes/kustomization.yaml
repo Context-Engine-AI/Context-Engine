@@ -1,0 +1,85 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: context-engine
+  namespace: context-engine
+
+resources:
+  # Namespace and configuration
+  - namespace.yaml
+  - configmap.yaml
+
+  # Core services
+  - qdrant.yaml
+  - code-models-pvc.yaml
+
+  # MCP servers
+  - mcp-memory.yaml
+  - mcp-indexer.yaml
+  - mcp-http.yaml
+  - learning-reranker-worker.yaml
+
+  # Indexer services
+  - indexer-services.yaml
+  - rbac.yaml
+  - networkpolicy.yaml
+  - hpa.yaml
+
+  # Optional services
+  - llamacpp.yaml
+  - upload-service.yaml
+  - ingress.yaml
+
+# Common labels
+labels:
+  - includeSelectors: true
+    pairs:
+      app.kubernetes.io/name: context-engine
+      app.kubernetes.io/component: kubernetes-deployment
+      app.kubernetes.io/managed-by: kustomize
+
+# Patches for production customization
+patches: []
+
+# ConfigMap generator (optional - for overrides)
+configMapGenerator:
+  - name: context-engine-overrides
+    literals: []
+
+# Secret generator (optional - for sensitive data)
+secretGenerator:
+  - name: context-engine-secrets
+    literals: []
+
+# Images configuration (customize for your registry)
+images:
+  - name: context-engine
+    newTag: latest
+    # newTag: v1.0.0
+    # newName: your-registry/context-engine
+
+# Namespace override
+namespace: context-engine
+
+# Replicas configuration
+replicas:
+  # Scale MCP servers for high availability
+  - name: mcp-memory
+    count: 1  # Set to 2+ for production
+  - name: mcp-indexer
+    count: 1  # Set to 2+ for production
+
+# Resource patches
+patches:
+  # Example resource customization
+  - patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/requests/memory
+        value: "1Gi"
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: "4Gi"
+    target:
+      kind: Deployment
+      name: mcp-memory

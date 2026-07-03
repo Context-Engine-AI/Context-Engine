@@ -1,0 +1,7 @@
+## Deprecated: upload-codebase-pvc
+##
+## This file previously defined a separate PVC for upload-service metadata.
+## The architecture now shares a single metadata volume (code-metadata-pvc)
+## across upload-service and indexers, so this PVC is intentionally removed.
+##
+## Left as a stub to avoid accidental kubectl apply of an unused resource.

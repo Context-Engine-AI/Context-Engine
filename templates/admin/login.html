@@ -1,0 +1,25 @@
+{% extends "admin/base.html" %}
+
+{% block content %}
+  <div class="card">
+    <h2>Login</h2>
+
+    {% if error %}
+      <p class="error">{{ error }}</p>
+    {% endif %}
+
+    <form method="post" action="/admin/login">
+      <label>
+        Username<br />
+        <input name="username" autocomplete="username" />
+      </label>
+      <br /><br />
+      <label>
+        Password<br />
+        <input type="password" name="password" autocomplete="current-password" />
+      </label>
+      <br /><br />
+      <button type="submit">Login</button>
+    </form>
+  </div>
+{% endblock %}

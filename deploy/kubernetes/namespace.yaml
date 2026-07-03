@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: context-engine
+  labels:
+    app: context-engine
+    component: infrastructure

@@ -1,0 +1,41 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ title }}</title>
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 24px; color: #111; }
+      header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+      h1 { font-size: 20px; margin: 0; }
+      h2 { font-size: 16px; margin-top: 24px; }
+      .card { border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin-top: 12px; }
+      .error { color: #b00; }
+      .warning { color: #8a6d3b; }
+      table { border-collapse: collapse; width: 100%; }
+      th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; }
+      th { background: #f7f7f7; }
+      input { padding: 6px 8px; width: 320px; max-width: 100%; }
+      button { padding: 6px 10px; }
+      form.inline { display: inline; }
+      nav a { margin-right: 12px; }
+      .muted { color: #666; font-size: 12px; }
+      .badge { display: inline-block; border: 1px solid #ddd; border-radius: 999px; padding: 1px 6px; margin: 2px 4px 2px 0; font-size: 11px; background: #f7f7f7; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>{{ title }}</h1>
+      <nav>
+        <a href="/admin">Home</a>
+        <form class="inline" method="post" action="/admin/logout">
+          <button type="submit">Logout</button>
+        </form>
+      </nav>
+    </header>
+
+    {% block content %}{% endblock %}
+
+    <p class="muted">CTXCE Admin UI</p>
+  </body>
+</html>
