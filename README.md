@@ -176,6 +176,6 @@ See [`skills/context-engine/SKILL.md`](skills/context-engine/SKILL.md) for the c
 
 ## License
 
-[Context-Engine Source Available License 1.0](LICENSE)
+[MIT License](LICENSE)
 
 © 2025 Context Engine Inc. and John Donalson.
