@@ -757,15 +757,28 @@ def upsert_points(
             except Exception:
                 attempt += 1
                 if attempt >= retries:
+                    # Salvage what we can in smaller sub-batches, but never
+                    # swallow a permanent failure: callers advance the file's
+                    # hash cache after this returns, so silently dropping
+                    # points here records the file as fully indexed while
+                    # chunks are missing — and nothing ever retries them.
                     sub_size = max(1, bsz // 4)
+                    failed_points = 0
+                    last_error: Optional[Exception] = None
                     for j in range(0, len(batch), sub_size):
                         sub = batch[j : j + sub_size]
                         try:
                             client.upsert(
                                 collection_name=collection, points=sub, wait=True
                             )
-                        except Exception:
-                            pass
+                        except Exception as sub_error:
+                            failed_points += len(sub)
+                            last_error = sub_error
+                    if failed_points:
+                        raise RuntimeError(
+                            f"upsert_points: {failed_points} point(s) permanently "
+                            f"failed for collection {collection}"
+                        ) from last_error
                     break
                 else:
                     try:

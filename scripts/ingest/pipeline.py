@@ -988,8 +988,26 @@ def process_file_with_smart_reindexing(
     changed_set = set(changed_symbols)
 
     if len(changed_symbols) == 0 and cached_symbols:
-        print(f"[SMART_REINDEX] {file_path}: 0 changes detected, skipping")
-        return "skipped"
+        removed_symbols = [sid for sid in cached_symbols if sid not in symbol_meta]
+        if not removed_symbols:
+            # The file hash changed but no symbol was added, edited, or
+            # removed — the edit lives outside tracked symbols (module-level
+            # code, docstrings, constants). Smart reindexing cannot express
+            # that; report non-success so the caller runs a full reindex.
+            # Returning "skipped" here would lose the edit permanently: the
+            # hash cache never advances, so the file re-skips forever.
+            print(
+                f"[SMART_REINDEX] {file_path}: change outside tracked symbols, "
+                "deferring to full reindex"
+            )
+            return "fallback"
+        # Symbols were removed with nothing added or edited: run the normal
+        # delete+reinsert below so the removed symbols' points are dropped
+        # (unchanged symbols are reused; nothing needs re-embedding).
+        print(
+            f"[SMART_REINDEX] {file_path}: {len(removed_symbols)} removed "
+            "symbol(s), refreshing points"
+        )
 
     existing_points = []
     try:

@@ -26,7 +26,9 @@ tree_sitter_css>=0.23.0
 tree_sitter_markdown>=0.5.0
 mcp==1.17.0
 fastmcp==2.12.4
-fastapi
+# Floor keeps starlette's TestClient compatible with current httpx
+# (httpx>=0.28 removed Client(app=...); older starlette still passed it).
+fastapi>=0.115
 uvicorn[standard]
 python-multipart
 jinja2
@@ -37,6 +39,7 @@ openlit>=1.0.0  # LLM observability SDK
 pytest
 pytest-asyncio
 anyio
+httpx>=0.27  # fastapi.testclient transport
 testcontainers
 python-toon>=0.1.3
 

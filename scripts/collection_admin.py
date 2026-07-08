@@ -200,7 +200,18 @@ def delete_collection_everywhere(
 
     target_is_old = name.endswith("_old")
 
-    # 1) Delete Qdrant collection
+    # 1) Mark deleted in registry DB first: the user's delete intent must
+    # stick even when the storage call below fails or times out. The reverse
+    # order can strand a live registry row pointing at deleted storage, which
+    # status endpoints then surface as a phantom collection until someone
+    # repairs it by hand. Both steps stay best-effort.
+    try:
+        mark_collection_deleted(name)
+        out["registry_marked_deleted"] = True
+    except Exception:
+        out["registry_marked_deleted"] = False
+
+    # 2) Delete Qdrant collection
     try:
         if pooled_qdrant_client is not None:
             with pooled_qdrant_client(url=qdrant_url, api_key=os.environ.get("QDRANT_API_KEY")) as cli:
@@ -211,13 +222,6 @@ def delete_collection_everywhere(
                     out["qdrant_deleted"] = False
     except Exception:
         out["qdrant_deleted"] = False
-
-    # 2) Mark deleted in registry DB
-    try:
-        mark_collection_deleted(name)
-        out["registry_marked_deleted"] = True
-    except Exception:
-        out["registry_marked_deleted"] = False
 
     # 3) Cleanup workspace state metadata + managed upload workspaces
     if not cleanup_fs:

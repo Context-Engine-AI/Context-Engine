@@ -32,7 +32,7 @@ jobs:
       uses: actions/cache@v3
       with:
         path: ~/.cache/uv
-        key: ${{ runner.os }}-uv-${{ hashFiles('**/uv.lock') }}
+        key: ${{ runner.os }}-uv-${{ hashFiles('requirements.txt') }}
         restore-keys: |
           ${{ runner.os }}-uv-
 
@@ -43,9 +43,14 @@ jobs:
         key: ${{ runner.os }}-embeddings-bge-base-en-v1.5
         restore-keys: |
           ${{ runner.os }}-embeddings-
-          
+
+    # requirements.txt is the dependency source of truth (test deps included);
+    # there is no pyproject/uv.lock in this repo — `uv sync --locked` can never
+    # succeed here and left CI red on every run.
     - name: Install dependencies
-      run: uv sync --locked --extra test
+      run: |
+        uv venv
+        uv pip install -r requirements.txt
         
     - name: Wait for Qdrant to be ready
       run: |
