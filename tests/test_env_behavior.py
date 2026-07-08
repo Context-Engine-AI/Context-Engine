@@ -43,7 +43,7 @@ def test_rerank_timeout_floor_and_env_defaults(monkeypatch):
     monkeypatch.setattr(srv, "_run_async", fake_run)
 
     # Call repo_search with no rerank_enabled arg to pick env default
-    res = srv.asyncio.get_event_loop().run_until_complete(
+    res = srv.asyncio.run(
         srv.repo_search(query="foo", limit=3, per_path=1)
     )
 

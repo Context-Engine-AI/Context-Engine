@@ -206,7 +206,7 @@ def test_repo_search_snippet_strict_cap_after_highlight(monkeypatch):
     monkeypatch.setattr(builtins, "open", fake_open)
 
     # Execute
-    res = srv.asyncio.get_event_loop().run_until_complete(
+    res = srv.asyncio.run(
         srv.repo_search(
             query="foo", include_snippet=True, highlight_snippet=True, context_lines=0
         )

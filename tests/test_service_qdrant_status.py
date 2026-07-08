@@ -31,7 +31,7 @@ def test_qdrant_status_mocked(monkeypatch):
 
     monkeypatch.setattr(qdrant_client, "QdrantClient", lambda *a, **k: FakeQdrant())
 
-    out = srv.asyncio.get_event_loop().run_until_complete(
+    out = srv.asyncio.run(
         srv.qdrant_status(collection="test")
     )
     # qdrant_status returns a summary shape without an 'ok' key

@@ -51,7 +51,7 @@ def test_context_answer_happy_path(monkeypatch):
     monkeypatch.setattr(ref, "LlamaCppRefragClient", FakeLlama)
     monkeypatch.setattr(ref, "is_decoder_enabled", lambda: True)
 
-    out = srv.asyncio.get_event_loop().run_until_complete(
+    out = srv.asyncio.run(
         srv.context_answer(query="how to do x", limit=2, per_path=1)
     )
 
@@ -82,7 +82,7 @@ def test_context_answer_decoder_disabled(monkeypatch):
     monkeypatch.setattr(ref, "LlamaCppRefragClient", FakeLlama)
     monkeypatch.setattr(ref, "is_decoder_enabled", lambda: False)
 
-    out = srv.asyncio.get_event_loop().run_until_complete(
+    out = srv.asyncio.run(
         srv.context_answer(query="how to do y", limit=1)
     )
 
@@ -130,7 +130,7 @@ def test_context_answer_prefers_identifier_spans(monkeypatch):
     monkeypatch.setattr(ref, "LlamaCppRefragClient", FakeLlama)
     monkeypatch.setattr(ref, "is_decoder_enabled", lambda: True)
 
-    out = srv.asyncio.get_event_loop().run_until_complete(
+    out = srv.asyncio.run(
         srv.context_answer(query="what is RRF_K in hybrid_search.py?", limit=1, per_path=1)
     )
 
@@ -179,7 +179,7 @@ def test_context_answer_tier2_retry_without_gating(monkeypatch):
     monkeypatch.setattr(ref, "LlamaCppRefragClient", FakeLlama)
     monkeypatch.setattr(ref, "is_decoder_enabled", lambda: True)
 
-    out = srv.asyncio.get_event_loop().run_until_complete(
+    out = srv.asyncio.run(
         srv.context_answer(query="RRF_K", limit=1, per_path=1)
     )
 
@@ -214,7 +214,7 @@ def test_context_answer_env_lock_release_on_retrieval_exception(monkeypatch):
 
     monkeypatch.setattr(srv, "_ca_prepare_filters_and_retrieve", _raise_retrieval)
 
-    out = srv.asyncio.get_event_loop().run_until_complete(
+    out = srv.asyncio.run(
         srv.context_answer(query="x", limit=1, per_path=1)
     )
     assert "error" in out
@@ -248,7 +248,7 @@ def test_context_answer_env_lock_release_on_retrieval_exception(monkeypatch):
     import scripts.refrag_llamacpp as ref
     monkeypatch.setattr(ref, "is_decoder_enabled", lambda: False)
 
-    out2 = srv.asyncio.get_event_loop().run_until_complete(
+    out2 = srv.asyncio.run(
         srv.context_answer(query="x", limit=1, per_path=1)
     )
     assert isinstance(out2, dict)

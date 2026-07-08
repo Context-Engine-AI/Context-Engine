@@ -17,7 +17,7 @@ def test_repo_search_malformed_jsonl_subprocess(monkeypatch):
 
     monkeypatch.setattr(srv, "_run_async", fake_run)
 
-    res = srv.asyncio.get_event_loop().run_until_complete(
+    res = srv.asyncio.run(
         srv.repo_search(queries=["x"], limit=1, compact=False)
     )
 
@@ -48,7 +48,7 @@ def test_repo_search_inproc_qdrant_failure_fallback_and_fail(monkeypatch):
 
     monkeypatch.setattr(srv, "_run_async", fake_run)
 
-    res = srv.asyncio.get_event_loop().run_until_complete(
+    res = srv.asyncio.run(
         srv.repo_search(queries=["x"], limit=1, compact=True)
     )
 

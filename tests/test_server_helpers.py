@@ -53,7 +53,7 @@ def test_repo_search_arg_normalization(monkeypatch, tmp_path):
     # Ensure in-process branch stays off
     monkeypatch.delenv("HYBRID_IN_PROCESS", raising=False)
 
-    res = srv.asyncio.get_event_loop().run_until_complete(
+    res = srv.asyncio.run(
         _call_repo_search(
             queries=["FooBar"],
             limit="12",  # str on purpose to test coercion

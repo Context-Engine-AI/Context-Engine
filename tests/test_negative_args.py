@@ -14,7 +14,7 @@ def test_repo_search_conflicting_filters_empty_ok(monkeypatch):
 
     monkeypatch.setattr(hy, "run_hybrid_search", lambda *a, **k: [])
 
-    res = srv.asyncio.get_event_loop().run_until_complete(
+    res = srv.asyncio.run(
         srv.repo_search(queries=["foo"], limit=3, ext="cpp", compact=True)
     )
 

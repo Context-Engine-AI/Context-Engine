@@ -75,7 +75,7 @@ def test_index_and_search_minirepo(tmp_path, monkeypatch, qdrant_container):
     )
 
     # Search directly via async function
-    res = srv.asyncio.get_event_loop().run_until_complete(
+    res = srv.asyncio.run(
         srv.repo_search(
             queries=["def f"],
             limit=5,
@@ -127,19 +127,19 @@ def test_filters_language_and_path(tmp_path, monkeypatch, qdrant_container):
     f_md = str(tmp_path / "pkg" / "b.md")
 
     # Filter by language=python should bias toward .py
-    res1 = srv.asyncio.get_event_loop().run_until_complete(
+    res1 = srv.asyncio.run(
         srv.repo_search(queries=["def"], limit=5, language="python", compact=False)
     )
     assert any(f_py in (r.get("path") or "") for r in res1.get("results", []))
 
     # Filter by ext=txt should retrieve text file
-    res2 = srv.asyncio.get_event_loop().run_until_complete(
+    res2 = srv.asyncio.run(
         srv.repo_search(queries=["hello"], limit=5, ext="md", compact=False)
     )
     assert any(f_md in (r.get("path") or "") for r in res2.get("results", []))
 
     # Path glob to only allow pkg/*.py
-    res3 = srv.asyncio.get_event_loop().run_until_complete(
+    res3 = srv.asyncio.run(
         srv.repo_search(
             queries=["def"],
             limit=5,

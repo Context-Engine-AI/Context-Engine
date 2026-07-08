@@ -30,7 +30,7 @@ def test_context_answer_path_mention_fallback(monkeypatch):
 
     # Mention an actual file in this repo so fallback can find it
     q = "explain something in scripts/hybrid_search.py"
-    out = srv.asyncio.get_event_loop().run_until_complete(
+    out = srv.asyncio.run(
         srv.context_answer(query=q, limit=3, per_path=2)
     )
     assert isinstance(out, dict)
