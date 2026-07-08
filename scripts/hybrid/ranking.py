@@ -872,10 +872,11 @@ def _merge_and_budget_spans(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]
         path = str(c.get("p") or "")
         start = int(c.get("start") or 0)
         score = float(m.get("raw_score") or m.get("score") or m.get("s") or 0.0)
-        if score < 0:
-            return (score, path, start)
-        else:
-            return (-score, path, start)
+        # Highest score first for ALL scores. Negating only non-negatives
+        # reversed the order among penalized (negative) spans and sorted
+        # every negative ahead of weak positives — the token budget got
+        # spent on the worst spans first.
+        return (-score, path, start)
 
     flattened.sort(key=_flat_key)
 

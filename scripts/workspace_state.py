@@ -1624,39 +1624,48 @@ def set_cached_file_hash(file_path: str, file_hash: str, repo_name: Optional[str
         cache_path = state_dir / CACHE_FILENAME
         state_dir.mkdir(parents=True, exist_ok=True)
 
-        if cache_path.exists():
-            cache = _read_cache_file_cached(cache_path)
-        else:
-            cache = {"file_hashes": {}, "created_at": datetime.now().isoformat()}
+        # Hold the same two locks (in-process + cross-process) that _write_cache uses for
+        # the single-repo path, and in the same order, so concurrent writers (e.g. the
+        # initial indexer subprocess and the live watcher) can't race on this repo's
+        # cache.json. The read is included in the locked section so the whole
+        # read-modify-write cycle is atomic, not just the final write.
+        lock = _get_state_lock(repo_name=repo_name)
+        with lock:
+            lock_path = cache_path.with_suffix(cache_path.suffix + ".lock")
+            with _cross_process_lock(lock_path):
+                if cache_path.exists():
+                    cache = _read_cache_file_cached(cache_path)
+                else:
+                    cache = {"file_hashes": {}, "created_at": datetime.now().isoformat()}
 
-        existing = cache.get("file_hashes", {}).get(fp)
-        if isinstance(existing, dict) and st_size is not None and st_mtime is not None:
-            if (
-                str(existing.get("hash") or "") == str(file_hash or "")
-                and int(existing.get("size") or 0) == int(st_size)
-                and int(existing.get("mtime") or 0) == int(st_mtime)
-            ):
-                return
+                existing = cache.get("file_hashes", {}).get(fp)
+                if isinstance(existing, dict) and st_size is not None and st_mtime is not None:
+                    if (
+                        str(existing.get("hash") or "") == str(file_hash or "")
+                        and int(existing.get("size") or 0) == int(st_size)
+                        and int(existing.get("mtime") or 0) == int(st_mtime)
+                    ):
+                        return
 
-        entry: Any = file_hash
-        try:
-            if st_size is not None and st_mtime is not None:
-                entry = {"hash": file_hash, "size": st_size, "mtime": st_mtime}
-            else:
-                st = Path(file_path).stat()
-                entry = {
-                    "hash": file_hash,
-                    "size": int(getattr(st, "st_size", 0)),
-                    "mtime": int(getattr(st, "st_mtime", 0)),
-                }
-        except OSError:
-            pass
+                entry: Any = file_hash
+                try:
+                    if st_size is not None and st_mtime is not None:
+                        entry = {"hash": file_hash, "size": st_size, "mtime": st_mtime}
+                    else:
+                        st = Path(file_path).stat()
+                        entry = {
+                            "hash": file_hash,
+                            "size": int(getattr(st, "st_size", 0)),
+                            "mtime": int(getattr(st, "st_mtime", 0)),
+                        }
+                except OSError:
+                    pass
 
-        cache.setdefault("file_hashes", {})[fp] = entry
-        cache["updated_at"] = datetime.now().isoformat()
+                cache.setdefault("file_hashes", {})[fp] = entry
+                cache["updated_at"] = datetime.now().isoformat()
 
-        _atomic_write_state(cache_path, cache)  # reuse atomic writer for files
-        _memoize_cache_obj(cache_path, cache)
+                _atomic_write_state(cache_path, cache)  # reuse atomic writer for files
+                _memoize_cache_obj(cache_path, cache)
         return
 
     cache = _read_cache_cached(_resolve_workspace_root())

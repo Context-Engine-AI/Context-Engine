@@ -150,8 +150,13 @@ def parse_query_dsl(queries: List[str]) -> Tuple[List[str], Dict[str, str]]:
     """
     clean: List[str] = []
     extracted: Dict[str, str] = {}
+    # Compact form only (`file:foo.py` — no whitespace around the colon).
+    # Allowing `\s*` here turned natural-language queries like
+    # "explain the file: upload flow" into hard filters (under="upload"),
+    # and a prose "repo: billing" silently redirected the search to another
+    # repo.
     token_re = re.compile(
-        r"\b(?:(lang|language|file|path|under|kind|symbol|ext|not|case|repo))\s*:\s*([^\s]+)",
+        r"\b(?:(lang|language|file|path|under|kind|symbol|ext|not|case|repo)):([^\s]+)",
         re.IGNORECASE,
     )
     for q in queries:

@@ -39,7 +39,15 @@ from scripts.mcp_impl.utils import (
     _tokens_from_queries,
     safe_int,
 )
-from scripts.mcp_impl.workspace import _default_collection, _work_script
+from scripts.mcp_impl.workspace import (
+    SESSION_DEFAULTS,
+    SESSION_DEFAULTS_BY_SESSION,
+    _SESSION_CTX_LOCK,
+    _SESSION_LOCK,
+    _default_collection,
+    _work_script,
+)
+from scripts.mcp_impl.code_signals import _detect_code_signals
 from scripts.mcp_impl.admin_tools import _detect_current_repo, _run_async
 from scripts.mcp_toon import _should_use_toon, _format_results_as_toon
 from scripts.mcp_auth import require_collection_access as _require_collection_access
@@ -980,7 +988,20 @@ async def _repo_search_impl(
                     _before_paths = [(o.get("path", "?").split("/")[-1], o.get("score", 0)) for o in cand_objs[:10]]
 
                     pairs = [(rq, d) for d in docs]
-                    scores = _rr_local(pairs)
+                    # Honor rerank_timeout_ms on the in-process path too: the
+                    # bare call blocked the server with no hybrid fallback
+                    # (the subprocess path already enforces the timeout).
+                    # shutdown(wait=False) so a timeout unblocks the request
+                    # instead of joining the stuck worker.
+                    import concurrent.futures as _futures
+
+                    _rr_pool = _futures.ThreadPoolExecutor(max_workers=1)
+                    try:
+                        scores = _rr_pool.submit(_rr_local, pairs).result(
+                            timeout=max(0.05, float(rerank_timeout_ms) / 1000.0)
+                        )
+                    finally:
+                        _rr_pool.shutdown(wait=False, cancel_futures=True)
                     # Blend rerank with fusion score to preserve pre-rerank boosts
                     # (symbol_exact, impl_boost, path boosts are otherwise lost)
                     _rerank_blend = float(os.environ.get("RERANK_BLEND_WEIGHT", "0.6") or 0.6)
@@ -1013,8 +1034,17 @@ async def _repo_search_impl(
                         blended_score += post_boost
                         blended.append((blended_score, rr_score, obj, post_boost))
                     ranked = sorted(blended, key=lambda x: x[0], reverse=True)
+                    # rerank_return_m is a quality cap, not a result cap:
+                    # honor a larger caller limit from the already-retrieved
+                    # pool instead of silently returning fewer results.
+                    _return_cap = int(rerank_return_m)
+                    try:
+                        if limit and int(limit) > _return_cap:
+                            _return_cap = int(limit)
+                    except Exception:
+                        pass
                     tmp = []
-                    for blended_s, rr_s, obj, post_b in ranked[: int(rerank_return_m)]:
+                    for blended_s, rr_s, obj, post_b in ranked[:_return_cap]:
                         why_parts = obj.get("why", []) + [f"rerank_onnx:{float(rr_s):.3f}", f"blend:{float(blended_s):.3f}"]
                         if post_b > 0:
                             why_parts.append(f"post_sym:{float(post_b):.3f}")

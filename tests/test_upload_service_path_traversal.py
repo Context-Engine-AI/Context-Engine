@@ -3,8 +3,6 @@ import json
 import tarfile
 from pathlib import Path
 
-import pytest
-
 
 def _write_bundle(tmp_path: Path, operations: list[dict]) -> Path:
     bundle_path = tmp_path / "bundle.tar.gz"
@@ -64,12 +62,18 @@ def test_process_delta_bundle_rejects_traversal_created(tmp_path, monkeypatch):
         [{"operation": "created", "path": "../../evil.txt"}],
     )
 
-    with pytest.raises(ValueError, match="escapes workspace"):
-        us.process_delta_bundle(
-            workspace_path="/home/user/repo",
-            bundle_path=bundle,
-            manifest={"bundle_id": "b1"},
-        )
+    # A path-traversal op must be skipped (and counted as failed), not raise and
+    # abort the whole bundle -- see test_process_delta_bundle_isolates_failed_op_*
+    # for a multi-op bundle proving the rest still applies.
+    counts = us.process_delta_bundle(
+        workspace_path="/home/user/repo",
+        bundle_path=bundle,
+        manifest={"bundle_id": "b1"},
+    )
+
+    assert counts.get("failed") == 1
+    assert counts.get("created", 0) == 0
+    assert not (tmp_path / "evil.txt").exists()
 
 
 def test_process_delta_bundle_moved_falls_back_to_tar_payload_when_source_missing(tmp_path, monkeypatch):
@@ -165,12 +169,16 @@ def test_process_delta_bundle_rejects_absolute_paths(tmp_path, monkeypatch):
         [{"operation": "created", "path": "/etc/passwd"}],
     )
 
-    with pytest.raises(ValueError, match="Absolute paths"):
-        us.process_delta_bundle(
-            workspace_path="/home/user/repo",
-            bundle_path=bundle,
-            manifest={"bundle_id": "b1"},
-        )
+    # An absolute-path op must be skipped (and counted as failed), not raise and
+    # abort the whole bundle.
+    counts = us.process_delta_bundle(
+        workspace_path="/home/user/repo",
+        bundle_path=bundle,
+        manifest={"bundle_id": "b1"},
+    )
+
+    assert counts.get("failed") == 1
+    assert counts.get("created", 0) == 0
 
 
 def test_process_delta_bundle_rejects_traversal_moved_source(tmp_path, monkeypatch):
@@ -191,9 +199,55 @@ def test_process_delta_bundle_rejects_traversal_moved_source(tmp_path, monkeypat
         ],
     )
 
-    with pytest.raises(ValueError, match="escapes workspace"):
-        us.process_delta_bundle(
-            workspace_path="/home/user/repo",
-            bundle_path=bundle,
-            manifest={"bundle_id": "b1"},
-        )
+    # A path-traversal source op must be skipped (and counted as failed), not raise
+    # and abort the whole bundle. The (safe) destination must not be created either.
+    counts = us.process_delta_bundle(
+        workspace_path="/home/user/repo",
+        bundle_path=bundle,
+        manifest={"bundle_id": "b1"},
+    )
+
+    assert counts.get("failed") == 1
+    assert counts.get("moved", 0) == 0
+    assert not any(work_dir.rglob("dst.txt"))
+
+
+def test_process_delta_bundle_isolates_failed_op_from_rest_of_bundle(tmp_path, monkeypatch):
+    import scripts.upload_delta_bundle as us
+
+    work_dir = tmp_path / "work"
+    work_dir.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr(us, "WORK_DIR", str(work_dir))
+
+    slug = "repo-0123456789abcdef"
+    bundle_path = tmp_path / "bundle.tar.gz"
+    operations = [
+        {"operation": "created", "path": "a.txt"},
+        {"operation": "created", "path": "../../evil.txt"},
+        {"operation": "created", "path": "c.txt"},
+    ]
+    payload = json.dumps({"operations": operations}).encode("utf-8")
+
+    with tarfile.open(bundle_path, "w:gz") as tar:
+        info = tarfile.TarInfo(name="metadata/operations.json")
+        info.size = len(payload)
+        tar.addfile(info, io.BytesIO(payload))
+
+        for rel_path, content in (("a.txt", b"first"), ("c.txt", b"third")):
+            file_info = tarfile.TarInfo(name=f"files/created/{rel_path}")
+            file_info.size = len(content)
+            tar.addfile(file_info, io.BytesIO(content))
+
+    # op 2 of 3 has a traversal path; ops 1 and 3 must still apply, op 2 must be
+    # skipped and counted as failed -- a single bad op must not abort the bundle.
+    counts = us.process_delta_bundle(
+        workspace_path=f"/work/{slug}",
+        bundle_path=bundle_path,
+        manifest={"bundle_id": "b-partial"},
+    )
+
+    assert counts.get("created") == 2
+    assert counts.get("failed") == 1
+    assert (work_dir / slug / "a.txt").read_bytes() == b"first"
+    assert (work_dir / slug / "c.txt").read_bytes() == b"third"
+    assert not (tmp_path / "evil.txt").exists()

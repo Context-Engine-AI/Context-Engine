@@ -748,11 +748,25 @@ async def _context_search_impl(
         try:
             from scripts.hybrid_search import run_hybrid_search  # type: ignore
 
+            # Scope the fallback exactly like the primary search. The primary
+            # path is repo-scoped via _detect_current_repo(); running this
+            # fallback unscoped silently returned OTHER repos' code whenever
+            # the scoped search had zero hits (run_hybrid_search's own
+            # auto-detect is env-only and misses the /work git checkout).
+            repo_scope = None
+            try:
+                from scripts.mcp_impl.admin_tools import _detect_current_repo
+
+                repo_scope = _detect_current_repo()
+            except Exception:
+                repo_scope = None
+
             model_name = os.environ.get("EMBEDDING_MODEL", "BAAI/bge-base-en-v1.5")
             model = get_embedding_model_fn(model_name) if get_embedding_model_fn else None
             items2 = await asyncio.to_thread(
                 lambda: run_hybrid_search(
                     queries=queries,
+                    repo=repo_scope,
                     limit=int(code_limit),
                     per_path=int(per_path_val),
                     language=language or None,

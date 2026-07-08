@@ -134,6 +134,38 @@ def chunk_semantic(
                     break
 
         if best_symbol:
+            # Emit any gap between our current position and this symbol's start
+            # (e.g. leading imports/module docstring, or top-level code between
+            # two symbols) as its own chunk first, so it isn't silently dropped
+            # from the index. Bounded by max_lines: best_symbol.start <= chunk_end.
+            if best_symbol.start > chunk_start:
+                gap_start = chunk_start
+                gap_end = best_symbol.start - 1
+                # Mirror the fallback branch below: don't let a chunk cross out
+                # of an enclosing symbol we're still inside of. Split off any
+                # remainder past it (unrelated top-level code) as its own,
+                # unlabeled chunk instead.
+                if enclosing_symbol is not None and gap_start <= enclosing_symbol.end:
+                    enclosed_end = min(gap_end, enclosing_symbol.end)
+                    chunks.append(
+                        {
+                            "text": "\n".join(lines[gap_start - 1 : enclosed_end]),
+                            "start": gap_start,
+                            "end": enclosed_end,
+                            "symbol": enclosing_symbol.name,
+                            "kind": enclosing_symbol.kind,
+                        }
+                    )
+                    gap_start = enclosed_end + 1
+                if gap_start <= gap_end:
+                    chunks.append(
+                        {
+                            "text": "\n".join(lines[gap_start - 1 : gap_end]),
+                            "start": gap_start,
+                            "end": gap_end,
+                        }
+                    )
+
             # Chunk this complete symbol
             chunk_text = "\n".join(lines[best_symbol.start - 1 : best_symbol.end])
             chunks.append(

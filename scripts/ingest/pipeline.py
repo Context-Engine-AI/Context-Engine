@@ -413,9 +413,9 @@ def _index_single_file_inner(
                 print(f"Skipping unchanged file: {file_path}")
                 return False
 
-    if dedupe:
-        delete_points_by_path(client, collection, str(file_path))
-
+    # NOTE: with dedupe, old points are deleted just before the upsert below,
+    # AFTER embedding succeeded — deleting up front left the file entirely
+    # unsearchable whenever the embedder failed mid-flight.
     symbols = _extract_symbols(language, text)
     imports, calls = _get_imports_calls(language, text)
     last_mod, churn_count, author_count = _git_metadata(file_path)
@@ -652,6 +652,8 @@ def _index_single_file_inner(
             make_point(i, v, lx, m, lt, ct)
             for i, v, lx, m, lt, ct in zip(batch_ids, vectors, batch_lex, batch_meta, batch_lex_text, batch_code)
         ]
+        if dedupe:
+            delete_points_by_path(client, collection, str(file_path))
         upsert_points(client, collection, points)
         try:
             ws = os.environ.get("WATCH_ROOT") or os.environ.get("WORKSPACE_PATH") or "/work"
@@ -661,6 +663,10 @@ def _index_single_file_inner(
         except Exception:
             pass
         return True
+    if dedupe:
+        # The file yields no indexable chunks anymore (emptied or newly
+        # excluded): still drop its stale points.
+        delete_points_by_path(client, collection, str(file_path))
     return False
 
 
@@ -872,6 +878,57 @@ def index_repo(
 
 
 def process_file_with_smart_reindexing(
+    file_path,
+    text: str,
+    language: str,
+    client: QdrantClient,
+    current_collection: str,
+    per_file_repo,
+    model,
+    vector_name: str | None,
+    *,
+    allowed_vectors: set[str] | None = None,
+    allowed_sparse: set[str] | None = None,
+) -> str:
+    """Cross-process file lock around smart reindexing.
+
+    Same guard as `index_single_file`: the smart scroll→delete→upsert
+    sequence must not interleave with a concurrent full index of the same
+    file — whichever writer finishes last would silently discard the
+    other's points.
+    """
+    _file_lock_ctx = None
+    if file_indexing_lock is not None:
+        try:
+            _file_lock_ctx = file_indexing_lock(str(file_path))
+            _file_lock_ctx.__enter__()
+        except FileExistsError:
+            print(f"[SMART_REINDEX] {file_path}: locked by another indexer, skipping")
+            return "skipped"
+        except Exception:
+            pass
+    try:
+        return _process_file_with_smart_reindexing_inner(
+            file_path,
+            text,
+            language,
+            client,
+            current_collection,
+            per_file_repo,
+            model,
+            vector_name,
+            allowed_vectors=allowed_vectors,
+            allowed_sparse=allowed_sparse,
+        )
+    finally:
+        if _file_lock_ctx is not None:
+            try:
+                _file_lock_ctx.__exit__(None, None, None)
+            except Exception:
+                pass
+
+
+def _process_file_with_smart_reindexing_inner(
     file_path,
     text: str,
     language: str,
@@ -1506,7 +1563,15 @@ def pseudo_backfill_tick(
                 offset=next_offset,
             )
         except Exception:
-            if _maybe_ensure_collection():
+            # A single transient error must not abort the whole tick — the
+            # unprocessed tail would wait for a future tick. Retry briefly,
+            # then fall back to the ensure-collection path.
+            recovered = False
+            for _retry in (1, 2):
+                try:
+                    time.sleep(0.4 * _retry)
+                except Exception:
+                    pass
                 try:
                     points, next_offset = client.scroll(
                         collection_name=collection,
@@ -1516,10 +1581,25 @@ def pseudo_backfill_tick(
                         with_vectors=True,
                         offset=next_offset,
                     )
-                except Exception:
+                    recovered = True
                     break
-            else:
-                break
+                except Exception:
+                    continue
+            if not recovered:
+                if _maybe_ensure_collection():
+                    try:
+                        points, next_offset = client.scroll(
+                            collection_name=collection,
+                            scroll_filter=flt,
+                            limit=batch_limit,
+                            with_payload=True,
+                            with_vectors=True,
+                            offset=next_offset,
+                        )
+                    except Exception:
+                        break
+                else:
+                    break
 
         if not points:
             break

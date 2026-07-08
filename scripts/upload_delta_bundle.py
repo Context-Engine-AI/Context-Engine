@@ -4,6 +4,7 @@ import tarfile
 import hashlib
 import re
 import logging
+import uuid
 from pathlib import Path
 from typing import Dict, Any, Optional
 
@@ -28,13 +29,16 @@ _SLUGGED_REPO_RE = re.compile(r"^.+-[0-9a-f]{16}(?:_old)?$")
 
 
 def get_workspace_key(workspace_path: str) -> str:
-    """Generate 16-char hash for collision avoidance in remote uploads.
+    """Generate the 16-char workspace key used for slugs and upload sequencing.
 
-    Remote uploads may have identical folder names from different users,
-    so uses longer hash than local indexing (8-chars) to ensure uniqueness.
-
-    Both host paths (/home/user/project/repo) and container paths (/work/repo)
-    should generate the same key for the same repository.
+    Keyed on the path BASENAME by design: the client hashes its host path
+    (/home/user/project/repo) while the server hashes the container path
+    (/work/repo), and both must agree on the key for the same repository.
+    The trade-off: different uploaders using the same folder name collide
+    into one workspace (and one derived collection). Deployments with
+    multiple uploaders should use distinct folder names or logical_repo_id
+    to disambiguate; the upload service logs a warning when it observes a
+    collision.
     """
     repo_name = Path(workspace_path).name
     if _SLUGGED_REPO_RE.match(repo_name):
@@ -59,6 +63,21 @@ def _cleanup_empty_dirs(path: Path, stop_at: Path) -> None:
             path = path.parent
         except Exception:
             break
+
+
+def _atomic_write_bytes(target_path: Path, data: bytes) -> None:
+    """Write bytes to target_path atomically so a concurrently-watching indexer
+    never observes a partially-written file (write temp file, then os.replace)."""
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = target_path.with_suffix(f".tmp.{uuid.uuid4().hex[:8]}")
+    try:
+        tmp_path.write_bytes(data)
+        os.replace(tmp_path, target_path)
+    finally:
+        try:
+            tmp_path.unlink(missing_ok=True)
+        except Exception:
+            pass
 
 
 def process_delta_bundle(workspace_path: str, bundle_path: Path, manifest: Dict[str, Any]) -> Dict[str, int]:
@@ -267,19 +286,25 @@ def process_delta_bundle(workspace_path: str, bundle_path: Path, manifest: Dict[
                 logger.debug(f"[upload_service] Error extracting git history metadata: {git_err}")
 
             def _apply_operation_to_workspace(workspace_root: Path) -> bool:
-                """Apply a single file operation to a workspace. Returns True on success."""
-                nonlocal operations_count, op_type, rel_path, tar
-                
-                target_path = _safe_join(workspace_root, rel_path)
+                """Apply a single file operation to a workspace. Returns True on success.
 
-                safe_source_path = None
-                source_rel_path = None
-                if op_type == "moved":
-                    source_rel_path = operation.get("source_path") or operation.get("source_relative_path")
-                    if source_rel_path:
-                        safe_source_path = _safe_join(workspace_root, source_rel_path)
+                The entire body -- including _safe_join validation -- runs inside the
+                try/except below so a single malformed op (path traversal attempt, bad
+                tar member, unwritable path) can never raise out of this function and
+                abort the rest of the bundle.
+                """
+                nonlocal operations_count, op_type, rel_path, tar
 
                 try:
+                    target_path = _safe_join(workspace_root, rel_path)
+
+                    safe_source_path = None
+                    source_rel_path = None
+                    if op_type == "moved":
+                        source_rel_path = operation.get("source_path") or operation.get("source_relative_path")
+                        if source_rel_path:
+                            safe_source_path = _safe_join(workspace_root, source_rel_path)
+
                     if op_type == "created":
                         file_member = None
                         for member in tar.getnames():
@@ -290,8 +315,7 @@ def process_delta_bundle(workspace_path: str, bundle_path: Path, manifest: Dict[
                         if file_member:
                             file_content = tar.extractfile(file_member)
                             if file_content:
-                                target_path.parent.mkdir(parents=True, exist_ok=True)
-                                target_path.write_bytes(file_content.read())
+                                _atomic_write_bytes(target_path, file_content.read())
                                 return True
                             else:
                                 return False
@@ -308,8 +332,7 @@ def process_delta_bundle(workspace_path: str, bundle_path: Path, manifest: Dict[
                         if file_member:
                             file_content = tar.extractfile(file_member)
                             if file_content:
-                                target_path.parent.mkdir(parents=True, exist_ok=True)
-                                target_path.write_bytes(file_content.read())
+                                _atomic_write_bytes(target_path, file_content.read())
                                 return True
                             else:
                                 return False
@@ -339,8 +362,7 @@ def process_delta_bundle(workspace_path: str, bundle_path: Path, manifest: Dict[
                         if file_member:
                             file_content = tar.extractfile(file_member)
                             if file_content:
-                                target_path.parent.mkdir(parents=True, exist_ok=True)
-                                target_path.write_bytes(file_content.read())
+                                _atomic_write_bytes(target_path, file_content.read())
                                 return True
                             return False
                         return False
@@ -383,7 +405,15 @@ def process_delta_bundle(workspace_path: str, bundle_path: Path, manifest: Dict[
 
                 replica_results: Dict[str, bool] = {}
                 for slug, root in replica_roots.items():
-                    replica_results[slug] = _apply_operation_to_workspace(root)
+                    try:
+                        replica_results[slug] = _apply_operation_to_workspace(root)
+                    except Exception as op_err:
+                        # Defense in depth: _apply_operation_to_workspace already guards its
+                        # own body, but never let one bad op abort the rest of the bundle.
+                        logger.warning(
+                            f"[upload_service] Skipping op {op_type} for path {rel_path} in {slug}: {op_err}"
+                        )
+                        replica_results[slug] = False
 
                 success_any = any(replica_results.values())
                 success_all = all(replica_results.values())
@@ -396,6 +426,9 @@ def process_delta_bundle(workspace_path: str, bundle_path: Path, manifest: Dict[
                         )
                 else:
                     operations_count["failed"] += 1
+                    logger.warning(
+                        f"[upload_service] Failed op {op_type} for path {rel_path} across all targets: {replica_results}"
+                    )
 
         return operations_count
 

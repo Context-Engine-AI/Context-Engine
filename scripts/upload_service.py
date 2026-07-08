@@ -198,8 +198,67 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# In-memory sequence tracking (in production, use persistent storage)
+# Sequence tracking: in-memory cache backed by a small per-workspace JSON
+# sidecar under WORK_DIR/.codebase/upload_seq/. Memory alone resets to 0 on
+# every restart, after which a client at sequence N is rejected forever
+# ("expected 1") even though its /work tree persisted.
 _sequence_tracker: Dict[str, int] = {}
+
+
+def _sequence_state_path(workspace_key: str) -> Path:
+    return Path(WORK_DIR) / ".codebase" / "upload_seq" / f"{workspace_key}.json"
+
+
+def _load_persisted_sequence(workspace_key: str) -> Optional[int]:
+    try:
+        raw = json.loads(_sequence_state_path(workspace_key).read_text())
+        value = int(raw.get("last_sequence"))
+        return value if value >= 0 else None
+    except Exception:
+        return None
+
+
+def _persist_sequence(workspace_key: str, sequence: int) -> None:
+    try:
+        path = _sequence_state_path(workspace_key)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps({"last_sequence": sequence}))
+        os.replace(tmp, path)
+    except Exception as persist_err:
+        logger.debug(
+            f"[upload_service] Failed to persist sequence for {workspace_key}: {persist_err}"
+        )
+
+
+def _record_sequence(workspace_path: str, sequence: int) -> None:
+    key = get_workspace_key(workspace_path)
+    _sequence_tracker[key] = sequence
+    _persist_sequence(key, sequence)
+
+
+_workspace_key_sources: Dict[str, str] = {}
+
+
+def _warn_on_workspace_key_collision(workspace_key: str, workspace_path: str) -> None:
+    """get_workspace_key hashes the path basename (host and container paths
+    must agree on the key), so distinct workspaces sharing a folder name
+    collide into one slug/collection. Surface that loudly instead of letting
+    two uploaders silently interleave into one workspace."""
+    try:
+        normalized = str(Path(workspace_path))
+        previous = _workspace_key_sources.get(workspace_key)
+        if previous is None:
+            _workspace_key_sources[workspace_key] = normalized
+        elif previous != normalized:
+            logger.warning(
+                f"[upload_service] Workspace key collision: '{normalized}' and "
+                f"'{previous}' share key {workspace_key} (same folder name, "
+                "different locations). Their uploads share one workspace and "
+                "collection; rename one folder or use logical_repo_id."
+            )
+    except Exception:
+        pass
 
 
 def _int_env(name: str, default: int) -> int:
@@ -420,18 +479,18 @@ def _resolve_bridge_state_target(
     return workspace_path, repo
 
 
-def get_next_sequence(workspace_path: str) -> int:
-    """Get next sequence number for workspace."""
-    key = get_workspace_key(workspace_path)
-    current = _sequence_tracker.get(key, 0)
-    next_seq = current + 1
-    _sequence_tracker[key] = next_seq
-    return next_seq
-
 def get_last_sequence(workspace_path: str) -> int:
-    """Get last sequence number for workspace."""
+    """Get last acked sequence number for workspace (memory, then disk)."""
     key = get_workspace_key(workspace_path)
-    return _sequence_tracker.get(key, 0)
+    _warn_on_workspace_key_collision(key, workspace_path)
+    cached = _sequence_tracker.get(key)
+    if cached is not None:
+        return cached
+    persisted = _load_persisted_sequence(key)
+    if persisted is not None:
+        _sequence_tracker[key] = persisted
+        return persisted
+    return 0
 
 def validate_bundle_format(bundle_path: Path) -> Dict[str, Any]:
     """Validate delta bundle format and return manifest."""
@@ -473,21 +532,27 @@ def validate_bundle_format(bundle_path: Path) -> Dict[str, Any]:
         raise ValueError(f"Invalid bundle format: {str(e)}")
 
 
-async def _process_bundle_background(
+async def _process_bundle_inline(
     workspace_path: str,
     bundle_path: Path,
     manifest: Dict[str, Any],
     sequence_number: Optional[int],
     bundle_id: Optional[str],
-) -> None:
+) -> Tuple[Any, int]:
+    """Apply the bundle and record the sequence; exceptions propagate.
+
+    The delta must be applied BEFORE the client is acked: a fire-and-forget
+    ack advances the client past a bundle the server may fail to apply
+    (silent data loss), and the ack/tracker race rejects a well-behaved
+    client's immediate next upload as SEQUENCE_MISMATCH.
+    """
     try:
         start_time = datetime.now()
         operations_count = await asyncio.to_thread(
             process_delta_bundle, workspace_path, bundle_path, manifest
         )
         if sequence_number is not None:
-            key = get_workspace_key(workspace_path)
-            _sequence_tracker[key] = sequence_number
+            _record_sequence(workspace_path, sequence_number)
         if log_activity:
             try:
                 repo = _extract_repo_name_from_path(workspace_path) if _extract_repo_name_from_path else None
@@ -503,12 +568,11 @@ async def _process_bundle_background(
                 )
             except Exception as activity_err:
                 logger.debug(f"[upload_service] Failed to log activity for bundle {bundle_id}: {activity_err}")
-        processing_time = (datetime.now() - start_time).total_seconds() * 1000
+        processing_time = int((datetime.now() - start_time).total_seconds() * 1000)
         logger.info(
-            f"[upload_service] Finished processing bundle {bundle_id} seq {sequence_number} in {int(processing_time)}ms"
+            f"[upload_service] Finished processing bundle {bundle_id} seq {sequence_number} in {processing_time}ms"
         )
-    except Exception as e:
-        logger.error(f"[upload_service] Error in background processing for bundle {bundle_id}: {e}")
+        return operations_count, processing_time
     finally:
         try:
             bundle_path.unlink()
@@ -1600,6 +1664,16 @@ async def upload_delta_bundle(
                     sequence_number = last_sequence + 1
 
             if not force and sequence_number is not None:
+                if sequence_number == last_sequence and last_sequence > 0:
+                    # Exact replay of the last applied bundle — the client
+                    # retried after a lost response. Ack idempotently instead
+                    # of failing with a mismatch it can never resolve.
+                    return UploadResponse(
+                        success=True,
+                        bundle_id=bundle_id,
+                        sequence_number=sequence_number,
+                        next_sequence=last_sequence + 1,
+                    )
                 if sequence_number != last_sequence + 1:
                     return UploadResponse(
                         success=False,
@@ -1614,22 +1688,37 @@ async def upload_delta_bundle(
 
             handed_off = True
 
-            asyncio.create_task(
-                _process_bundle_background(
+            try:
+                operations_count, processing_ms = await _process_bundle_inline(
                     workspace_path=workspace_path,
                     bundle_path=bundle_path,
                     manifest=manifest,
                     sequence_number=sequence_number,
                     bundle_id=bundle_id,
                 )
-            )
+            except Exception as apply_error:
+                logger.error(
+                    f"[upload_service] Bundle {bundle_id} seq {sequence_number} failed to apply: {apply_error}"
+                )
+                return UploadResponse(
+                    success=False,
+                    bundle_id=bundle_id,
+                    sequence_number=sequence_number,
+                    error={
+                        "code": "BUNDLE_APPLY_FAILED",
+                        "message": f"Bundle failed to apply: {apply_error}",
+                        "expected_sequence": sequence_number,
+                        "received_sequence": sequence_number,
+                        "retry_after": 5000,
+                    },
+                )
 
             return UploadResponse(
                 success=True,
                 bundle_id=bundle_id,
                 sequence_number=sequence_number,
-                processed_operations=None,
-                processing_time_ms=None,
+                processed_operations=operations_count if isinstance(operations_count, dict) else None,
+                processing_time_ms=processing_ms,
                 next_sequence=sequence_number + 1 if sequence_number else None
             )
 
