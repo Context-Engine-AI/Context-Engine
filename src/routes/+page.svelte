@@ -325,7 +325,7 @@
 				</div>
 				<div class="visual-feature-text">
 					<span class="visual-feature-title">Self-Learning</span>
-					<span class="visual-feature-desc">Gets smarter as you search</span>
+					<span class="visual-feature-desc">Adapts from feedback when enabled</span>
 				</div>
 			</div>
 			<div class="visual-feature">
@@ -361,6 +361,10 @@
 			tasks in two repositories. Accuracy measures correct-file and correct-symbol recall, improving
 			from 52.2% to 64.3%. Average tokens decreased from 1.01M to 0.88M and tool calls from 25.5 to
 			21.8.
+		</p>
+		<p>
+			With learning enabled, retrieval adapts as feedback accumulates. These measurements capture
+			the tested model, configuration and sessions.
 		</p>
 		<p>
 			Public retrieval-benchmark references:
