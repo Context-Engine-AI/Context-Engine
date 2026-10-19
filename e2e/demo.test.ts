@@ -7,6 +7,13 @@ test('home page explains model-agnostic intelligence and paid Starter pricing', 
 	await page.goto('/');
 	await expect(page.locator('h1')).toContainText('Codebase intelligence');
 	await expect(page.locator('.hero-subtitle')).toContainText('agents, IDEs, and any model');
+	await expect(page.locator('.code-window')).toContainText('Who consumes CheckoutCreated?');
+	await expect(page.locator('.code-window')).toContainText('Illustrative source-backed context');
+	await page.getByText('Read the method and trade-offs', { exact: true }).click();
+	await expect(page.locator('.evaluation-method')).toContainText(
+		'not a general coding-success rate'
+	);
+	await expect(page.locator('.evaluation-method')).toContainText('183 to 216 seconds');
 	await expect(
 		page.getByRole('heading', { name: 'Organization Knowledge', exact: true })
 	).toBeVisible();
