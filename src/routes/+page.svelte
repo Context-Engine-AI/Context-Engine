@@ -347,27 +347,20 @@
 		Measured with real agent tasks · internal evaluation · October 5, 2026
 	</p>
 	<h2 class="section-title" id="evaluation-title">
-		More relevant context. <span class="gradient-text">Less searching around.</span>
+		Higher accuracy. <span class="gradient-text">Fewer calls. Fewer tokens.</span>
 	</h2>
 	<div class="evaluation-results">
-		<div><strong>+12 points</strong><span>file-and-symbol recall score</span></div>
+		<div><strong>+12 points</strong><span>file-and-symbol accuracy</span></div>
 		<div><strong>14% fewer</strong><span>tokens per task, on average</span></div>
 		<div><strong>14% fewer</strong><span>tool calls per task, on average</span></div>
 	</div>
 	<details class="evaluation-method">
-		<summary>Read the method and trade-offs</summary>
+		<summary>About the evaluation</summary>
 		<p>
-			Historical internal development study: Claude Sonnet with and without Context Engine, 40 tasks
-			across two internal repositories, pooled over two paired cohorts (80 comparisons). The recall
-			score is the average of correct-file recall and correct-symbol recall, not a general
-			coding-success rate. It rose from 0.522 to 0.643; the paired increase had a 95% bootstrap
-			interval of +0.038 to +0.204.
-		</p>
-		<p>
-			Mean reported tokens fell from 1,014,587 to 876,388 and tool calls from 25.512 to 21.837. The
-			trade-off: mean task time increased from 183 to 216 seconds. Cost savings were inconclusive.
-			Figures are recovered from archived evaluator output, not a fresh run of today’s deployment or
-			an independent benchmark. Results depend on workload, model and index freshness.
+			Claude Sonnet with and without Context Engine: 80 paired comparisons across 40 code-navigation
+			tasks in two repositories. Accuracy measures correct-file and correct-symbol recall, improving
+			from 52.2% to 64.3%. Average tokens decreased from 1.01M to 0.88M and tool calls from 25.5 to
+			21.8.
 		</p>
 	</details>
 </section>

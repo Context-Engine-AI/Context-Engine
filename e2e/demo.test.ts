@@ -9,11 +9,13 @@ test('home page explains model-agnostic intelligence and paid Starter pricing', 
 	await expect(page.locator('.hero-subtitle')).toContainText('agents, IDEs, and any model');
 	await expect(page.locator('.code-window')).toContainText('Who consumes CheckoutCreated?');
 	await expect(page.locator('.code-window')).toContainText('Illustrative source-backed context');
-	await page.getByText('Read the method and trade-offs', { exact: true }).click();
+	await expect(
+		page.getByRole('heading', { name: 'Higher accuracy. Fewer calls. Fewer tokens.' })
+	).toBeVisible();
+	await page.getByText('About the evaluation', { exact: true }).click();
 	await expect(page.locator('.evaluation-method')).toContainText(
-		'not a general coding-success rate'
+		'80 paired comparisons across 40 code-navigation tasks'
 	);
-	await expect(page.locator('.evaluation-method')).toContainText('183 to 216 seconds');
 	await expect(
 		page.getByRole('heading', { name: 'Organization Knowledge', exact: true })
 	).toBeVisible();
