@@ -452,10 +452,6 @@
 		color: var(--text-muted);
 	}
 
-	.contact-form {
-		/* Form styling without sticky positioning */
-	}
-
 	.demo-subtitle {
 		color: var(--text-secondary);
 		font-size: 1rem;

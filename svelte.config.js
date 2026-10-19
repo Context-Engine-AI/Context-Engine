@@ -17,7 +17,7 @@ const config = {
 			strict: false
 		}),
 		paths: {
-			base: process.argv.includes('dev') ? '' : process.env.BASE_PATH || '/Context-Engine'
+			base: process.argv.includes('dev') ? '' : (process.env.BASE_PATH ?? '')
 		},
 		prerender: {
 			handleHttpError: ({ path, referrer, message }) => {

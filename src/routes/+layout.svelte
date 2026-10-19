@@ -5,7 +5,7 @@
 	import { base } from '$app/paths';
 	import { Sun, Moon, Mail, Github, Menu, X, Key, LogIn, BookOpen } from 'lucide-svelte';
 
-	const loginUrl = import.meta.env.VITE_CTX_LOGIN_URL || `${base}/login`;
+	const loginUrl = import.meta.env.VITE_CTX_LOGIN_URL || 'https://dev.context-engine.ai/login';
 
 	let { children } = $props();
 

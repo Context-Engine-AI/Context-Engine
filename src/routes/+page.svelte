@@ -16,18 +16,11 @@
 		Bug,
 		Github,
 		Brain,
-		Leaf,
 		Play,
 		X,
 		Volume2,
 		VolumeX
 	} from 'lucide-svelte';
-
-	// Form state
-	let heroEmail = $state('');
-	let heroSubmitted = $state(false);
-	let heroError = $state('');
-	let heroLoading = $state(false);
 
 	// Video lightbox state
 	let videoOpen = $state(false);
@@ -63,39 +56,46 @@
 		}
 	}
 
-	const BETA_SIGNUP_URL = 'https://dev.context-engine.ai/auth/beta-signup';
+	const SIGNUP_URL = 'https://dev.context-engine.ai/auth/signup';
+	const plans = [
+		{ name: 'Starter', monthly: 5, annual: 48, members: 1, repos: 2, calls: '500' },
+		{ name: 'Individual', monthly: 10, annual: 96, members: 1, repos: 5, calls: '3,500' },
+		{ name: 'Team', monthly: 29, annual: 278, members: 5, repos: 10, calls: '50,000' },
+		{ name: 'Business', monthly: 79, annual: 758, members: 15, repos: 30, calls: '150,000' },
+		{ name: 'Organization', monthly: 149, annual: 1430, members: 25, repos: 50, calls: '250,000' }
+	];
 
 	// Features data
 	const features = [
 		{
 			icon: Search,
 			title: 'Semantic Search',
-			desc: 'Intent-aware code discovery with repo_search. Find code by meaning, not just keywords.'
+			desc: 'Find the implementation behind an idea, not just a matching keyword. Give your agent relevant source evidence instead of an entire repository.'
 		},
 		{
 			icon: GitGraph,
 			title: 'Symbol Graph',
-			desc: 'Navigate callers, callees, and definitions with symbol_graph. Understand code relationships instantly.'
+			desc: 'Navigate definitions, callers, callees and dependencies. Understand what a change touches before your agent writes it.'
 		},
 		{
 			icon: Globe,
-			title: 'Cross-Repo Search',
-			desc: 'Trace API boundaries across repositories. Follow the data flow from frontend to backend.'
+			title: 'Cross-Repo Intelligence',
+			desc: 'Connect repositories across your business. Trace APIs, shared types and dependencies from the frontend through services and libraries.'
 		},
 		{
 			icon: Database,
-			title: 'Persistent Memory',
-			desc: 'Store and recall context with memory_store and memory_find. Your AI remembers everything.'
+			title: 'Organization Knowledge',
+			desc: 'Build a shared ontology: a map of services, concepts, relationships and decisions grounded in your code and documentation. Keep useful team knowledge in persistent memory.'
 		},
 		{
 			icon: Zap,
-			title: 'IDE Agnostic',
-			desc: 'Works with Claude, Cursor, Windsurf, Copilot, Kiro, and any MCP-compatible client.'
+			title: 'Any Agent. Any IDE. Any Model.',
+			desc: 'One MCP connection for Claude, Codex, Cursor, Copilot and other compatible clients. Choose your model through your agent or IDE; keep your context portable.'
 		},
 		{
 			icon: Server,
-			title: 'Self-Hosted',
-			desc: 'Your code never leaves your network. Run Singular mode for complete data sovereignty.'
+			title: 'Your Knowledge, Your Control',
+			desc: 'Workspace permissions keep organization knowledge scoped to the right people. Choose hosted access or self-host on your own infrastructure.'
 		}
 	];
 
@@ -105,11 +105,11 @@
 		{ icon: Package, label: 'Dependencies' },
 		{ icon: BookOpen, label: 'Documentation' },
 		{ icon: GitBranch, label: 'Git History' },
-		{ icon: Bug, label: 'Issues' }
+		{ icon: Bug, label: 'Team Knowledge' }
 	];
 
 	const processors = [
-		{ icon: Database, label: 'Qdrant Index' },
+		{ icon: Database, label: 'Helion Index' },
 		{ icon: Cpu, label: 'Embeddings' },
 		{ icon: GitGraph, label: 'Symbol Graph' },
 		{ icon: Database, label: 'Memory Store' }
@@ -208,36 +208,13 @@
 			window.removeEventListener('resize', drawConnections);
 		};
 	});
-
-	async function handleHeroSubmit(e: SubmitEvent) {
-		e.preventDefault();
-		heroError = '';
-		heroLoading = true;
-		try {
-			const response = await fetch(BETA_SIGNUP_URL, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ email: heroEmail })
-			});
-			const data = await response.json();
-			if (response.ok) {
-				heroSubmitted = true;
-			} else {
-				heroError = data.detail || 'Something went wrong. Please try again.';
-			}
-		} catch (error) {
-			heroError = 'Network error. Please try again.';
-		} finally {
-			heroLoading = false;
-		}
-	}
 </script>
 
 <svelte:head>
-	<title>Context Engine - Your Codebase, Instantly Understood</title>
+	<title>Context Engine — Codebase Intelligence for Any Agent, IDE or Model</title>
 	<meta
 		name="description"
-		content="AI code context platform. Semantic search, symbol graphs, persistent memory across every IDE."
+		content="One MCP server for codebase intelligence across agents, IDEs and any model. Connect repositories and organization knowledge across your business. Plans from $5/month."
 	/>
 </svelte:head>
 
@@ -261,35 +238,18 @@
 			</a>
 		</div>
 		<h1 class="hero-title">
-			Your Codebase,<br /><span class="gradient-text">Instantly Understood</span>
+			Codebase intelligence.<br /><span class="gradient-text">Beyond one repository.</span>
 		</h1>
 		<p class="hero-subtitle">
-			Semantic search, symbol graphs, and persistent memory across every IDE. Stop explaining your
-			codebase to AI. Start coding.
+			One MCP server for codebase intelligence across agents, IDEs, and any model. Connect your
+			repositories and organization knowledge so every workflow starts with the right context. Bring
+			your own factory; keep your intelligence connected.
 		</p>
 
-		{#if heroSubmitted}
-			<div class="hero-form" style="color: var(--accent); font-size: 16px;">
-				You're in! Check your email at {heroEmail}
-			</div>
-		{:else}
-			<form class="hero-form" onsubmit={handleHeroSubmit}>
-				<input
-					type="email"
-					class="input"
-					placeholder="you@company.com"
-					required
-					bind:value={heroEmail}
-					disabled={heroLoading}
-				/>
-				<button type="submit" class="btn btn-primary btn-lg" disabled={heroLoading}>
-					{heroLoading ? 'Sending…' : 'Get Started'}
-				</button>
-			</form>
-			{#if heroError}
-				<div style="color: #ef4444; font-size: 14px; margin-top: 8px;">{heroError}</div>
-			{/if}
-		{/if}
+		<div class="hero-form">
+			<a href={SIGNUP_URL} class="btn btn-primary btn-lg">Get started</a>
+			<a href="#pricing" class="btn btn-secondary btn-lg">Plans from $5/month</a>
+		</div>
 
 		<div class="hero-actions">
 			<button class="btn btn-demo" onclick={openVideo}>
@@ -320,16 +280,16 @@
 
 		<div class="hero-stats">
 			<div class="stat">
-				<span class="stat-value">&lt;100ms</span>
-				<span class="stat-label">Search Latency</span>
+				<span class="stat-value">MCP</span>
+				<span class="stat-label">One open protocol</span>
 			</div>
 			<div class="stat">
-				<span class="stat-value">16</span>
-				<span class="stat-label">IDE Integrations</span>
+				<span class="stat-value">Any model</span>
+				<span class="stat-label">Through your agent or IDE</span>
 			</div>
 			<div class="stat">
-				<span class="stat-value">32</span>
-				<span class="stat-label">Languages</span>
+				<span class="stat-value">Cross-repo</span>
+				<span class="stat-label">Organization-wide context</span>
 			</div>
 		</div>
 	</div>
@@ -348,7 +308,7 @@ result = <span class="c-fn">repo_search</span>(
     limit=<span class="c-num">5</span>,
     compact=<span class="c-key">True</span>
 )
-<span class="c-comment"># 4,456 sources -> 5 relevant in 47ms</span></pre>
+<span class="c-comment"># Grounded source evidence</span></pre>
 		</div>
 
 		<div class="hero-visual-features">
@@ -363,11 +323,11 @@ result = <span class="c-fn">repo_search</span>(
 			</div>
 			<div class="visual-feature">
 				<div class="visual-feature-icon green">
-					<Leaf size={20} />
+					<GitGraph size={20} />
 				</div>
 				<div class="visual-feature-text">
-					<span class="visual-feature-title">Green Energy</span>
-					<span class="visual-feature-desc">80% less compute per query</span>
+					<span class="visual-feature-title">Shared Knowledge</span>
+					<span class="visual-feature-desc">Context that travels across tools</span>
 				</div>
 			</div>
 		</div>
@@ -378,8 +338,8 @@ result = <span class="c-fn">repo_search</span>(
 <section class="graph-section">
 	<h2 class="section-title">How It <span class="gradient-text">Works</span></h2>
 	<p class="section-subtitle">
-		From raw code to curated context in milliseconds. Every query flows through our semantic
-		understanding layer.
+		Code, documentation, relationships and memory become grounded context your AI tools can use.
+		Connect through MCP without tying your business knowledge to a single model.
 	</p>
 
 	<div class="graph-container">
@@ -429,7 +389,7 @@ result = <span class="c-fn">repo_search</span>(
 		</div>
 
 		<div class="graph-footer">
-			<div class="graph-stats">4,456 sources → 682 relevant spans</div>
+			<div class="graph-stats">Connected sources → relevant code and organization context</div>
 			<div class="graph-progress">
 				<div class="graph-progress-bar"></div>
 			</div>
@@ -438,10 +398,13 @@ result = <span class="c-fn">repo_search</span>(
 </section>
 
 <!-- Features Section -->
-<section class="features-section">
-	<h2 class="section-title">Built for <span class="gradient-text">Developers</span></h2>
+<section class="features-section" id="capabilities">
+	<h2 class="section-title">
+		Intelligence for your <span class="gradient-text">whole codebase</span>
+	</h2>
 	<p class="section-subtitle">
-		Everything you need to give your AI deep understanding of your codebase.
+		From one repository to knowledge across your business. Keep context portable as your agents,
+		IDEs and models evolve.
 	</p>
 
 	<div class="features-grid">
@@ -456,6 +419,84 @@ result = <span class="c-fn">repo_search</span>(
 			</div>
 		{/each}
 	</div>
+</section>
+
+<section
+	class="features-section integrations"
+	id="integrations"
+	aria-labelledby="integrations-title"
+>
+	<h2 class="section-title" id="integrations-title">
+		Your workflow. <span class="gradient-text">One MCP connection.</span>
+	</h2>
+	<p class="section-subtitle">
+		Bring Context Engine to your agents and editors. Your organization’s context stays connected
+		when your tools change.
+	</p>
+	<div class="integration-links">
+		<a
+			href="https://marketplace.visualstudio.com/items?itemName=context-engine.context-engine-uploader"
+			target="_blank"
+			rel="noopener noreferrer">VS Code Marketplace ↗</a
+		>
+		<a
+			href="https://open-vsx.org/extension/context-engine/context-engine-uploader"
+			target="_blank"
+			rel="noopener noreferrer">Open VSX ↗</a
+		>
+		<a
+			href="https://www.npmjs.com/package/@context-engine-bridge/context-engine-mcp-bridge"
+			target="_blank"
+			rel="noopener noreferrer">MCP bridge on npm ↗</a
+		>
+		<a href="https://docs.context-engine.ai" target="_blank" rel="noopener noreferrer"
+			>MCP setup &amp; documentation ↗</a
+		>
+	</div>
+	<div class="factory-note">
+		<p class="open-source-label">BYOF — Bring Your Own Factory</p>
+		<h3>Your agents run the factory. Context Engine supplies shared intelligence.</h3>
+		<p>
+			Give planning, coding, review and verification agents a common view of your repositories,
+			dependencies and team knowledge through MCP-compatible runtimes. Choose your orchestration
+			layer instead of rebuilding your context for every agent.
+		</p>
+		<a href="https://github.com/Agent-Field/SWE-AF" target="_blank" rel="noopener noreferrer"
+			>Explore SWE-AF, an independent AgentField software factory ↗</a
+		>
+	</div>
+</section>
+
+<section class="features-section" id="pricing" aria-labelledby="pricing-title">
+	<h2 class="section-title" id="pricing-title">
+		Start with <span class="gradient-text">$5/month</span>
+	</h2>
+	<p class="section-subtitle">
+		Every hosted plan requires a subscription. Choose the workspace size that fits your team.
+	</p>
+	<div class="features-grid">
+		{#each plans as plan}
+			<div class="feature-card">
+				<h3 class="feature-title">{plan.name}</h3>
+				<p class="plan-price"><strong>${plan.monthly}</strong>/month</p>
+				<p class="feature-desc">Or ${plan.annual}/year, billed annually.</p>
+				<p class="feature-desc">
+					{plan.members}
+					{plan.members === 1 ? 'member' : 'members'} · {plan.repos} repositories · {plan.calls} tool
+					calls/month
+				</p>
+				<p class="feature-desc">
+					Semantic search, symbol graphs, cross-repo intelligence and persistent memory.
+				</p>
+				<a href={SIGNUP_URL} class="btn btn-primary">Get started</a>
+			</div>
+		{/each}
+	</div>
+	<p class="section-subtitle">
+		Need a business-wide knowledge platform, custom capacity or an enterprise agreement? <a
+			href="{base}/contact">Talk to us</a
+		>.
+	</p>
 </section>
 
 <!-- Video Lightbox -->
@@ -505,6 +546,33 @@ result = <span class="c-fn">repo_search</span>(
 
 <!-- Footer -->
 <footer class="footer">
+	<div class="open-source-foundations">
+		<p class="open-source-label">Open-source building blocks from the Context Engine team</p>
+		<div class="open-source-links">
+			<a
+				href="https://github.com/Context-Engine-AI/helion-db"
+				target="_blank"
+				rel="noopener noreferrer"
+			>
+				<strong>Helion DB ↗</strong>
+				<span
+					>Rust graph + vector database, forked from HelixDB, with optional LSM storage on
+					S3-compatible object stores. GPL-3.0.</span
+				>
+			</a>
+			<a
+				href="https://github.com/Context-Engine-AI/Context-Engine-Reviewer"
+				target="_blank"
+				rel="noopener noreferrer"
+			>
+				<strong>Context Engine Reviewer ↗</strong>
+				<span
+					>A standalone, multi-provider AI pull-request reviewer with optional Context Engine
+					intelligence. AGPL-3.0.</span
+				>
+			</a>
+		</div>
+	</div>
 	<div class="footer-content">
 		<div class="footer-links">
 			<a
@@ -521,6 +589,12 @@ result = <span class="c-fn">repo_search</span>(
 				href="https://marketplace.visualstudio.com/items?itemName=context-engine.context-engine-uploader"
 				class="footer-link"
 				target="_blank">VS Code Extension</a
+			>
+			<a
+				href="https://open-vsx.org/extension/context-engine/context-engine-uploader"
+				class="footer-link"
+				target="_blank"
+				rel="noopener noreferrer">Open VSX</a
 			>
 			<a href="mailto:support@context-engine.ai" class="footer-link">support@context-engine.ai</a>
 		</div>

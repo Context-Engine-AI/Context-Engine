@@ -38,10 +38,20 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Check website types
+        run: npm run check
+
+      - name: Install browser for website checks
+        run: npx playwright install --with-deps chromium
+
+      - name: Test website content and mobile layout
+        env:
+          BASE_PATH: ""
+        run: npx playwright test e2e/demo.test.ts --workers=1
+
       - name: Build landing page
         env:
           NODE_ENV: production
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VITE_CTX_LOGIN_URL: ${{ secrets.VITE_CTX_LOGIN_URL }}
         run: npm run build
 

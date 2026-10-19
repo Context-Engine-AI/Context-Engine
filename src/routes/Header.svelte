@@ -20,11 +20,11 @@
 			<li aria-current={page.url.pathname === '/' ? 'page' : undefined}>
 				<a href={resolve('/')}>Home</a>
 			</li>
-			<li aria-current={page.url.pathname === '/about' ? 'page' : undefined}>
-				<a href={resolve('/about')}>About</a>
+			<li aria-current={page.url.pathname === '/contact' ? 'page' : undefined}>
+				<a href={resolve('/contact')}>Contact</a>
 			</li>
-			<li aria-current={page.url.pathname.startsWith('/sverdle') ? 'page' : undefined}>
-				<a href={resolve('/sverdle')}>Sverdle</a>
+			<li aria-current={page.url.pathname.startsWith('/docs') ? 'page' : undefined}>
+				<a href={resolve('/docs/readme')}>Docs</a>
 			</li>
 		</ul>
 		<svg viewBox="0 0 2 3" aria-hidden="true">
