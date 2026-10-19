@@ -300,15 +300,22 @@
 				<span class="dot red"></span>
 				<span class="dot yellow"></span>
 				<span class="dot green"></span>
-				<span class="code-title">mcp_tools.py</span>
+				<span class="code-title">MCP · cross_repo_search</span>
 			</div>
-			<pre class="code-content"><span class="c-comment"># Find authentication flow</span>
-result = <span class="c-fn">repo_search</span>(
-    query=<span class="c-str">"user authentication"</span>,
-    limit=<span class="c-num">5</span>,
-    compact=<span class="c-key">True</span>
-)
-<span class="c-comment"># Grounded source evidence</span></pre>
+			<pre class="code-content"><span class="c-comment">// Your agent asks across the business</span
+				>
+<span class="c-fn">cross_repo_search</span>({'{'}
+  <span class="c-key">"query"</span>: <span class="c-str">"Who consumes CheckoutCreated?"</span>,
+  <span class="c-key">"target_repos"</span>: [<span class="c-str">"storefront"</span>, <span
+					class="c-str">"billing"</span
+				>, <span class="c-str">"shared"</span>],
+  <span class="c-key">"trace_boundary"</span>: <span class="c-key">true</span>
+{'}'})
+
+<span class="c-comment">// Illustrative source-backed context</span>
+<span class="c-str">shared/events.ts</span>       <span class="c-comment">→ event contract</span>
+<span class="c-str">storefront/checkout.ts</span> <span class="c-comment">→ publisher</span>
+<span class="c-str">billing/invoices.ts</span>    <span class="c-comment">→ consumer</span></pre>
 		</div>
 
 		<div class="hero-visual-features">
@@ -335,6 +342,36 @@ result = <span class="c-fn">repo_search</span>(
 </section>
 
 <!-- Graph Section -->
+<section class="features-section" aria-labelledby="evaluation-title">
+	<p class="open-source-label">
+		Measured with real agent tasks · internal evaluation · October 5, 2026
+	</p>
+	<h2 class="section-title" id="evaluation-title">
+		More relevant context. <span class="gradient-text">Less searching around.</span>
+	</h2>
+	<div class="evaluation-results">
+		<div><strong>+12 points</strong><span>file-and-symbol recall score</span></div>
+		<div><strong>14% fewer</strong><span>tokens per task, on average</span></div>
+		<div><strong>14% fewer</strong><span>tool calls per task, on average</span></div>
+	</div>
+	<details class="evaluation-method">
+		<summary>Read the method and trade-offs</summary>
+		<p>
+			Historical internal development study: Claude Sonnet with and without Context Engine, 40 tasks
+			across two internal repositories, pooled over two paired cohorts (80 comparisons). The recall
+			score is the average of correct-file recall and correct-symbol recall, not a general
+			coding-success rate. It rose from 0.522 to 0.643; the paired increase had a 95% bootstrap
+			interval of +0.038 to +0.204.
+		</p>
+		<p>
+			Mean reported tokens fell from 1,014,587 to 876,388 and tool calls from 25.512 to 21.837. The
+			trade-off: mean task time increased from 183 to 216 seconds. Cost savings were inconclusive.
+			Figures are recovered from archived evaluator output, not a fresh run of today’s deployment or
+			an independent benchmark. Results depend on workload, model and index freshness.
+		</p>
+	</details>
+</section>
+
 <section class="graph-section">
 	<h2 class="section-title">How It <span class="gradient-text">Works</span></h2>
 	<p class="section-subtitle">

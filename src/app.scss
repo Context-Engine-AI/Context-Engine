@@ -1101,6 +1101,36 @@ body::before {
   font-weight: 500;
 }
 
+.evaluation-results {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+  border-block: 1px solid var(--border);
+  padding: 32px 0;
+}
+
+.evaluation-results strong {
+  display: block;
+  color: var(--accent);
+  font-size: clamp(24px, 3vw, 40px);
+  font-weight: 500;
+}
+
+.evaluation-results span, .evaluation-method {
+  color: var(--text-secondary);
+}
+
+.evaluation-method {
+  margin-top: 24px;
+  max-width: 850px;
+  font-size: 14px;
+}
+
+.evaluation-method summary {
+  cursor: pointer;
+  min-height: 44px;
+}
+
 .open-source-foundations {
   max-width: 1280px;
   margin: 0 auto 40px;
@@ -1143,7 +1173,7 @@ a:focus-visible, button:focus-visible {
 }
 
 @media (max-width: 768px) {
-  #capabilities .features-grid, .open-source-links {
+  #capabilities .features-grid, .open-source-links, .evaluation-results {
     grid-template-columns: 1fr;
   }
 }
