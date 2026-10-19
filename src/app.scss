@@ -52,7 +52,7 @@
 
 body {
   font-family: var(--font-body);
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.6;
   margin: 0;
   padding: 0;
@@ -314,6 +314,10 @@ body::before {
 }
 
 /* Hero brand block: logo + badge centered together */
+.hero-content, .hero-visual {
+  min-width: 0;
+}
+
 .hero-brand {
   display: inline-flex;
   flex-direction: column;
@@ -797,6 +801,7 @@ body::before {
   text-align: center;
   margin-bottom: 16px;
   letter-spacing: -0.02em;
+  text-wrap: balance;
 }
 
 .section-subtitle {
@@ -999,10 +1004,148 @@ body::before {
 }
 
 .feature-desc {
-  font-size: 14px;
+  font-size: 16px;
   color: var(--text-secondary);
   line-height: 1.6;
   margin: 0;
+}
+
+#capabilities .features-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 32px 64px;
+}
+
+#capabilities .feature-card {
+  background: none;
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  padding: 24px 0;
+  backdrop-filter: none;
+  box-shadow: none;
+  transform: none;
+}
+
+#capabilities .feature-icon {
+  background: none;
+  color: var(--accent);
+  border-radius: 0;
+  justify-content: flex-start;
+  margin-bottom: 12px;
+}
+
+.integrations .section-title, .integrations .section-subtitle {
+  text-align: left;
+  margin-left: 0;
+}
+
+.integration-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 32px;
+}
+
+.integration-links a, .factory-note a {
+  color: var(--text-primary);
+  text-decoration-color: var(--accent);
+  text-underline-offset: 6px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.factory-note {
+  border-top: 1px solid var(--border);
+  padding-top: 32px;
+  margin-top: 32px;
+  max-width: 760px;
+}
+
+.factory-note h3 {
+  font-size: 24px;
+  text-wrap: balance;
+}
+
+.factory-note p {
+  color: var(--text-secondary);
+}
+
+#pricing .features-grid {
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 16px;
+}
+
+#pricing .feature-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px;
+  backdrop-filter: none;
+}
+
+#pricing .feature-card:first-child {
+  border-color: var(--accent);
+}
+
+#pricing .feature-card .btn {
+  margin-top: auto;
+}
+
+.plan-price {
+  font-family: var(--font-mono);
+  margin: 0;
+}
+
+.plan-price strong {
+  font-size: 32px;
+  font-weight: 500;
+}
+
+.open-source-foundations {
+  max-width: 1280px;
+  margin: 0 auto 40px;
+}
+
+.open-source-label {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.open-source-links {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px 48px;
+}
+
+.open-source-links a {
+  color: var(--text-primary);
+  text-decoration: none;
+  padding: 12px 0;
+}
+
+.open-source-links span {
+  display: block;
+  font-size: 14px;
+  margin-top: 8px;
+  color: var(--text-secondary);
+}
+
+.open-source-links a:hover strong {
+  color: var(--accent);
+}
+
+a:focus-visible, button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+
+@media (max-width: 768px) {
+  #capabilities .features-grid, .open-source-links {
+    grid-template-columns: 1fr;
+  }
 }
 
 .input {

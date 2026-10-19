@@ -67,3 +67,4 @@ ctx_config.json
 .env
 
 /.omc
+test-results/
