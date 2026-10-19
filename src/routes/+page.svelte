@@ -363,7 +363,15 @@
 			21.8.
 		</p>
 		<p>
-			Public retrieval-benchmark reference:
+			Public retrieval-benchmark references:
+			<a href="https://github.com/CoIR-team/coir" target="_blank" rel="noopener noreferrer"
+				>CoIR code-retrieval benchmark ↗</a
+			>,
+			<a
+				href="https://github.com/Context-Engine-AI/Context-Engine/blob/3f511257382c8c7820b6748338a820a46673900f/docs/BENCHMARKS.md"
+				target="_blank"
+				rel="noopener noreferrer">our benchmark methodology (January 2026) ↗</a
+			>, and
 			<a href="https://github.com/noodlbox/tokens-to-gold" target="_blank" rel="noopener noreferrer"
 				>TokensToGold methodology and scoring code ↗</a
 			>. The Context Engine figures above come from our separate agent A/B evaluation.

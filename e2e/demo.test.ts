@@ -17,6 +17,10 @@ test('home page explains model-agnostic intelligence and paid Starter pricing', 
 		'80 paired comparisons across 40 code-navigation tasks'
 	);
 	await expect(page.locator('.evaluation-results')).toContainText('23% higher');
+	await expect(page.getByRole('link', { name: 'CoIR code-retrieval benchmark ↗' })).toHaveAttribute(
+		'href',
+		'https://github.com/CoIR-team/coir'
+	);
 	await expect(
 		page.getByRole('link', { name: 'TokensToGold methodology and scoring code ↗' })
 	).toHaveAttribute('href', 'https://github.com/noodlbox/tokens-to-gold');
