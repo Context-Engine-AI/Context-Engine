@@ -16,6 +16,10 @@ test('home page explains model-agnostic intelligence and paid Starter pricing', 
 	await expect(page.locator('.evaluation-method')).toContainText(
 		'80 paired comparisons across 40 code-navigation tasks'
 	);
+	await expect(page.locator('.evaluation-results')).toContainText('23% higher');
+	await expect(
+		page.getByRole('link', { name: 'TokensToGold methodology and scoring code ↗' })
+	).toHaveAttribute('href', 'https://github.com/noodlbox/tokens-to-gold');
 	await expect(
 		page.getByRole('heading', { name: 'Organization Knowledge', exact: true })
 	).toBeVisible();
