@@ -350,7 +350,7 @@
 		Higher accuracy. <span class="gradient-text">Fewer calls. Fewer tokens.</span>
 	</h2>
 	<div class="evaluation-results">
-		<div><strong>+12 points</strong><span>file-and-symbol accuracy</span></div>
+		<div><strong>23% higher</strong><span>file-and-symbol accuracy</span></div>
 		<div><strong>14% fewer</strong><span>tokens per task, on average</span></div>
 		<div><strong>14% fewer</strong><span>tool calls per task, on average</span></div>
 	</div>
@@ -361,6 +361,12 @@
 			tasks in two repositories. Accuracy measures correct-file and correct-symbol recall, improving
 			from 52.2% to 64.3%. Average tokens decreased from 1.01M to 0.88M and tool calls from 25.5 to
 			21.8.
+		</p>
+		<p>
+			Public retrieval-benchmark reference:
+			<a href="https://github.com/noodlbox/tokens-to-gold" target="_blank" rel="noopener noreferrer"
+				>TokensToGold methodology and scoring code ↗</a
+			>. The Context Engine figures above come from our separate agent A/B evaluation.
 		</p>
 	</details>
 </section>
