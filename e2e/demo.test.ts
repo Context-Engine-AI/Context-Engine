@@ -10,13 +10,13 @@ test('home page explains model-agnostic intelligence and paid Starter pricing', 
 	await expect(page.locator('.code-window')).toContainText('Who consumes CheckoutCreated?');
 	await expect(page.locator('.code-window')).toContainText('Illustrative source-backed context');
 	await expect(
-		page.getByRole('heading', { name: 'Higher accuracy. Fewer calls. Fewer tokens.' })
+		page.getByRole('heading', { name: 'Fewer calls. Fewer turns. Lower cost.' })
 	).toBeVisible();
 	await page.getByText('About the evaluation', { exact: true }).click();
 	await expect(page.locator('.evaluation-method')).toContainText(
-		'80 paired comparisons across 40 code-navigation tasks'
+		'80 paired runs (40 code-navigation tasks'
 	);
-	await expect(page.locator('.evaluation-results')).toContainText('23% higher');
+	await expect(page.locator('.evaluation-results')).toContainText('26% fewer');
 	await expect(page.getByRole('link', { name: 'CoIR code-retrieval benchmark ↗' })).toHaveAttribute(
 		'href',
 		'https://github.com/CoIR-team/coir'
