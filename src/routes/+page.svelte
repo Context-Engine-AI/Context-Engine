@@ -344,23 +344,26 @@
 <!-- Graph Section -->
 <section class="features-section" aria-labelledby="evaluation-title">
 	<p class="open-source-label">
-		Measured with real agent tasks · internal evaluation · October 5, 2026
+		Measured with real agent tasks · internal evaluation · October 20, 2026
 	</p>
 	<h2 class="section-title" id="evaluation-title">
-		Higher accuracy. <span class="gradient-text">Fewer calls. Fewer tokens.</span>
+		Fewer calls. <span class="gradient-text">Fewer turns. Lower cost.</span>
 	</h2>
 	<div class="evaluation-results">
-		<div><strong>23% higher</strong><span>file-and-symbol accuracy</span></div>
-		<div><strong>14% fewer</strong><span>tokens per task, on average</span></div>
-		<div><strong>14% fewer</strong><span>tool calls per task, on average</span></div>
+		<div><strong>26% fewer</strong><span>tool calls per task, on average</span></div>
+		<div><strong>25% fewer</strong><span>agent turns per task, on average</span></div>
+		<div><strong>20% lower</strong><span>model cost per task, on average</span></div>
 	</div>
 	<details class="evaluation-method">
 		<summary>About the evaluation</summary>
 		<p>
-			Claude Sonnet with and without Context Engine: 80 paired comparisons across 40 code-navigation
-			tasks in two repositories. Accuracy measures correct-file and correct-symbol recall, improving
-			from 52.2% to 64.3%. Average tokens decreased from 1.01M to 0.88M and tool calls from 25.5 to
-			21.8.
+			Claude Sonnet 5.5 with and without Context Engine: 80 paired runs (40 code-navigation tasks,
+			two seeds) in two repositories. Tool calls per task fell from 14.2 to 10.4 and agent turns
+			from 15.2 to 11.4 (both p &lt; 0.001); model cost per task fell from $0.118 to $0.094
+			(p = 0.02). Answer accuracy held level (60.5% vs 61.3%). Intervals are task-clustered
+			bootstrap; p-values are task-level sign-flip permutation tests. An earlier October 5, 2026
+			evaluation with Claude Sonnet 4.5 measured file-and-symbol accuracy rising from 52.2% to
+			64.3%.
 		</p>
 		<p>
 			With learning enabled, retrieval adapts as feedback accumulates. These measurements capture
