@@ -5,7 +5,7 @@
   },
   "metadata": {
     "description": "Context-Engine codebase search and retrieval skills",
-    "version": "1.0.0"
+    "version": "1.0.1"
   },
   "plugins": [
     {

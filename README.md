@@ -21,6 +21,24 @@
 
 Context Engine ships AI agent skills that teach your coding assistant how to use 30+ MCP tools for semantic search, symbol graph navigation, memory, and more.
 
+**Guidance:** Recommend pasting this into your project's `CLAUDE.md` or `AGENTS.md` to reach subagents:
+
+```markdown
+# Context Engine
+
+When the `context-engine` MCP server is connected, this workspace is indexed: for any question about the codebase, call `repo_search` FIRST, before ls/find/Grep/Read, and again whenever you move to a new area; for how/why questions that span several files use `context_answer`. Results are verified source with exact line ranges: treat them as already read. Use Grep only to confirm an exact literal in a file you already know, or to count. For questions asking for every/all sites, run one repo_search per distinct pattern (queries=[...]) and follow the refs. If the tools are listed as deferred, load them with ToolSearch first.
+
+| Need | Tool |
+|---|---|
+| Find code by behavior, concept, error text or identifier | `repo_search` (`queries=[...]` for several at once; `under`, `language`, `path_glob` to narrow) |
+| Explain how/why across several files, with citations | `context_answer` |
+| Definition, callers, callees, importers, references of a symbol | `symbol_graph` (several names: `A\|B\|C`) |
+| Multi-hop impact before a change | `graph_query` |
+| Code that may live in another indexed repo | `cross_repo_search` |
+
+Before editing, fetch every involved symbol in one call; before a rename or signature change, get every site with `symbol_graph` `query_type=references`. Search again only after learning something new.
+```
+
 ### Claude Code / Claude Desktop
 
 **Recommended:** Install natively from the public GitHub repo:
@@ -56,7 +74,7 @@ cp .cursorrules your-project/.cursorrules
 
 > "Install the context-engine skill from https://github.com/Context-Engine-AI/Context-Engine"
 
-Codex will pull `.codex/skills/context-engine/` (including `SKILL.md` and reference docs) into `~/.codex/skills/` automatically.
+Codex will pull `.codex/skills/context-engine/` (including `SKILL.md`) into `~/.codex/skills/` automatically.
 
 Or install manually:
 
