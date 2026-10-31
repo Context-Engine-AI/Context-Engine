@@ -344,26 +344,39 @@
 <!-- Graph Section -->
 <section class="features-section" aria-labelledby="evaluation-title">
 	<p class="open-source-label">
-		Measured with real agent tasks · internal evaluation · October 20, 2026
+		Measured with real agent tasks · internal evaluations · October 2026
 	</p>
 	<h2 class="section-title" id="evaluation-title">
 		Fewer calls. <span class="gradient-text">Fewer turns. Lower cost.</span>
 	</h2>
+	<p class="open-source-label">Code navigation · 40 tasks · October 20, 2026</p>
 	<div class="evaluation-results">
 		<div><strong>26% fewer</strong><span>tool calls per task, on average</span></div>
 		<div><strong>25% fewer</strong><span>agent turns per task, on average</span></div>
 		<div><strong>20% lower</strong><span>model cost per task, on average</span></div>
 	</div>
+	<p class="open-source-label">Code audits · 60 tasks in Go and TypeScript · October 31, 2026</p>
+	<div class="evaluation-results">
+		<div><strong>26% fewer</strong><span>tool calls per task, on average</span></div>
+		<div><strong>25% less</strong><span>time per task, on average</span></div>
+		<div><strong>21% lower</strong><span>model cost per task, on average</span></div>
+	</div>
 	<details class="evaluation-method">
 		<summary>About the evaluation</summary>
 		<p>
-			Claude Sonnet 5.5 with and without Context Engine: 80 paired runs (40 code-navigation tasks,
-			two seeds) in two repositories. Tool calls per task fell from 14.2 to 10.4 and agent turns
-			from 15.2 to 11.4 (both p &lt; 0.001); model cost per task fell from $0.118 to $0.094
-			(p = 0.02). Answer accuracy held level (60.5% vs 61.3%). Intervals are task-clustered
-			bootstrap; p-values are task-level sign-flip permutation tests. An earlier October 5, 2026
-			evaluation with Claude Sonnet 4.5 measured file-and-symbol accuracy rising from 52.2% to
-			64.3%.
+			Code navigation: Claude Sonnet 5.5 with and without Context Engine, 80 paired runs (40
+			code-navigation tasks, two seeds) in two repositories. Tool calls per task fell from 14.2 to
+			10.4 and agent turns from 15.2 to 11.4 (both p &lt; 0.001); model cost per task fell from
+			$0.118 to $0.094 (p = 0.02). Answer accuracy held level (60.5% vs 61.3%). Intervals are
+			task-clustered bootstrap; p-values are task-level sign-flip permutation tests. An earlier
+			October 5, 2026 evaluation with Claude Sonnet 4.5 measured file-and-symbol accuracy rising
+			from 52.2% to 64.3%.
+		</p>
+		<p>
+			Code audits: Claude Sonnet 5.5 with and without Context Engine on 60 paired audit tasks (30 in
+			Gitea, Go; 30 in cal.com, TypeScript), one run each. Tool calls per task fell from 14.4 to
+			10.6 and agent turns from 15.4 to 11.6 (both p &lt; 0.001); model cost per task fell from
+			$0.185 to $0.146 (p &lt; 0.001) and time per task from 118 s to 88 s (p = 0.002).
 		</p>
 		<p>
 			With learning enabled, retrieval adapts as feedback accumulates. These measurements capture
