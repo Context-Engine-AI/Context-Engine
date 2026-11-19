@@ -18,7 +18,8 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # Pinned: Playwright 1.57 cannot install Chromium on the ubuntu-latest image (26.04)
+    runs-on: ubuntu-24.04
     
     steps:
       - name: Checkout
