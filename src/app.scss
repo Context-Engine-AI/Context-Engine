@@ -1116,7 +1116,33 @@ body::before {
   font-weight: 500;
 }
 
-.evaluation-results span, .evaluation-method {
+.evaluation-results span {
+  display: block;
+  margin-top: 4px;
+  font-size: 18px;
+  color: var(--text-primary);
+}
+
+.evaluation-lead {
+  font-size: 18px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.evaluation-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  margin: 40px 0 16px;
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.evaluation-heading span {
+  font-size: 15px;
+  font-weight: 400;
   color: var(--text-secondary);
 }
 
@@ -1124,6 +1150,7 @@ body::before {
   margin-top: 24px;
   max-width: 850px;
   font-size: 14px;
+  color: var(--text-secondary);
 }
 
 .evaluation-method summary {

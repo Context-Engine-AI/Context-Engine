@@ -20,6 +20,10 @@ test('home page explains model-agnostic intelligence and paid Starter pricing', 
 	await expect(page.locator('.evaluation-results').first()).toContainText('26% fewer');
 	await expect(page.locator('.evaluation-results').nth(1)).toContainText('30% fewer');
 	await expect(page.locator('.evaluation-results').nth(1)).toContainText('28% fewer');
+	await expect(page.getByRole('heading', { name: /^Code navigation/ })).toBeVisible();
+	await expect(page.getByRole('heading', { name: /^Code audits/ })).toBeVisible();
+	await expect(page.locator('.evaluation-results').first()).toContainText('tool calls');
+	await expect(page.locator('.evaluation-results').first()).not.toContainText('on average');
 	await expect(page.getByRole('link', { name: 'CoIR code-retrieval benchmark ↗' })).toHaveAttribute(
 		'href',
 		'https://github.com/CoIR-team/coir'

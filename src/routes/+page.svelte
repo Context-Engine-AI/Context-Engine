@@ -343,23 +343,28 @@
 
 <!-- Graph Section -->
 <section class="features-section" aria-labelledby="evaluation-title">
-	<p class="open-source-label">
-		Measured with real agent tasks · internal evaluations · October and November 2026
-	</p>
 	<h2 class="section-title" id="evaluation-title">
 		Fewer calls. <span class="gradient-text">Fewer turns. Lower cost.</span>
 	</h2>
-	<p class="open-source-label">Code navigation · 40 tasks · October 20, 2026</p>
+	<p class="section-subtitle evaluation-lead">
+		The same coding agent on the same tasks, with Context Engine and without. Measured in our own
+		evaluations.
+	</p>
+	<h3 class="evaluation-heading">
+		Code navigation <span>40 tasks · October 20, 2026</span>
+	</h3>
 	<div class="evaluation-results">
-		<div><strong>26% fewer</strong><span>tool calls per task, on average</span></div>
-		<div><strong>25% fewer</strong><span>agent turns per task, on average</span></div>
-		<div><strong>20% lower</strong><span>model cost per task, on average</span></div>
+		<div><strong>26% fewer</strong><span>tool calls</span></div>
+		<div><strong>25% fewer</strong><span>agent turns</span></div>
+		<div><strong>20% lower</strong><span>model cost</span></div>
 	</div>
-	<p class="open-source-label">Code audits · 60 tasks in Go and TypeScript · November 18, 2026</p>
+	<h3 class="evaluation-heading">
+		Code audits <span>60 tasks in Go and TypeScript · November 18, 2026</span>
+	</h3>
 	<div class="evaluation-results">
-		<div><strong>30% fewer</strong><span>tool calls per task, on average</span></div>
-		<div><strong>28% fewer</strong><span>agent turns per task, on average</span></div>
-		<div><strong>24% lower</strong><span>model cost per task, on average</span></div>
+		<div><strong>30% fewer</strong><span>tool calls</span></div>
+		<div><strong>28% fewer</strong><span>agent turns</span></div>
+		<div><strong>24% lower</strong><span>model cost</span></div>
 	</div>
 	<details class="evaluation-method">
 		<summary>About the evaluation</summary>
