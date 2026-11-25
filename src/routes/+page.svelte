@@ -359,12 +359,12 @@
 		<div><strong>20% lower</strong><span>model cost</span></div>
 	</div>
 	<h3 class="evaluation-heading">
-		Code audits <span>60 tasks in Go and TypeScript · November 18, 2026</span>
+		Code audits <span>60 tasks in Go and TypeScript · November 25, 2026</span>
 	</h3>
 	<div class="evaluation-results">
-		<div><strong>30% fewer</strong><span>tool calls</span></div>
-		<div><strong>28% fewer</strong><span>agent turns</span></div>
-		<div><strong>24% lower</strong><span>model cost</span></div>
+		<div><strong>37% fewer</strong><span>tool calls</span></div>
+		<div><strong>35% fewer</strong><span>agent turns</span></div>
+		<div><strong>20% lower</strong><span>model cost</span></div>
 	</div>
 	<details class="evaluation-method">
 		<summary>About the evaluation</summary>
@@ -380,14 +380,15 @@
 		<p>
 			Code audits: Claude Sonnet 5.5 with and without Context Engine on 60 paired audit tasks (30 in
 			Gitea, Go; 30 in cal.com, TypeScript), two runs each (120 paired runs), both arms run on
-			November 18, 2026. Tool calls per task fell from 14.6 to 10.3 and agent turns from 15.6 to
-			11.3 (both p &lt; 0.001); model cost per task fell from $0.193 to $0.147 (p = 0.004). Time per
-			task showed no reliable difference (58 s and 59 s). One run, where the unassisted agent took
-			102 turns, carries part of this: without that task tool calls fell 25%, agent turns 23% and
-			cost 15%. A blind judge (Claude Opus 5.5) scored the answers somewhat lower with Context
-			Engine: correctness 7.6 against 7.9 out of 10 (p = 0.02) and overall answer quality 7.1
-			against 7.5 (p = 0.007). The October 31, 2026 run of the same tasks, one run each, measured
-			26% fewer tool calls and 21% lower cost.
+			November 25, 2026, with Context Engine as served that day, its sweep tool included. Tool calls
+			per task fell from 13.8 to 8.7 and agent turns from 14.8 to 9.7 (both p &lt; 0.001); model
+			cost per task fell from $0.173 to $0.138 (p = 0.002). Without the unassisted agent's two
+			largest tasks, tool calls fell 36%, agent turns 33% and cost 15%. Time per task is not
+			reported for this run. A blind judge (Claude Opus 5.5) scored the answers somewhat lower with
+			Context Engine: correctness 7.5 against 8.0 out of 10 (p = 0.001) and overall answer quality
+			7.0 against 7.6 (p = 0.002). The November 18, 2026 run of the same tasks, before the sweep
+			tool, measured 30% fewer tool calls and 24% lower cost; the October 31, 2026 run, one run
+			each, 26% fewer tool calls and 21% lower cost.
 		</p>
 		<p>
 			With learning enabled, retrieval adapts as feedback accumulates. These measurements capture
